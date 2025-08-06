@@ -25,13 +25,6 @@ type Image = image.Image
 // Surface is an ebiten.Image
 type Surface = ebiten.Image
 
-// Style is the style of an Element.
-type Style struct {
-	Fore   Color
-	Back   Color
-	Margin Point
-}
-
 // State is the state of an Element.
 type State struct {
 	Focus bool
@@ -45,6 +38,13 @@ type State struct {
 // Bounds are the bounds of an element
 type Bounds struct {
 	Rectangle
+}
+
+// NewBounds return a new bounds for an element
+func NewBounds(x, y, w, h int) Bounds {
+	b := Bounds{}
+	b.Rectangle = image.Rect(x, y, x+w, y+h)
+	return b
 }
 
 // Element is a basic UI element, component or widget.

@@ -10,6 +10,11 @@ type Widget struct {
 
 func (w *Widget) Init(r *Root, options ...Applier) *Widget {
 	w.root = r
+	if r != nil {
+		w.style = r.style
+	} else {
+		w.style = DefaultStyle()
+	}
 	for _, opt := range options {
 		opt.Apply(w)
 	}
@@ -37,7 +42,7 @@ var _ Applier = Style{}
 
 // Draw is called when the element needs to be drawn
 func (w Widget) Draw(screen *Surface) {
-
+	w.style.DrawBox(screen, w.bounds.Rectangle)
 }
 
 // Place places the widget at the given bounds.

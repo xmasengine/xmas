@@ -28,7 +28,13 @@ func (r *Root) Update() error {
 
 // Draw is called when the UI needs to be drawn
 func (r *Root) Draw(screen *Surface) {
-
+	l := r.Contain()
+	for _, e := range l {
+		state := e.State()
+		if !state.Hide {
+			e.Draw(screen)
+		}
+	}
 }
 
 // Layout is called when the contents of the element need to be laid out.

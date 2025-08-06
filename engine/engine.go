@@ -10,6 +10,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
+import (
+	"github.com/xmasengine/xmas/tree"
+)
+
 // const ViewWidth = 320 // 2
 
 const ViewWidth = 426  // *2
@@ -24,13 +28,23 @@ type Engine struct {
 	DebugRow   int
 	ScreenSize image.Point
 	At         image.Rectangle
+	Root       *tree.Root
 }
 
 func New(sw, sh int) *Engine {
-	Engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
-	Engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
-	Engine.Pressed = make([]ebiten.Key, 16)
-	return Engine
+	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
+	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
+	engine.Pressed = make([]ebiten.Key, 16)
+	engine.Root = tree.NewRoot(
+		tree.NewBounds(0, 0, ViewWidth, ViewHeight),
+		tree.NewList(
+			tree.NewBox(
+				engine.Root,
+				tree.NewBounds(20, 30, 200, 150),
+			),
+		),
+	)
+	return engine
 }
 
 func (g *Engine) Update() error {
@@ -58,6 +72,7 @@ func (g *Engine) Update() error {
 const tileDebug = false
 
 func (g *Engine) Draw(screen *ebiten.Image) {
+	g.Root.Draw(screen)
 }
 
 func (g *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {

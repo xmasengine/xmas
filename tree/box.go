@@ -56,6 +56,7 @@ func (l List) Apply(e Element) {
 
 // Drab is called when the element needs to be drawn
 func (b Box) Draw(screen *Surface) {
+	b.Widget.Draw(screen)
 	l := b.Contain()
 	for _, e := range l {
 		state := e.State()
