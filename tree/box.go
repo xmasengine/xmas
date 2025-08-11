@@ -102,3 +102,15 @@ func (b Box) State() State {
 func (b *Box) Modify(state State) {
 	b.state = state
 }
+
+func (b *Box) OnHover(at Point) Result {
+	b.state.Hover = true
+	return true
+}
+
+func (b *Box) OnUnhover(at Point) Result {
+	b.state.Hover = false
+	return false
+}
+
+var _ Hoverable = &Box{}

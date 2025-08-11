@@ -100,32 +100,22 @@ type Container interface {
 
 type Result bool
 
-// KeyHandler is an Element that can handle a key.
-type KeyHandler interface {
-	Element
-	KeyHandle(sym int, ch rune) Result
-}
+func FindTop(at Point, c Container) Element {
+	elts := c.Contain()
+	for i := len(elts) - 1; i >= 0; i-- {
+		elt := elts[i]
+		if sub, ok := elt.(Container); ok {
+			found := FindTop(at, sub)
+			if found != nil {
+				return found
+			}
+		}
 
-// MouseHandler is an Element that can handle mouse moves.
-type MouseHandler interface {
-	Element
-	MouseHandle(delta Point) Result
-}
-
-// ClickHandler is an Element that can handle mouse clicks.
-type ClickHandler interface {
-	Element
-	ClickHandle(delta Point, button int) Result
-}
-
-// PressHandler is an Element that can joypad button presses.
-type PressHandler interface {
-	Element
-	PressHandle(button int) Result
-}
-
-// MoveHandler is an Element that can joypad axe motions.
-type MoveHandler interface {
-	Element
-	MoveHandle(delta Point, axe int) Result
+		bounds := elt.Bounds().Rectangle
+		println("bounds", bounds.Min.X, bounds.Min.Y)
+		if at.In(bounds) {
+			return elt
+		}
+	}
+	return nil
 }

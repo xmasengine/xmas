@@ -42,6 +42,12 @@ func FocusStyle() Style {
 	return s
 }
 
+func HoverStyle() Style {
+	s := DefaultStyle()
+	s.Fill = color.RGBA{50, 50, 250, 250}
+	return s
+}
+
 func FillRect(Surface *Surface, r Rectangle, col color.RGBA) {
 	vector.DrawFilledRect(
 		Surface, float32(r.Min.X), float32(r.Min.Y),

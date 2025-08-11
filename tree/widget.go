@@ -42,7 +42,11 @@ var _ Applier = Style{}
 
 // Draw is called when the element needs to be drawn
 func (w Widget) Draw(screen *Surface) {
-	w.style.DrawBox(screen, w.bounds.Rectangle)
+	if w.state.Hover {
+		HoverStyle().DrawBox(screen, w.bounds.Rectangle)
+	} else {
+		w.style.DrawBox(screen, w.bounds.Rectangle)
+	}
 }
 
 // Place places the widget at the given bounds.

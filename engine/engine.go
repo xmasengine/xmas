@@ -42,12 +42,20 @@ func New(sw, sh int) *Engine {
 				engine.Root,
 				tree.NewBounds(20, 30, 200, 150),
 			),
+			tree.NewBox(
+				engine.Root,
+				tree.NewBounds(70, 90, 150, 100),
+			),
 		),
 	)
 	return engine
 }
 
 func (g *Engine) Update() error {
+	if g.Root != nil {
+		g.Root.Update()
+	}
+
 	g.Pressed = g.Pressed[:0]
 	g.Pressed = inpututil.AppendPressedKeys(g.Pressed)
 	for _, k := range g.Pressed {
