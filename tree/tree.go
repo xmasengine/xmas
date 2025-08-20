@@ -119,3 +119,19 @@ func FindTop(at Point, c Container) Element {
 	}
 	return nil
 }
+
+// Control is the abstract implementation part of the UI Node.
+type Control interface {
+	// Draw is called when the tree needs to be drawn.
+	Draw(screen *ebiten.Image)
+}
+
+// Node is a UI tree node.
+// It is a concrete struct with an abstract implementation.
+type Node struct {
+	Control
+	Parent *Node
+	Bounds Rectangle
+	State  State
+	Nodes  []*Node
+}
