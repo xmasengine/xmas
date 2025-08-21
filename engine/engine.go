@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	"github.com/xmasengine/xmas/tree"
+	"github.com/xmasengine/xmas/xui"
 )
 
 // const ViewWidth = 320 // 2
@@ -28,25 +28,17 @@ type Engine struct {
 	DebugRow   int
 	ScreenSize image.Point
 	At         image.Rectangle
-	Root       *tree.Root
+	Root       *xui.Root
 }
 
 func New(sw, sh int) *Engine {
 	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
-	engine.Root = tree.NewRoot(
-		tree.NewBounds(0, 0, ViewWidth, ViewHeight),
-		tree.NewList(
-			tree.NewBox(
-				engine.Root,
-				tree.NewBounds(20, 30, 200, 150),
-			),
-			tree.NewBox(
-				engine.Root,
-				tree.NewBounds(70, 90, 150, 100),
-			),
-		),
+	engine.Root = &xui.Root{}
+	engine.Root.Panels = append(engine.Root.Panels,
+		xui.NewBox(image.Rect(20, 30, 200, 150)),
+		xui.NewBox(image.Rect(70, 90, 150, 100)),
 	)
 	return engine
 }

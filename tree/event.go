@@ -58,3 +58,72 @@ type UpdateHandler interface {
 	TouchHandler
 	MouseHandler
 }
+
+type Event struct {
+	Msg Message
+	Pad struct {
+		ID       int
+		Button   int
+		Duration int
+		Axes     []float64
+	}
+	Key struct {
+		ID       int
+		Code     int
+		Duration int
+		Chars    string
+	}
+	Touch struct {
+		ID       int
+		At       Point
+		Delta    Point
+		Duration int
+	}
+	Mouse struct {
+		ID       int
+		At       Point
+		Delta    Point
+		Duration int
+		Wheel    Point
+	}
+	Action struct {
+		At    Point
+		Delta Point
+	}
+	Layout struct {
+		Bounds Rectangle
+	}
+}
+
+type Message int
+
+const (
+	NoMessage Message = iota
+	PadDetach
+	PadAttach
+	PadPress
+	PadHold
+	PadRelease
+	PadMove
+	KeyPress
+	KeyHold
+	KeyRelease
+	KeyText
+	TouchPress
+	TouchHold
+	TouchRelease
+	MousePress
+	MouseRelease
+	MouseMove
+	MouseWheel
+	ActionFocus
+	ActionBlur
+	ActionHover
+	ActionCrash
+	ActionDrag
+	ActionDrop
+	ActionMark
+	ActionClean
+	LayoutGet
+	LayoutSet
+)

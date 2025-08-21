@@ -1,0 +1,514 @@
+// Package xui is the xmas engine UI package.
+// To keep everything relatively simple, there can only be a single active UI
+// However this UI can consist of multiple panels.
+// Only one panel is active at the time.
+// Each panels has a set of widgets.
+// Only one widget per panel is active at one time.
+// Widget cannot contain any sub widgets.
+// Each widget needs to be fully contained in the panel and may not overflow it.
+// Effectively this means the UI is "flat" apart from the panels which have
+// a Z ordering.
+package xui
+
+import (
+	"image"
+	"image/color"
+)
+
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/exp/textinput"
+	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
+)
+
+// TextInputField is an input field for IME text entry.
+type TextInputField struct {
+	textinput.Field
+	Point
+}
+
+// Keymods are the current key modifers.
+type KeyMods struct {
+	Alt     bool
+	Control bool
+	Shift   bool
+	Meta    bool
+}
+
+// Rectangle is used for sizes and positions.
+type Rectangle = image.Rectangle
+
+// Point is used for position and offsets.
+type Point = image.Point
+
+// Color is a color.
+type Color = color.Color
+
+// Image is an image.Image
+type Image = image.Image
+
+// Surface is an ebiten.Image
+type Surface = ebiten.Image
+
+// RGBA is an RGBA color.
+type RGBA = color.RGBA
+
+// Style is the style of a Widget or Panel.
+type Style struct {
+	Fore    RGBA
+	Border  RGBA
+	Shadow  RGBA
+	Fill    RGBA
+	Writing RGBA
+	Margin  Point
+	Stroke  int
+}
+
+// Root is the top level of the UI.
+type Root struct {
+	Panels []*Panel // Panels of the UI.
+
+	TextInputFields []*TextInputField // Text input fields in use
+	cx, cy          int
+	chars           []rune
+	KeyMods         KeyMods // Current key KeyMods
+	connected       []ebiten.GamepadID
+	gamepads        []ebiten.GamepadID
+	NoTouchMouse    bool   // NoTouchMouse: set this to true to not translate touches to mouse events.
+	Focus           *Panel // Focus is the Panel that has the input focus.
+	Hover           *Panel // Hover is the Panel that is being hovered by the mouse.
+	Drag            *Panel // Drag is the panel that is being dragged by the mouse or touch.
+	Mark            *Panel // Mark is the panel that has the joystick and arrow key marker.
+	Handler                // Default event handler, used none of the panels accepts the event.
+}
+
+// Message is a kind of message that is sent to the UI components.
+type Message int
+
+const (
+	NoMessage Message = iota
+	PadDetach
+	PadAttach
+	PadPress
+	PadHold
+	PadRelease
+	PadMove
+	KeyPress
+	KeyHold
+	KeyRelease
+	KeyText
+	TouchPress
+	TouchHold
+	TouchRelease
+	MousePress
+	MouseRelease
+	MouseHold
+	MouseMove
+	MouseWheel
+	ActionFocus
+	ActionBlur
+	ActionHover
+	ActionCrash
+	ActionDrag
+	ActionDrop
+	ActionMark
+	ActionClean
+	LayoutGet
+	LayoutSet
+)
+
+// Event in an event that is sent to the UI components.
+type Event struct {
+	Msg      Message
+	ID       int
+	Button   int
+	Duration int
+	Axes     []float64
+	Code     int
+	Chars    string
+	At       Point
+	Delta    Point
+	Wheel    Point
+	Bounds   Rectangle
+}
+
+// State is the state of a Widget or Panel, or a requested state change.
+type State struct {
+	Focus bool
+	Hover bool
+	Pause bool
+	Hide  bool
+	Clip  bool
+}
+
+// Result is the result of an event handler
+type Result struct {
+	OK    bool
+	State State // Reqquested state of the widget or panel.
+}
+
+// A control can draw itself and handle events events.
+type Handler interface {
+	// Draws draws the widget or panel.
+	// The root is passed for convenience, for example to
+	// get fonts easily.
+	Draw(*Root, *Surface)
+
+	// Handle should handle the event and return the result.
+	// The root is passed for convenience, for example to
+	// manipulate other panels easily.
+	// A widget or panel will only receive events that it is intent to handle,
+	// but it will not receive any mouse clicks ort ouches outside of its
+	// bounds, unless if it is an active panel being dragged.
+	Handle(*Root, Event) bool
+}
+
+// Widget is a widget in the UI. It is part of a panel.
+type Widget struct {
+	Handler           // A widget must be an event handler.
+	Bounds  Rectangle // Actual position and size of the widget.
+	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
+	Style   Style
+	State   State
+}
+
+// Panel is a panel in the UI it is a part of the UI that
+// responds to input events.
+type Panel struct {
+	Handler           // A panel must be an event handler.
+	Bounds  Rectangle // Actual position of the panel.
+	Size    Rectangle // Size is the desired size of the panel, may be bigger than Bounds, and offset from it for scrolling.
+	Style   Style
+	State   State
+	Widgets []*Widget // Widgets of the panel.
+}
+
+func (r *Root) FindTop(at Point) *Panel {
+	for i := len(r.Panels) - 1; i >= 0; i-- {
+		p := r.Panels[i]
+		if at.In(p.Bounds) {
+			return p
+		}
+	}
+	return nil
+}
+
+func (r *Root) HandleMouseMove(e Event) bool {
+	hover := r.FindTop(e.At)
+
+	if r.Hover != nil && r.Hover != hover {
+		r.Hover.Handle(r, Event{Msg: ActionCrash, At: e.At})
+	}
+
+	r.Hover = hover
+	if r.Hover != nil {
+		return r.Hover.Handle(r, Event{Msg: ActionHover, At: e.At})
+	}
+	return false
+}
+
+func (r *Root) On(e Event) bool {
+	switch e.Msg {
+	case MouseMove:
+		return r.HandleMouseMove(e)
+	default:
+		return false
+	}
+}
+
+// Update is called 60 times per second.
+// Input should be checked during this function.
+func (r *Root) Update() error {
+	for _, gid := range r.gamepads {
+		if inpututil.IsGamepadJustDisconnected(gid) {
+			r.On(Event{Msg: PadDetach, ID: int(gid)})
+		}
+	}
+
+	r.connected = inpututil.AppendJustConnectedGamepadIDs(nil)
+	for _, gid := range r.connected {
+		r.On(Event{Msg: PadAttach, ID: int(gid)})
+	}
+
+	r.gamepads = r.gamepads[0:0]
+	r.gamepads = ebiten.AppendGamepadIDs(r.gamepads)
+	for _, gid := range r.gamepads {
+		buttons := inpututil.AppendJustPressedGamepadButtons(gid, nil)
+		for _, button := range buttons {
+			r.On(Event{Msg: PadPress, ID: int(gid), Button: int(button)})
+		}
+
+		buttons = inpututil.AppendPressedGamepadButtons(gid, nil)
+		for _, button := range buttons {
+			dur := inpututil.GamepadButtonPressDuration(gid, button)
+			r.On(Event{Msg: PadHold, ID: int(gid), Button: int(button), Duration: dur})
+		}
+
+		buttons = inpututil.AppendJustReleasedGamepadButtons(gid, nil)
+		for _, button := range buttons {
+			r.On(Event{Msg: PadRelease, ID: int(gid), Button: int(button)})
+		}
+
+		count := ebiten.GamepadAxisCount(gid)
+		axes := make([]float64, count)
+		moved := false
+		for axis := 0; axis < count; axis++ {
+			value := ebiten.GamepadAxisValue(gid, axis)
+			axes[axis] = value
+			moved = moved || ((value > 0.1) || (value < -0.1))
+		}
+		if (len(axes) > 0) && moved {
+			r.On(Event{Msg: PadRelease, ID: int(gid), Axes: axes})
+		}
+	}
+
+	keys := inpututil.AppendJustPressedKeys(nil)
+	for _, key := range keys {
+		r.On(Event{Msg: KeyPress, Code: int(key)})
+	}
+
+	keys = inpututil.AppendPressedKeys(nil)
+	for _, key := range keys {
+		dur := inpututil.KeyPressDuration(key)
+		r.On(Event{Msg: KeyHold, Code: int(key), Duration: dur})
+	}
+
+	keys = inpututil.AppendJustReleasedKeys(nil)
+	for _, key := range keys {
+		r.On(Event{Msg: KeyRelease, Code: int(key)})
+	}
+
+	if len(r.chars) == 0 && cap(r.chars) == 0 {
+		r.chars = make([]rune, 0, 32)
+	} else {
+		r.chars = r.chars[0:0]
+	}
+
+	r.chars = ebiten.AppendInputChars(r.chars)
+	if len(r.chars) > 0 {
+		r.On(Event{Msg: KeyText, ID: -1, Chars: string(r.chars)})
+	}
+	r.chars = r.chars[0:0]
+
+	for id, field := range r.TextInputFields {
+		if field.IsFocused() {
+			handled, _ := field.HandleInput(field.X, field.Y)
+			if handled {
+				r.On(Event{Msg: KeyText, ID: id, Chars: field.Text()})
+			}
+		}
+	}
+
+	touches := inpututil.AppendJustPressedTouchIDs(nil)
+	for _, touch := range touches {
+		x, y := ebiten.TouchPosition(touch)
+		r.On(Event{Msg: TouchPress, ID: int(touch), At: image.Pt(x, y)})
+	}
+
+	touches = ebiten.AppendTouchIDs(nil)
+	for _, touch := range touches {
+		x, y := ebiten.TouchPosition(touch)
+		px, py := inpututil.TouchPositionInPreviousTick(touch)
+		dx, dy := x-px, y-py
+		dur := inpututil.TouchPressDuration(touch)
+		r.On(Event{Msg: TouchHold, ID: int(touch), At: image.Pt(x, y), Delta: image.Pt(dx, dy), Duration: dur})
+	}
+
+	touches = inpututil.AppendJustReleasedTouchIDs(nil)
+	for _, touch := range touches {
+		x, y := ebiten.TouchPosition(touch)
+		r.On(Event{Msg: TouchRelease, ID: int(touch), At: image.Pt(x, y)})
+	}
+
+	x, y := ebiten.CursorPosition()
+	dx, dy := x-r.cx, y-r.cy
+	at := image.Pt(x, y)
+	delta := image.Pt(dx, dy)
+
+	for mb := ebiten.MouseButton(0); mb < ebiten.MouseButtonMax; mb++ {
+		if inpututil.IsMouseButtonJustPressed(mb) {
+			r.On(Event{Msg: MousePress, At: at, Delta: delta})
+		}
+		if ebiten.IsMouseButtonPressed(mb) {
+			dur := inpututil.MouseButtonPressDuration(mb)
+			r.On(Event{Msg: MouseHold, At: at, Delta: delta, Duration: dur})
+		}
+		if inpututil.IsMouseButtonJustReleased(mb) {
+			r.On(Event{Msg: MouseRelease, At: at, Delta: delta})
+		}
+	}
+	if dx != 0 || dy != 0 {
+		r.On(Event{Msg: MouseMove, At: at, Delta: delta})
+	}
+	r.cx = x
+	r.cy = y
+
+	wx, wy := ebiten.Wheel()
+	if wx != 0 || wy != 0 {
+		wheel := image.Pt(int(wx), int(wy))
+		r.On(Event{Msg: MouseWheel, At: at, Delta: delta, Wheel: wheel})
+	}
+
+	return nil
+}
+
+// Draw is called when the UI needs to be drawn
+func (r *Root) Draw(screen *Surface) {
+	for _, p := range r.Panels {
+		if !p.State.Hide {
+			p.Draw(r, screen)
+		}
+	}
+}
+
+// Layout is called when the contents of the element need to be laid out.
+// The element should accept that the available size is less than its
+// real size and draw it appropiately, such as scrolling.
+// The returned elementWidth and elementHeight must be smaller than
+// or equal to the available width.
+func (r *Root) Layout(availableWidth, availableHeight int) (elementWidth, elementHeight int) {
+
+	return availableWidth, availableHeight
+}
+
+func DefaultStyle() Style {
+	s := Style{}
+	s.Border = color.RGBA{240, 240, 240, 245}
+	s.Writing = color.RGBA{245, 245, 245, 245}
+	s.Shadow = color.RGBA{15, 15, 15, 191}
+	s.Fill = color.RGBA{0, 0, 245, 245}
+	// s.Face = DefaultFontFace()
+	s.Stroke = 1
+	s.Margin = image.Pt(2, 2)
+	return s
+}
+
+func FocusStyle() Style {
+	s := DefaultStyle()
+	s.Border = color.RGBA{240, 240, 50, 245}
+	s.Writing = color.RGBA{245, 245, 245, 245}
+	s.Fill = color.RGBA{128, 128, 245, 245}
+	return s
+}
+
+func HoverStyle() Style {
+	s := DefaultStyle()
+	s.Border = color.RGBA{240, 240, 50, 250}
+	return s
+}
+
+func FillRect(Surface *Surface, r Rectangle, col color.RGBA) {
+	vector.DrawFilledRect(
+		Surface, float32(r.Min.X), float32(r.Min.Y),
+		float32(r.Dx()), float32(r.Dy()),
+		col, false,
+	)
+}
+
+func DrawRect(Surface *Surface, r Rectangle, thick int, col color.RGBA) {
+	vector.StrokeRect(
+		Surface, float32(r.Min.X), float32(r.Min.Y),
+		float32(r.Dx()), float32(r.Dy()),
+		float32(thick), col, false,
+	)
+}
+
+// DrawsLine draws a line on the diagonal of the Rectangle r.
+func DrawLine(Surface *Surface, r Rectangle, thick int, col color.RGBA) {
+	vector.StrokeLine(
+		Surface, float32(r.Min.X), float32(r.Min.Y),
+		float32(r.Max.X), float32(r.Max.Y),
+		float32(thick), col, false,
+	)
+}
+
+func (s Style) DrawRect(Surface *Surface, r Rectangle) {
+	DrawRect(Surface, r, int(s.Stroke), s.Border)
+}
+
+func (s Style) DrawBox(Surface *Surface, r Rectangle) {
+	if s.Shadow.A != 0 {
+		shadow := s.Shadow
+		shadow.A = (shadow.A / 2) + 1 // make half transparent
+		right := image.Rect(r.Max.X+1, r.Min.Y+1, r.Max.X+1, r.Max.Y+1)
+		DrawLine(Surface, right, 1, shadow)
+		bottom := image.Rect(r.Min.X+1, r.Max.Y+1, r.Max.X+1, r.Max.Y+1)
+		DrawLine(Surface, bottom, 1, shadow)
+	}
+
+	vector.DrawFilledRect(
+		Surface, float32(r.Min.X), float32(r.Min.Y),
+		float32(r.Dx()), float32(r.Dy()), s.Fill, false,
+	)
+
+	if s.Stroke > 0 {
+		vector.StrokeRect(
+			Surface, float32(r.Min.X), float32(r.Min.Y),
+			float32(r.Dx()), float32(r.Dy()),
+			float32(s.Stroke), s.Border, false,
+		)
+	}
+}
+
+func (s Style) DrawCircleInBox(Surface *Surface, box Rectangle) {
+	r := box.Dx()
+	if box.Dy() < r {
+		r = box.Dy()
+	}
+	r = r / 2
+	c := image.Pt((box.Min.X+box.Max.X)/2, (box.Min.Y+box.Max.Y)/2)
+	s.DrawCircle(Surface, c, r)
+}
+
+func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
+	if r < 0 {
+		r = 1
+	}
+	vector.DrawFilledCircle(Surface, float32(c.X), float32(c.Y),
+		float32(r), s.Fill, false)
+
+	if s.Stroke > 0 {
+		vector.StrokeCircle(
+			Surface, float32(c.X), float32(c.Y),
+			float32(r), float32(s.Stroke), s.Border, false,
+		)
+	}
+}
+
+func NewBox(bounds Rectangle) *Panel {
+	p := &Panel{Bounds: bounds, Style: DefaultStyle()}
+	p.Handler = &box{Panel: p}
+	return p
+}
+
+type box struct {
+	*Panel
+}
+
+// Drab is called when the element needs to be drawn
+func (b box) Draw(r *Root, screen *Surface) {
+	style := b.Style
+	if b.State.Hover {
+		style = HoverStyle()
+	}
+	style.DrawBox(screen, b.Bounds)
+	for _, w := range b.Widgets {
+		if !w.State.Hide {
+			w.Draw(r, screen)
+		}
+	}
+}
+
+func (b *box) Handle(r *Root, e Event) bool {
+	switch e.Msg {
+	case ActionHover:
+		b.State.Hover = true
+		return true
+	case ActionCrash:
+		b.State.Hover = false
+		return true
+	default:
+		return false
+	}
+}

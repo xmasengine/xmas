@@ -123,7 +123,9 @@ func FindTop(at Point, c Container) Element {
 // Control is the abstract implementation part of the UI Node.
 type Control interface {
 	// Draw is called when the tree needs to be drawn.
-	Draw(screen *ebiten.Image)
+	Draw(node *Node, screen *ebiten.Image)
+	// HandleEvent handles an event.
+	HandleEvent(node *Node, event Event) Result
 }
 
 // Node is a UI tree node.
@@ -133,5 +135,7 @@ type Node struct {
 	Parent *Node
 	Bounds Rectangle
 	State  State
-	Nodes  []*Node
+	Style  Style
+	Root   *Root
+	Groups []uint64
 }
