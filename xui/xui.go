@@ -67,20 +67,25 @@ type Style struct {
 
 // Root is the top level of the UI.
 type Root struct {
-	Panels []*Panel // Panels of the UI.
-
+	Panels          []*Panel          // Panels of the UI.
+	NoTouchMouse    bool              // NoTouchMouse: set this to true to not translate touches to mouse events.
 	TextInputFields []*TextInputField // Text input fields in use
 	cx, cy          int
 	chars           []rune
-	KeyMods         KeyMods // Current key KeyMods
+	keyMods         KeyMods // Current key KeyMods
 	connected       []ebiten.GamepadID
 	gamepads        []ebiten.GamepadID
-	NoTouchMouse    bool   // NoTouchMouse: set this to true to not translate touches to mouse events.
-	Focus           *Panel // Focus is the Panel that has the input focus.
-	Hover           *Panel // Hover is the Panel that is being hovered by the mouse.
-	Drag            *Panel // Drag is the panel that is being dragged by the mouse or touch.
-	Mark            *Panel // Mark is the panel that has the joystick and arrow key marker.
-	Handler                // Default event handler, used none of the panels accepts the event.
+	Focus           *Panel  // Focus is the Panel that has the input focus.
+	Hover           *Panel  // Hover is the Panel that is being hovered by the mouse.
+	Drag            *Panel  // Drag is the panel that is being dragged by the mouse or touch.
+	Mark            *Panel  // Mark is the panel that has the joystick and arrow key marker.
+	Default         Handler // Default event handler, used if of the panels accepts the event.
+}
+
+func NewRoot() *Root {
+	res := &Root{}
+	res.Default = Discard{}
+	return res
 }
 
 // Message is a kind of message that is sent to the UI components.
@@ -116,6 +121,7 @@ const (
 	ActionClean
 	LayoutGet
 	LayoutSet
+	LastMessage
 )
 
 // Event in an event that is sent to the UI components.
@@ -126,6 +132,7 @@ type Event struct {
 	Duration int
 	Axes     []float64
 	Code     int
+	Mods     KeyMods
 	Chars    string
 	At       Point
 	Delta    Point
@@ -148,13 +155,8 @@ type Result struct {
 	State State // Reqquested state of the widget or panel.
 }
 
-// A control can draw itself and handle events events.
+// Handler can handle events events.
 type Handler interface {
-	// Draws draws the widget or panel.
-	// The root is passed for convenience, for example to
-	// get fonts easily.
-	Draw(*Root, *Surface)
-
 	// Handle should handle the event and return the result.
 	// The root is passed for convenience, for example to
 	// manipulate other panels easily.
@@ -164,9 +166,105 @@ type Handler interface {
 	Handle(*Root, Event) bool
 }
 
+// A Renderer can render itself.
+type Renderer interface {
+	// Render renders the widget or panel.
+	// The root is passed for convenience, for example to
+	// get fonts easily.
+	Render(*Root, *Surface)
+}
+
+// A control is a renderer and a handler
+type Control interface {
+	Handler
+	Renderer
+}
+
+type defaultHandler struct {
+	norm Handler
+	def  Handler
+}
+
+func (d defaultHandler) Handle(r *Root, e Event) bool {
+	var res bool
+	if d.norm != nil {
+		res = d.norm.Handle(r, e)
+	}
+	if !res {
+		if d.def != nil {
+			res = d.def.Handle(r, e)
+		}
+	}
+	return res
+}
+
+// HandleDefault tries to call normal first, and then def if normal
+// returns false
+func HandleDefault(norm, def Handler) Handler {
+	return defaultHandler{norm: norm, def: def}
+}
+
+// Discard is a handler that does nothing.
+type Discard struct{}
+
+func (Discard) Handle(_ *Root, e Event) bool {
+	return false // ignore event.
+}
+
+// Invisible is a Renderer that does nothing.
+type Invisible struct{}
+
+func (Invisible) Render(_ *Root, _ *Surface) {
+}
+
+// Mapper is a handler that maps events to individual handlers.
+type Mapper struct {
+	Handlers [LastMessage]func(*Root, Event) bool
+	Renderer func(*Root, *Surface)
+}
+
+func (m Mapper) Handle(r *Root, e Event) bool {
+	if e.Msg <= NoMessage {
+		return false
+	}
+	if e.Msg >= LastMessage {
+		return false
+	}
+	handler := m.Handlers[e.Msg]
+	if handler == nil {
+		return false
+	}
+
+	return handler(r, e)
+}
+
+func (m Mapper) Render(r *Root, s *Surface) {
+	if m.Renderer != nil {
+		m.Renderer(r, s)
+	}
+}
+
+func NewMapper(r func(*Root, *Surface)) *Mapper {
+	m := &Mapper{}
+	m.Renderer = r
+	return m
+}
+
+func (m *Mapper) Add(e Message, h func(*Root, Event) bool) *Mapper {
+	if e <= NoMessage {
+		panic("Mapper.Add Message out of range")
+	}
+	if e >= LastMessage {
+		panic("Mapper.Add Message out of range")
+	}
+
+	m.Handlers[e] = h
+	return m
+}
+
 // Widget is a widget in the UI. It is part of a panel.
 type Widget struct {
-	Handler           // A widget must be an event handler.
+	Control           // A widget must be a Control.
 	Bounds  Rectangle // Actual position and size of the widget.
 	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
 	Style   Style
@@ -176,7 +274,7 @@ type Widget struct {
 // Panel is a panel in the UI it is a part of the UI that
 // responds to input events.
 type Panel struct {
-	Handler           // A panel must be an event handler.
+	Control           // A panel must be a Control.
 	Bounds  Rectangle // Actual position of the panel.
 	Size    Rectangle // Size is the desired size of the panel, may be bigger than Bounds, and offset from it for scrolling.
 	Style   Style
@@ -210,10 +308,64 @@ func (r *Root) HandleMouseMove(e Event) bool {
 
 func (r *Root) On(e Event) bool {
 	switch e.Msg {
+	case PadDetach:
+		return r.Default.Handle(r, e)
+	case PadAttach:
+		return r.Default.Handle(r, e)
+	case PadPress:
+		return r.Default.Handle(r, e)
+	case PadHold:
+		return r.Default.Handle(r, e)
+	case PadRelease:
+		return r.Default.Handle(r, e)
+	case PadMove:
+		return r.Default.Handle(r, e)
+	case KeyPress:
+		return r.Default.Handle(r, e)
+	case KeyHold:
+		return r.Default.Handle(r, e)
+	case KeyRelease:
+		return r.Default.Handle(r, e)
+	case KeyText:
+		return r.Default.Handle(r, e)
+	case TouchPress:
+		return r.Default.Handle(r, e)
+	case TouchHold:
+		return r.Default.Handle(r, e)
+	case TouchRelease:
+		return r.Default.Handle(r, e)
+	case MousePress:
+		return r.Default.Handle(r, e)
 	case MouseMove:
 		return r.HandleMouseMove(e)
+	case MouseRelease:
+		return r.Default.Handle(r, e)
+	case MouseHold:
+		return r.Default.Handle(r, e)
+	case MouseWheel:
+		return r.Default.Handle(r, e)
+	case ActionFocus:
+		return r.Default.Handle(r, e)
+	case ActionBlur:
+		return r.Default.Handle(r, e)
+	case ActionHover:
+		return r.Default.Handle(r, e)
+	case ActionCrash:
+		return r.Default.Handle(r, e)
+	case ActionDrag:
+		return r.Default.Handle(r, e)
+	case ActionDrop:
+		return r.Default.Handle(r, e)
+	case ActionMark:
+		return r.Default.Handle(r, e)
+	case ActionClean:
+		return r.Default.Handle(r, e)
+	case LayoutGet:
+		return r.Default.Handle(r, e)
+	case LayoutSet:
+		return r.Default.Handle(r, e)
 	default:
-		return false
+		panic("Unknown event message")
 	}
 }
 
@@ -353,11 +505,11 @@ func (r *Root) Update() error {
 	return nil
 }
 
-// Draw is called when the UI needs to be drawn
+// Draw is called when the UI needs to be drawn in game.ui
 func (r *Root) Draw(screen *Surface) {
 	for _, p := range r.Panels {
 		if !p.State.Hide {
-			p.Draw(r, screen)
+			p.Render(r, screen)
 		}
 	}
 }
@@ -374,7 +526,7 @@ func (r *Root) Layout(availableWidth, availableHeight int) (elementWidth, elemen
 
 func DefaultStyle() Style {
 	s := Style{}
-	s.Border = color.RGBA{240, 240, 240, 245}
+	s.Border = color.RGBA{50, 50, 50, 245}
 	s.Writing = color.RGBA{245, 245, 245, 245}
 	s.Shadow = color.RGBA{15, 15, 15, 191}
 	s.Fill = color.RGBA{0, 0, 245, 245}
@@ -386,7 +538,7 @@ func DefaultStyle() Style {
 
 func FocusStyle() Style {
 	s := DefaultStyle()
-	s.Border = color.RGBA{240, 240, 50, 245}
+	s.Border = color.RGBA{240, 240, 240, 245}
 	s.Writing = color.RGBA{245, 245, 245, 245}
 	s.Fill = color.RGBA{128, 128, 245, 245}
 	return s
@@ -478,7 +630,7 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 
 func NewBox(bounds Rectangle) *Panel {
 	p := &Panel{Bounds: bounds, Style: DefaultStyle()}
-	p.Handler = &box{Panel: p}
+	p.Control = &box{Panel: p}
 	return p
 }
 
@@ -486,8 +638,8 @@ type box struct {
 	*Panel
 }
 
-// Drab is called when the element needs to be drawn
-func (b box) Draw(r *Root, screen *Surface) {
+// Render is called when the element needs to be drawn
+func (b box) Render(r *Root, screen *Surface) {
 	style := b.Style
 	if b.State.Hover {
 		style = HoverStyle()
@@ -495,7 +647,7 @@ func (b box) Draw(r *Root, screen *Surface) {
 	style.DrawBox(screen, b.Bounds)
 	for _, w := range b.Widgets {
 		if !w.State.Hide {
-			w.Draw(r, screen)
+			w.Render(r, screen)
 		}
 	}
 }

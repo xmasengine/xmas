@@ -35,7 +35,7 @@ func New(sw, sh int) *Engine {
 	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
-	engine.Root = &xui.Root{}
+	engine.Root = xui.NewRoot()
 	engine.Root.Panels = append(engine.Root.Panels,
 		xui.NewBox(image.Rect(20, 30, 200, 150)),
 		xui.NewBox(image.Rect(70, 90, 150, 100)),
