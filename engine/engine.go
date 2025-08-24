@@ -36,10 +36,10 @@ func New(sw, sh int) *Engine {
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
-	engine.Root.Panels = append(engine.Root.Panels,
-		xui.NewBox(image.Rect(20, 30, 200, 150)),
-		xui.NewBox(image.Rect(70, 90, 150, 100)),
-	)
+	box1 := xui.NewBox(image.Rect(20, 30, 200, 150))
+	box2 := xui.NewBox(image.Rect(70, 90, 150, 100))
+	box1.AddButton(image.Rect(25, 130, 125, 147), "Button")
+	engine.Root.Panels = append(engine.Root.Panels, box1, box2)
 	return engine
 }
 

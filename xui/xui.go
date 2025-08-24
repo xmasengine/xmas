@@ -13,12 +13,15 @@ package xui
 import (
 	"image"
 	"image/color"
+	"strings"
 )
 
 import (
+	"github.com/hajimehoshi/bitmapfont/v3"
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/exp/textinput"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
@@ -54,6 +57,9 @@ type Surface = ebiten.Image
 // RGBA is an RGBA color.
 type RGBA = color.RGBA
 
+// Face is a font face
+type Face = text.Face
+
 // Style is the style of a Widget or Panel.
 type Style struct {
 	Fore    RGBA
@@ -63,6 +69,47 @@ type Style struct {
 	Writing RGBA
 	Margin  Point
 	Stroke  int
+	Face    Face
+}
+
+var defaultFontFace = text.NewGoXFace(bitmapfont.Face)
+
+func DrawTextLine(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
+	opts := text.DrawOptions{}
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.ColorScale.Scale(
+		float32(color.R)/255.0,
+		float32(color.G)/255.0,
+		float32(color.B)/255.0,
+		float32(color.A)/255.0,
+	)
+	text.Draw(dst, str, face, &opts)
+}
+
+func DrawText(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
+	lines := strings.Split(str, "\n")
+	for _, line := range lines {
+		DrawTextLine(dst, face, color, x, y, line)
+		y += LineHeight(face)
+	}
+}
+
+func MeasureText(txt string, face Face, lineSpacingInPixels float64) (width, height float64) {
+	return text.Measure(txt, face, lineSpacingInPixels)
+}
+
+func (s Style) MeasureText(txt string) Point {
+	w, h := text.Measure(txt, s.Face, float64(LineHeight(s.Face)))
+	return image.Pt(int(w), int(h))
+}
+
+func (s Style) DrawText(dst *Surface, at Point, txt string) {
+	pt := at.Add(s.Margin)
+	DrawText(dst, s.Face, s.Writing, pt.X, pt.Y, txt)
+}
+
+func LineHeight(face Face) int {
+	return int(face.Metrics().HAscent + face.Metrics().HDescent + face.Metrics().HLineGap)
 }
 
 // Root is the top level of the UI.
@@ -260,6 +307,134 @@ func (m *Mapper) Add(e Message, h func(*Root, Event) bool) *Mapper {
 
 	m.Handlers[e] = h
 	return m
+}
+
+type Dispatcher struct {
+	Target any
+}
+
+func (d Dispatcher) Handle(r *Root, e Event) bool {
+	return Dispatch(d.Target, r, e)
+}
+
+func Dispatch(d any, r *Root, e Event) bool {
+	switch e.Msg {
+	case PadDetach:
+		if impl, ok := d.(interface{ OnPadDetach(r *Root, e Event) bool }); ok {
+			return impl.OnPadDetach(r, e)
+		}
+	case PadAttach:
+		if impl, ok := d.(interface{ OnPadAttach(r *Root, e Event) bool }); ok {
+			impl.OnPadAttach(r, e)
+		}
+	case PadPress:
+		if impl, ok := d.(interface{ OnPadPress(r *Root, e Event) bool }); ok {
+			impl.OnPadPress(r, e)
+		}
+	case PadHold:
+		if impl, ok := d.(interface{ OnPadHold(r *Root, e Event) bool }); ok {
+			impl.OnPadHold(r, e)
+		}
+	case PadRelease:
+		if impl, ok := d.(interface{ OnPadRelease(r *Root, e Event) bool }); ok {
+			impl.OnPadRelease(r, e)
+		}
+	case PadMove:
+		if impl, ok := d.(interface{ OnPadMove(r *Root, e Event) bool }); ok {
+			impl.OnPadMove(r, e)
+		}
+	case KeyPress:
+		if impl, ok := d.(interface{ OnKeyPress(r *Root, e Event) bool }); ok {
+			impl.OnKeyPress(r, e)
+		}
+	case KeyHold:
+		if impl, ok := d.(interface{ OnKeyHold(r *Root, e Event) bool }); ok {
+			impl.OnKeyHold(r, e)
+		}
+	case KeyRelease:
+		if impl, ok := d.(interface{ OnKeyRelease(r *Root, e Event) bool }); ok {
+			impl.OnKeyRelease(r, e)
+		}
+	case KeyText:
+		if impl, ok := d.(interface{ OnKeyText(r *Root, e Event) bool }); ok {
+			impl.OnKeyText(r, e)
+		}
+	case TouchPress:
+		if impl, ok := d.(interface{ OnTouchPress(r *Root, e Event) bool }); ok {
+			impl.OnTouchPress(r, e)
+		}
+	case TouchHold:
+		if impl, ok := d.(interface{ OnTouchHold(r *Root, e Event) bool }); ok {
+			impl.OnTouchHold(r, e)
+		}
+	case TouchRelease:
+		if impl, ok := d.(interface{ OnTouchRelease(r *Root, e Event) bool }); ok {
+			impl.OnTouchRelease(r, e)
+		}
+	case MousePress:
+		if impl, ok := d.(interface{ OnMousePress(r *Root, e Event) bool }); ok {
+			impl.OnMousePress(r, e)
+		}
+	case MouseRelease:
+		if impl, ok := d.(interface{ OnMouseRelease(r *Root, e Event) bool }); ok {
+			impl.OnMouseRelease(r, e)
+		}
+	case MouseHold:
+		if impl, ok := d.(interface{ OnMouseHold(r *Root, e Event) bool }); ok {
+			impl.OnMouseHold(r, e)
+		}
+	case MouseMove:
+		if impl, ok := d.(interface{ OnMouseMove(r *Root, e Event) bool }); ok {
+			impl.OnMouseMove(r, e)
+		}
+	case MouseWheel:
+		if impl, ok := d.(interface{ OnMouseWheel(r *Root, e Event) bool }); ok {
+			impl.OnMouseWheel(r, e)
+		}
+	case ActionFocus:
+		if impl, ok := d.(interface{ OnActionFocus(r *Root, e Event) bool }); ok {
+			impl.OnActionFocus(r, e)
+		}
+	case ActionBlur:
+		if impl, ok := d.(interface{ OnActionBlur(r *Root, e Event) bool }); ok {
+			impl.OnActionBlur(r, e)
+		}
+	case ActionHover:
+		if impl, ok := d.(interface{ OnActionHover(r *Root, e Event) bool }); ok {
+			impl.OnActionHover(r, e)
+		}
+	case ActionCrash:
+		if impl, ok := d.(interface{ OnActionCrash(r *Root, e Event) bool }); ok {
+			impl.OnActionCrash(r, e)
+		}
+	case ActionDrag:
+		if impl, ok := d.(interface{ OnActionDrag(r *Root, e Event) bool }); ok {
+			impl.OnActionDrag(r, e)
+		}
+	case ActionDrop:
+		if impl, ok := d.(interface{ OnActionDrop(r *Root, e Event) bool }); ok {
+			impl.OnActionDrop(r, e)
+		}
+	case ActionMark:
+		if impl, ok := d.(interface{ OnActionMark(r *Root, e Event) bool }); ok {
+			impl.OnActionMark(r, e)
+		}
+	case ActionClean:
+		if impl, ok := d.(interface{ OnActionClean(r *Root, e Event) bool }); ok {
+			impl.OnActionClean(r, e)
+		}
+	case LayoutGet:
+		if impl, ok := d.(interface{ OnLayoutGet(r *Root, e Event) bool }); ok {
+			impl.OnLayoutGet(r, e)
+		}
+	case LayoutSet:
+		if impl, ok := d.(interface{ OnLayoutSet(r *Root, e Event) bool }); ok {
+			impl.OnLayoutSet(r, e)
+		}
+	default:
+		panic("Unknown message")
+	}
+	return false
 }
 
 // Widget is a widget in the UI. It is part of a panel.
@@ -530,7 +705,7 @@ func DefaultStyle() Style {
 	s.Writing = color.RGBA{245, 245, 245, 245}
 	s.Shadow = color.RGBA{15, 15, 15, 191}
 	s.Fill = color.RGBA{0, 0, 245, 245}
-	// s.Face = DefaultFontFace()
+	s.Face = defaultFontFace
 	s.Stroke = 1
 	s.Margin = image.Pt(2, 2)
 	return s
@@ -663,4 +838,54 @@ func (b *box) Handle(r *Root, e Event) bool {
 	default:
 		return false
 	}
+}
+
+func NewButton(bounds Rectangle, text string) *Widget {
+	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Control = &button{Widget: b, Text: text}
+	return b
+}
+
+type button struct {
+	*Widget
+	Text    string
+	Clicked func(*button)
+	pressed bool
+	Result  int // May be set freely except on dialog buttons.
+}
+
+func (b button) Render(r *Root, screen *Surface) {
+	box := b.Bounds
+
+	if b.pressed {
+		box = box.Add(b.Style.Margin)
+	}
+
+	at := box.Min
+
+	b.Style.DrawBox(screen, box)
+	b.Style.DrawText(screen, at, b.Text)
+}
+
+func (b *button) Handle(r *Root, e Event) bool {
+	return Dispatch(b, r, e)
+}
+
+func (b *button) OnMousePress(r *Root, ev Event) bool {
+	b.pressed = true
+	return true
+}
+
+func (b *button) OnMouseRelease(r *Root, ev Event) bool {
+	b.pressed = false
+	if b.Clicked != nil {
+		b.Clicked(b)
+	}
+	return true
+}
+
+func (p *Panel) AddButton(bounds Rectangle, text string) *Widget {
+	b := NewButton(bounds, text)
+	p.Widgets = append(p.Widgets, b)
+	return b
 }
