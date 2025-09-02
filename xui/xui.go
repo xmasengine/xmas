@@ -1,5 +1,5 @@
 // Package xui is the xmas engine UI package.
-// To keep everything relatively simple, there can only be a single active UI
+// To keep everything relatively simple, there can only be a single active UI.
 // However this UI can consist of multiple panels.
 // Only one panel is active at the time.
 // Each panels has a set of widgets.
@@ -126,7 +126,7 @@ type Root struct {
 	Hover           *Panel  // Hover is the Panel that is being hovered by the mouse.
 	Drag            *Panel  // Drag is the panel that is being dragged by the mouse or touch.
 	Mark            *Panel  // Mark is the panel that has the joystick and arrow key marker.
-	Default         Handler // Default event handler, used if of the panels accepts the event.
+	Default         Handler // Default event handler, used if none of the panels accepts the event.
 }
 
 func NewRoot() *Root {
@@ -204,13 +204,13 @@ type Result struct {
 
 // Handler can handle events events.
 type Handler interface {
-	// Handle should handle the event and return the result.
+	// HandleEvent should handle the event and return the result.
 	// The root is passed for convenience, for example to
 	// manipulate other panels easily.
 	// A widget or panel will only receive events that it is intent to handle,
 	// but it will not receive any mouse clicks ort ouches outside of its
 	// bounds, unless if it is an active panel being dragged.
-	Handle(*Root, Event) bool
+	HandleEvent(*Root, Event) bool
 }
 
 // A Renderer can render itself.
@@ -232,14 +232,14 @@ type defaultHandler struct {
 	def  Handler
 }
 
-func (d defaultHandler) Handle(r *Root, e Event) bool {
+func (d defaultHandler) HandleEvent(r *Root, e Event) bool {
 	var res bool
 	if d.norm != nil {
-		res = d.norm.Handle(r, e)
+		res = d.norm.HandleEvent(r, e)
 	}
 	if !res {
 		if d.def != nil {
-			res = d.def.Handle(r, e)
+			res = d.def.HandleEvent(r, e)
 		}
 	}
 	return res
@@ -254,7 +254,7 @@ func HandleDefault(norm, def Handler) Handler {
 // Discard is a handler that does nothing.
 type Discard struct{}
 
-func (Discard) Handle(_ *Root, e Event) bool {
+func (Discard) HandleEvent(_ *Root, e Event) bool {
 	return false // ignore event.
 }
 
@@ -270,7 +270,7 @@ type Mapper struct {
 	Renderer func(*Root, *Surface)
 }
 
-func (m Mapper) Handle(r *Root, e Event) bool {
+func (m Mapper) HandleEvent(r *Root, e Event) bool {
 	if e.Msg <= NoMessage {
 		return false
 	}
@@ -313,7 +313,7 @@ type Dispatcher struct {
 	Target any
 }
 
-func (d Dispatcher) Handle(r *Root, e Event) bool {
+func (d Dispatcher) HandleEvent(r *Root, e Event) bool {
 	return Dispatch(d.Target, r, e)
 }
 
@@ -471,12 +471,12 @@ func (r *Root) HandleMouseMove(e Event) bool {
 	hover := r.FindTop(e.At)
 
 	if r.Hover != nil && r.Hover != hover {
-		r.Hover.Handle(r, Event{Msg: ActionCrash, At: e.At})
+		r.Hover.HandleEvent(r, Event{Msg: ActionCrash, At: e.At})
 	}
 
 	r.Hover = hover
 	if r.Hover != nil {
-		return r.Hover.Handle(r, Event{Msg: ActionHover, At: e.At})
+		return r.Hover.HandleEvent(r, Event{Msg: ActionHover, At: e.At})
 	}
 	return false
 }
@@ -484,61 +484,61 @@ func (r *Root) HandleMouseMove(e Event) bool {
 func (r *Root) On(e Event) bool {
 	switch e.Msg {
 	case PadDetach:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case PadAttach:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case PadPress:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case PadHold:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case PadRelease:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case PadMove:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case KeyPress:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case KeyHold:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case KeyRelease:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case KeyText:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case TouchPress:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case TouchHold:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case TouchRelease:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case MousePress:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case MouseMove:
 		return r.HandleMouseMove(e)
 	case MouseRelease:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case MouseHold:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case MouseWheel:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionFocus:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionBlur:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionHover:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionCrash:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionDrag:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionDrop:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionMark:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case ActionClean:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case LayoutGet:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	case LayoutSet:
-		return r.Default.Handle(r, e)
+		return r.Default.HandleEvent(r, e)
 	default:
 		panic("Unknown event message")
 	}
@@ -809,11 +809,28 @@ func NewBox(bounds Rectangle) *Panel {
 	return p
 }
 
+type HoverHandler struct {
+	*State
+}
+
+func (h *HoverHandler) HandleEvent(r *Root, e Event) bool {
+	switch e.Msg {
+	case ActionHover:
+		h.State.Hover = true
+		return true
+	case ActionCrash:
+		h.State.Hover = false
+		return true
+	default:
+		return false
+	}
+}
+
 type box struct {
 	*Panel
 }
 
-// Render is called when the element needs to be drawn
+// Render is called when the element needs to be drawn.
 func (b box) Render(r *Root, screen *Surface) {
 	style := b.Style
 	if b.State.Hover {
@@ -827,7 +844,7 @@ func (b box) Render(r *Root, screen *Surface) {
 	}
 }
 
-func (b *box) Handle(r *Root, e Event) bool {
+func (b *box) HandleEvent(r *Root, e Event) bool {
 	switch e.Msg {
 	case ActionHover:
 		b.State.Hover = true
@@ -867,7 +884,7 @@ func (b button) Render(r *Root, screen *Surface) {
 	b.Style.DrawText(screen, at, b.Text)
 }
 
-func (b *button) Handle(r *Root, e Event) bool {
+func (b *button) HandleEvent(r *Root, e Event) bool {
 	return Dispatch(b, r, e)
 }
 
@@ -888,4 +905,32 @@ func (p *Panel) AddButton(bounds Rectangle, text string) *Widget {
 	b := NewButton(bounds, text)
 	p.Widgets = append(p.Widgets, b)
 	return b
+}
+
+type EventHandlerMux struct {
+	handlers [LastMessage]Handler
+}
+
+func NewEventhandlerMux() *EventHandlerMux {
+	return &EventHandlerMux{}
+}
+
+func (mux *EventHandlerMux) Handle(message Message, handler Handler) {
+	mux.handlers[message] = handler
+}
+
+func (mux *EventHandlerMux) Handler(e Event) (h Handler, message Message) {
+	if e.Msg < 0 || e.Msg >= LastMessage {
+		return Discard{}, LastMessage
+	}
+	handler := mux.handlers[e.Msg]
+	if handler == nil {
+		return Discard{}, e.Msg
+	}
+	return handler, e.Msg
+}
+
+func (mux *EventHandlerMux) HandleEvent(r *Root, e Event) {
+	handler, _ := mux.Handler(e)
+	handler.HandleEvent(r, e)
 }
