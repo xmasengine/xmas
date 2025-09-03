@@ -1,13 +1,12 @@
 // Package xui is the xmas engine UI package.
 // To keep everything relatively simple, there can only be a single active UI.
-// However this UI can consist of multiple panels.
-// Only one panel is active at the time.
-// Each panels has a set of widgets.
-// Only one widget per panel is active at one time.
-// Widget cannot contain any sub widgets.
-// Each widget needs to be fully contained in the panel and may not overflow it.
-// Effectively this means the UI is "flat" apart from the panels which have
-// a Z ordering.
+// However this UI can consist of multiple Widgets.
+// Only one Widget is active at the time.
+// Each Widgets has an optional set of child widgets.
+// Only one child widget per Widget is active at one time.
+// Each child widget needs to be fully contained in the parent Widget
+// and may not overflow it.
+// Effectively this means the UI is "flat" apart from the Z ordering.
 package xui
 
 import (
@@ -24,6 +23,8 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
+
+// http.DefaultServeMux
 
 // TextInputField is an input field for IME text entry.
 type TextInputField struct {
@@ -60,7 +61,7 @@ type RGBA = color.RGBA
 // Face is a font face
 type Face = text.Face
 
-// Style is the style of a Widget or Panel.
+// Style is the style of a Widget.
 type Style struct {
 	Fore    RGBA
 	Border  RGBA
@@ -114,7 +115,7 @@ func LineHeight(face Face) int {
 
 // Root is the top level of the UI.
 type Root struct {
-	Panels          []*Panel          // Panels of the UI.
+	Widget                            // Root is also a widget
 	NoTouchMouse    bool              // NoTouchMouse: set this to true to not translate touches to mouse events.
 	TextInputFields []*TextInputField // Text input fields in use
 	cx, cy          int
@@ -122,11 +123,11 @@ type Root struct {
 	keyMods         KeyMods // Current key KeyMods
 	connected       []ebiten.GamepadID
 	gamepads        []ebiten.GamepadID
-	Focus           *Panel  // Focus is the Panel that has the input focus.
-	Hover           *Panel  // Hover is the Panel that is being hovered by the mouse.
-	Drag            *Panel  // Drag is the panel that is being dragged by the mouse or touch.
-	Mark            *Panel  // Mark is the panel that has the joystick and arrow key marker.
-	Default         Handler // Default event handler, used if none of the panels accepts the event.
+	Focus           *Widget // Focus is the Widget that has the input focus.
+	Hover           *Widget // Hover is the Widget that is being hovered by the mouse.
+	Drag            *Widget // Drag is the Widget that is being dragged by the mouse or touch.
+	Mark            *Widget // Mark is the Widget that has the joystick and arrow key marker.
+	Default         Handler // Default event handler, used if none of the Widgets accepts the event.
 }
 
 func NewRoot() *Root {
@@ -187,7 +188,7 @@ type Event struct {
 	Bounds   Rectangle
 }
 
-// State is the state of a Widget or Panel, or a requested state change.
+// State is the state of a Widget, or a requested state change.
 type State struct {
 	Focus bool
 	Hover bool
@@ -199,23 +200,23 @@ type State struct {
 // Result is the result of an event handler
 type Result struct {
 	OK    bool
-	State State // Reqquested state of the widget or panel.
+	State State // Reqquested state of the Widget.
 }
 
 // Handler can handle events events.
 type Handler interface {
 	// HandleEvent should handle the event and return the result.
 	// The root is passed for convenience, for example to
-	// manipulate other panels easily.
-	// A widget or panel will only receive events that it is intent to handle,
+	// manipulate other Widgets easily.
+	// A Widget will only receive events that it is intent to handle,
 	// but it will not receive any mouse clicks ort ouches outside of its
-	// bounds, unless if it is an active panel being dragged.
+	// bounds, unless if it is an active Widget being dragged.
 	HandleEvent(*Root, Event) bool
 }
 
 // A Renderer can render itself.
 type Renderer interface {
-	// Render renders the widget or panel.
+	// Render renders the Widget.
 	// The root is passed for convenience, for example to
 	// get fonts easily.
 	Render(*Root, *Surface)
@@ -437,34 +438,35 @@ func Dispatch(d any, r *Root, e Event) bool {
 	return false
 }
 
-// Widget is a widget in the UI. It is part of a panel.
+// Widget is a widget in the UI.
+// It can be the Root widget, a Widget widget or a simple widget.
 type Widget struct {
 	Control           // A widget must be a Control.
+	Layer   int       // Layer is the Z ordering of the widget.
 	Bounds  Rectangle // Actual position and size of the widget.
 	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
 	Style   Style
 	State   State
+	Widgets []*Widget // Sub widgets of the widget if any.
 }
 
-// Panel is a panel in the UI it is a part of the UI that
-// responds to input events.
-type Panel struct {
-	Control           // A panel must be a Control.
-	Bounds  Rectangle // Actual position of the panel.
-	Size    Rectangle // Size is the desired size of the panel, may be bigger than Bounds, and offset from it for scrolling.
-	Style   Style
-	State   State
-	Widgets []*Widget // Widgets of the panel.
-}
-
-func (r *Root) FindTop(at Point) *Panel {
-	for i := len(r.Panels) - 1; i >= 0; i-- {
-		p := r.Panels[i]
+func (w *Widget) FindTop(at Point) *Widget {
+	var top *Widget
+	for i := len(w.Widgets) - 1; i >= 0; i-- {
+		p := w.Widgets[i]
 		if at.In(p.Bounds) {
-			return p
+			if top == nil {
+				top = p
+			} else if top.Layer < p.Layer {
+				top = p
+			}
 		}
 	}
-	return nil
+	return top
+}
+
+func (w *Widget) Append(widgets ...*Widget) {
+	w.Widgets = append(w.Widgets, widgets...)
 }
 
 func (r *Root) HandleMouseMove(e Event) bool {
@@ -682,7 +684,7 @@ func (r *Root) Update() error {
 
 // Draw is called when the UI needs to be drawn in game.ui
 func (r *Root) Draw(screen *Surface) {
-	for _, p := range r.Panels {
+	for _, p := range r.Widgets {
 		if !p.State.Hide {
 			p.Render(r, screen)
 		}
@@ -803,9 +805,9 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 	}
 }
 
-func NewBox(bounds Rectangle) *Panel {
-	p := &Panel{Bounds: bounds, Style: DefaultStyle()}
-	p.Control = &box{Panel: p}
+func NewBox(bounds Rectangle) *Widget {
+	p := &Widget{Bounds: bounds, Style: DefaultStyle()}
+	p.Control = &box{Widget: p}
 	return p
 }
 
@@ -827,7 +829,7 @@ func (h *HoverHandler) HandleEvent(r *Root, e Event) bool {
 }
 
 type box struct {
-	*Panel
+	*Widget
 }
 
 // Render is called when the element needs to be drawn.
@@ -901,7 +903,7 @@ func (b *button) OnMouseRelease(r *Root, ev Event) bool {
 	return true
 }
 
-func (p *Panel) AddButton(bounds Rectangle, text string) *Widget {
+func (p *Widget) AddButton(bounds Rectangle, text string) *Widget {
 	b := NewButton(bounds, text)
 	p.Widgets = append(p.Widgets, b)
 	return b
