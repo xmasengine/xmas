@@ -58,35 +58,40 @@ type PadHandler interface {
 }
 
 type KeyHandler interface {
-	OnKeyPress(key int) Result
-	OnKeyHold(key, duration int) Result
-	OnKeyRelease(key int) Result
-	OnInputText(id int, chars string) Result
+	OnKeyPress(KeyEvent) bool
+	OnKeyHold(KeyEvent) bool
+	OnKeyRelease(KeyEvent) bool
+	OnKeyText(KeyEvent) bool
 }
 
 type TouchHandler interface {
-	OnTouchPress(tid int, at Point) Result
-	OnTouchHold(tid int, at, delta Point, duration int) Result
-	OnTouchRelease(tid int, at Point) Result
+	OnTouchPress(TouchEvent) bool
+	OnTouchHold(TouchEvent) bool
+	OnTouchRelease(TouchEvent) bool
 }
 
 type MouseHandler interface {
-	OnMousePress(at, delta Point, button int) Result
-	OnMouseHold(at, delta Point, button, duration int) Result
-	OnMouseRelease(at, delta Point, button int) Result
-	OnMouseMove(at, delta Point) Result
-	OnMouseWheel(at, delta, wheel Point) Result
+	OnMousePress(MouseEvent) bool
+	OnMouseHold(MouseEvent) bool
+	OnMouseRelease(MouseEvent) bool
+	OnMouseMove(MouseEvent) bool
+	OnMouseWheel(MouseEvent) bool
 }
 
 type ActionHandler interface {
-	OnFocus(at Point) Result
-	OnBlur(at Point) Result
-	OnHover(at Point) Result
-	OnUnhover(at Point) Result
-	OnDrag(at, delta Point) Result
-	OnDrop(at, delta Point) Result
-	OnMark(at Point) Result
-	OnUnmark(at, delta Point) Result
+	OnActionFocus(ActionEvent) bool
+	OnActionBlur(ActionEvent) bool
+	OnActionHover(ActionEvent) bool
+	OnActionCrash(ActionEvent) bool
+	OnActionDrag(ActionEvent) bool
+	OnActionDrop(ActionEvent) bool
+	OnActionMark(ActionEvent) bool
+	OnActionClean(ActionEvent) bool
+}
+
+type LayoutHandler interface {
+	OnLayoutGet(LayoutEvent) bool
+	OnLayoutSet(LayoutEvent) bool
 }
 
 type BasicEvent struct {
@@ -126,46 +131,56 @@ func MakePadEvent(r *Root, msg Message, id, button, duration int, axes []float64
 }
 
 func (e PadEvent) Dispatch(c EventHandler) bool {
+	impl, ok := c.(PadHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
 	switch e.Msg {
 	case PadDetach:
-		if impl, ok := c.(interface {
-			OnPadDetach(e PadEvent) bool
-		}); ok {
-			return impl.OnPadDetach(e)
-		}
+		return impl.OnPadDetach(e)
 	case PadAttach:
-		if impl, ok := c.(interface {
-			OnPadAttach(e PadEvent) bool
-		}); ok {
-			return impl.OnPadAttach(e)
-		}
+		return impl.OnPadAttach(e)
 	case PadPress:
-		if impl, ok := c.(interface {
-			OnPadPress(e PadEvent) bool
-		}); ok {
-			return impl.OnPadPress(e)
-		}
+		return impl.OnPadPress(e)
 	case PadHold:
-		if impl, ok := c.(interface {
-			OnPadHold(e PadEvent) bool
-		}); ok {
-			return impl.OnPadHold(e)
-		}
+		return impl.OnPadHold(e)
 	case PadRelease:
-		if impl, ok := c.(interface {
-			OnPadRelease(e PadEvent) bool
-		}); ok {
-			return impl.OnPadRelease(e)
-		}
+		return impl.OnPadRelease(e)
 	case PadMove:
-		if impl, ok := c.(interface {
-			OnPadMove(e PadEvent) bool
-		}); ok {
-			return impl.OnPadMove(e)
-		}
+		return impl.OnPadMove(e)
 	}
 	return c.HandleEvent(e)
 }
+
+type BasicPadHandler struct {
+	*Widget
+}
+
+func (BasicPadHandler) OnPadAttach(e PadEvent) bool {
+	return false
+}
+
+func (BasicPadHandler) OnPadDetach(e PadEvent) bool {
+	return false
+}
+
+func (BasicPadHandler) OnPadPress(e PadEvent) bool {
+	return false
+}
+
+func (BasicPadHandler) OnPadHold(e PadEvent) bool {
+	return false
+}
+
+func (BasicPadHandler) OnPadRelease(e PadEvent) bool {
+	return false
+}
+
+func (BasicPadHandler) OnPadMove(e PadEvent) bool {
+	return false
+}
+
+var _ PadHandler = BasicPadHandler{}
 
 type KeyEvent struct {
 	BasicEvent
@@ -183,34 +198,44 @@ func MakeKeyEvent(r *Root, msg Message, id, code, duration int, chars string) Ke
 }
 
 func (e KeyEvent) Dispatch(c EventHandler) bool {
+	impl, ok := c.(KeyHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
 	switch e.Msg {
 	case KeyPress:
-		if impl, ok := c.(interface {
-			OnKeyPress(e KeyEvent) bool
-		}); ok {
-			return impl.OnKeyPress(e)
-		}
+		return impl.OnKeyPress(e)
 	case KeyHold:
-		if impl, ok := c.(interface {
-			OnKeyHold(e KeyEvent) bool
-		}); ok {
-			return impl.OnKeyHold(e)
-		}
+		return impl.OnKeyHold(e)
 	case KeyRelease:
-		if impl, ok := c.(interface {
-			OnKeyRelease(e KeyEvent) bool
-		}); ok {
-			return impl.OnKeyRelease(e)
-		}
+		return impl.OnKeyRelease(e)
 	case KeyText:
-		if impl, ok := c.(interface {
-			OnKeyText(e KeyEvent) bool
-		}); ok {
-			return impl.OnKeyText(e)
-		}
+		return impl.OnKeyText(e)
 	}
 	return c.HandleEvent(e)
 }
+
+type BasicKeyHandler struct {
+	*Widget
+}
+
+func (BasicKeyHandler) OnKeyPress(e KeyEvent) bool {
+	return false
+}
+
+func (BasicKeyHandler) OnKeyHold(e KeyEvent) bool {
+	return false
+}
+
+func (BasicKeyHandler) OnKeyRelease(e KeyEvent) bool {
+	return false
+}
+
+func (BasicKeyHandler) OnKeyText(e KeyEvent) bool {
+	return false
+}
+
+var _ KeyHandler = BasicKeyHandler{}
 
 type TouchEvent struct {
 	BasicEvent
@@ -228,28 +253,38 @@ func MakeTouchEvent(r *Root, msg Message, id int, at, delta Point, duration int)
 }
 
 func (e TouchEvent) Dispatch(c EventHandler) bool {
+	impl, ok := c.(TouchHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
 	switch e.Msg {
 	case TouchPress:
-		if impl, ok := c.(interface {
-			OnTouchPress(e TouchEvent) bool
-		}); ok {
-			return impl.OnTouchPress(e)
-		}
+		return impl.OnTouchPress(e)
 	case TouchHold:
-		if impl, ok := c.(interface {
-			OnTouchHold(e TouchEvent) bool
-		}); ok {
-			return impl.OnTouchHold(e)
-		}
+		return impl.OnTouchHold(e)
 	case TouchRelease:
-		if impl, ok := c.(interface {
-			OnTouchRelease(e TouchEvent) bool
-		}); ok {
-			return impl.OnTouchRelease(e)
-		}
+		return impl.OnTouchRelease(e)
 	}
 	return c.HandleEvent(e)
 }
+
+type BasicTouchHandler struct {
+	*Widget
+}
+
+func (BasicTouchHandler) OnTouchPress(e TouchEvent) bool {
+	return false
+}
+
+func (BasicTouchHandler) OnTouchHold(e TouchEvent) bool {
+	return false
+}
+
+func (BasicTouchHandler) OnTouchRelease(e TouchEvent) bool {
+	return false
+}
+
+var _ TouchHandler = BasicTouchHandler{}
 
 type MouseEvent struct {
 	BasicEvent
@@ -276,42 +311,61 @@ func MakeMouseWheelEvent(r *Root, msg Message, at, delta, wheel Point) MouseEven
 func (e MouseEvent) Dispatch(c EventHandler) bool {
 	println("MouseEvent.Dispatch")
 
+	impl, ok := c.(MouseHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
+
 	switch e.Msg {
 	case MousePress:
-		if impl, ok := c.(interface {
-			OnMousePress(e MouseEvent) bool
-		}); ok {
-			return impl.OnMousePress(e)
-		}
+		return impl.OnMousePress(e)
 	case MouseRelease:
-		if impl, ok := c.(interface {
-			OnMouseRelease(e MouseEvent) bool
-		}); ok {
-			return impl.OnMouseRelease(e)
-		}
+		return impl.OnMouseRelease(e)
 	case MouseHold:
-		if impl, ok := c.(interface {
-			OnMouseHold(e MouseEvent) bool
-		}); ok {
-			return impl.OnMouseHold(e)
-		}
+		return impl.OnMouseHold(e)
 	case MouseMove:
-		if impl, ok := c.(interface {
-			OnMouseMove(e MouseEvent) bool
-		}); ok {
-			println("MouseEvent.Dispatch: MouseMove ok")
-			return impl.OnMouseMove(e)
-		}
+		println("MouseEvent.Dispatch: MouseMove ok")
+		return impl.OnMouseMove(e)
 	case MouseWheel:
-		if impl, ok := c.(interface {
-			OnMouseWheel(e MouseEvent) bool
-		}); ok {
-			return impl.OnMouseWheel(e)
-		}
+		return impl.OnMouseWheel(e)
 	}
 	println("MouseEvent.Dispatch uses the default handler")
 	return c.HandleEvent(e)
 }
+
+type BasicMouseHandler struct {
+	*Widget
+}
+
+func (BasicMouseHandler) OnMouseAttach(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMouseDetach(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMousePress(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMouseHold(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMouseRelease(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMouseMove(e MouseEvent) bool {
+	return false
+}
+
+func (BasicMouseHandler) OnMouseWheel(e MouseEvent) bool {
+	return false
+}
+
+var _ MouseHandler = BasicMouseHandler{}
 
 type ActionEvent struct {
 	BasicEvent
@@ -320,38 +374,44 @@ type ActionEvent struct {
 }
 
 func (e ActionEvent) Dispatch(c EventHandler) bool {
+	impl, ok := c.(ActionHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
+
 	switch e.Msg {
 	case ActionBlur:
-		if impl, ok := c.(interface{ OnActionBlur(e ActionEvent) bool }); ok {
-			return impl.OnActionBlur(e)
-		}
+		return impl.OnActionBlur(e)
 	case ActionHover:
-		if impl, ok := c.(interface{ OnActionHover(e ActionEvent) bool }); ok {
-			return impl.OnActionHover(e)
-		}
+		return impl.OnActionHover(e)
 	case ActionCrash:
-		if impl, ok := c.(interface{ OnActionCrash(e ActionEvent) bool }); ok {
-			return impl.OnActionCrash(e)
-		}
+		return impl.OnActionCrash(e)
 	case ActionDrag:
-		if impl, ok := c.(interface{ OnActionDrag(e ActionEvent) bool }); ok {
-			return impl.OnActionDrag(e)
-		}
+		return impl.OnActionDrag(e)
 	case ActionDrop:
-		if impl, ok := c.(interface{ OnActionDrop(e ActionEvent) bool }); ok {
-			return impl.OnActionDrop(e)
-		}
+		return impl.OnActionDrop(e)
 	case ActionMark:
-		if impl, ok := c.(interface{ OnActionMark(e ActionEvent) bool }); ok {
-			return impl.OnActionMark(e)
-		}
+		return impl.OnActionMark(e)
 	case ActionClean:
-		if impl, ok := c.(interface{ OnActionClean(e ActionEvent) bool }); ok {
-			return impl.OnActionClean(e)
-		}
+		return impl.OnActionClean(e)
 	}
 	return c.HandleEvent(e)
 }
+
+type BasicActionHandler struct {
+	*Widget
+}
+
+func (BasicActionHandler) OnActionFocus(e ActionEvent) bool { return false }
+func (BasicActionHandler) OnActionBlur(e ActionEvent) bool  { return false }
+func (BasicActionHandler) OnActionHover(e ActionEvent) bool { return false }
+func (BasicActionHandler) OnActionCrash(e ActionEvent) bool { return false }
+func (BasicActionHandler) OnActionDrag(e ActionEvent) bool  { return false }
+func (BasicActionHandler) OnActionDrop(e ActionEvent) bool  { return false }
+func (BasicActionHandler) OnActionMark(e ActionEvent) bool  { return false }
+func (BasicActionHandler) OnActionClean(e ActionEvent) bool { return false }
+
+var _ ActionHandler = BasicActionHandler{}
 
 func MakeActionEvent(r *Root, msg Message, at, delta Point) ActionEvent {
 	return ActionEvent{
@@ -373,15 +433,24 @@ func MakeLayoutEvent(r *Root, msg Message, id int, bounds Rectangle) LayoutEvent
 }
 
 func (e LayoutEvent) Dispatch(c EventHandler) bool {
+	impl, ok := c.(LayoutHandler)
+	if !ok {
+		return c.HandleEvent(e)
+	}
 	switch e.Msg {
 	case LayoutGet:
-		if impl, ok := c.(interface{ OnLayoutGet(e LayoutEvent) bool }); ok {
-			return impl.OnLayoutGet(e)
-		}
+		return impl.OnLayoutGet(e)
 	case LayoutSet:
-		if impl, ok := c.(interface{ OnLayoutSet(e LayoutEvent) bool }); ok {
-			return impl.OnLayoutSet(e)
-		}
+		return impl.OnLayoutSet(e)
 	}
 	return c.HandleEvent(e)
 }
+
+type BasicLayoutHandler struct {
+	*Widget
+}
+
+var _ LayoutHandler = BasicLayoutHandler{}
+
+func (BasicLayoutHandler) OnLayoutGet(e LayoutEvent) bool { return false }
+func (BasicLayoutHandler) OnLayoutSet(e LayoutEvent) bool { return false }

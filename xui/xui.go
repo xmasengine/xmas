@@ -131,6 +131,7 @@ type Root struct {
 
 func NewRoot() *Root {
 	res := &Root{}
+	res.Widget.Control = Basic{Widget: &res.Widget}
 	res.Default = Discard{}
 	return res
 }
@@ -207,21 +208,6 @@ func (w *Widget) FindTop(at Point) *Widget {
 
 func (w *Widget) Append(widgets ...*Widget) {
 	w.Widgets = append(w.Widgets, widgets...)
-}
-
-func (w *Widget) OnMouseMove(e MouseEvent) bool {
-	println("Root.OnMouseMove ", e.Message())
-	hover := w.FindTop(e.At)
-
-	if w.Hover != nil && w.Hover != hover {
-		MakeActionEvent(e.Root(), ActionCrash, e.At, image.Point{}).Dispatch(w.Hover)
-	}
-
-	w.Hover = hover
-	if w.Hover != nil {
-		return MakeActionEvent(e.Root(), ActionHover, e.At, image.Point{}).Dispatch(w.Hover)
-	}
-	return false
 }
 
 func (r *Root) On(e Event) bool {
@@ -511,14 +497,36 @@ func NewBox(bounds Rectangle) *Widget {
 
 type Basic struct {
 	*Widget
+	BasicMouseHandler
+}
+
+func (b *Basic) OnMouseMove(e MouseEvent) bool {
+	println("Basic.OnMouseMove ", e.Message())
+	w := b.Widget
+	hover := w.FindTop(e.At)
+
+	if w.Hover != nil && w.Hover != hover {
+		MakeActionEvent(e.Root(), ActionCrash, e.At, image.Point{}).Dispatch(w.Hover)
+	}
+
+	w.Hover = hover
+	if w.Hover != nil {
+		return MakeActionEvent(e.Root(), ActionHover, e.At, image.Point{}).Dispatch(w.Hover)
+	}
+	return false
 }
 
 func (b Basic) HandleEvent(e Event) bool {
-	if b.Widget.Control != nil {
-		return e.Dispatch(b.Widget.Control)
-	}
-	println("warning: basic event handler called for ", int(e.Message()))
-	return false
+	return e.Dispatch(b)
+	/*
+		if b.Widget.Control != nil {
+			// this has an inside/outside problem: we can send the event to the control or the wrapping
+			// widget. In the former case
+			return e.Dispatch(b.Widget.Control)
+		}
+		println("warning: basic event handler called for ", int(e.Message()))
+		return false
+	*/
 }
 
 type box struct {
