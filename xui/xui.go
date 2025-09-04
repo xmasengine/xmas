@@ -123,69 +123,16 @@ type Root struct {
 	keyMods         KeyMods // Current key KeyMods
 	connected       []ebiten.GamepadID
 	gamepads        []ebiten.GamepadID
-	Focus           *Widget // Focus is the Widget that has the input focus.
-	Hover           *Widget // Hover is the Widget that is being hovered by the mouse.
-	Drag            *Widget // Drag is the Widget that is being dragged by the mouse or touch.
-	Mark            *Widget // Mark is the Widget that has the joystick and arrow key marker.
-	Default         Handler // Default event handler, used if none of the Widgets accepts the event.
+	Focus           *Widget      // Focus is the Widget that has the input focus.
+	Drag            *Widget      // Drag is the Widget that is being dragged by the mouse or touch.
+	Mark            *Widget      // Mark is the Widget that has the joystick and arrow key marker.
+	Default         EventHandler // Default event handler, used if none of the Widgets accepts the event.
 }
 
 func NewRoot() *Root {
 	res := &Root{}
 	res.Default = Discard{}
 	return res
-}
-
-// Message is a kind of message that is sent to the UI components.
-type Message int
-
-const (
-	NoMessage Message = iota
-	PadDetach
-	PadAttach
-	PadPress
-	PadHold
-	PadRelease
-	PadMove
-	KeyPress
-	KeyHold
-	KeyRelease
-	KeyText
-	TouchPress
-	TouchHold
-	TouchRelease
-	MousePress
-	MouseRelease
-	MouseHold
-	MouseMove
-	MouseWheel
-	ActionFocus
-	ActionBlur
-	ActionHover
-	ActionCrash
-	ActionDrag
-	ActionDrop
-	ActionMark
-	ActionClean
-	LayoutGet
-	LayoutSet
-	LastMessage
-)
-
-// Event in an event that is sent to the UI components.
-type Event struct {
-	Msg      Message
-	ID       int
-	Button   int
-	Duration int
-	Axes     []float64
-	Code     int
-	Mods     KeyMods
-	Chars    string
-	At       Point
-	Delta    Point
-	Wheel    Point
-	Bounds   Rectangle
 }
 
 // State is the state of a Widget, or a requested state change.
@@ -203,17 +150,6 @@ type Result struct {
 	State State // Reqquested state of the Widget.
 }
 
-// Handler can handle events events.
-type Handler interface {
-	// HandleEvent should handle the event and return the result.
-	// The root is passed for convenience, for example to
-	// manipulate other Widgets easily.
-	// A Widget will only receive events that it is intent to handle,
-	// but it will not receive any mouse clicks ort ouches outside of its
-	// bounds, unless if it is an active Widget being dragged.
-	HandleEvent(*Root, Event) bool
-}
-
 // A Renderer can render itself.
 type Renderer interface {
 	// Render renders the Widget.
@@ -224,38 +160,14 @@ type Renderer interface {
 
 // A control is a renderer and a handler
 type Control interface {
-	Handler
+	EventHandler
 	Renderer
-}
-
-type defaultHandler struct {
-	norm Handler
-	def  Handler
-}
-
-func (d defaultHandler) HandleEvent(r *Root, e Event) bool {
-	var res bool
-	if d.norm != nil {
-		res = d.norm.HandleEvent(r, e)
-	}
-	if !res {
-		if d.def != nil {
-			res = d.def.HandleEvent(r, e)
-		}
-	}
-	return res
-}
-
-// HandleDefault tries to call normal first, and then def if normal
-// returns false
-func HandleDefault(norm, def Handler) Handler {
-	return defaultHandler{norm: norm, def: def}
 }
 
 // Discard is a handler that does nothing.
 type Discard struct{}
 
-func (Discard) HandleEvent(_ *Root, e Event) bool {
+func (Discard) HandleEvent(e Event) bool {
 	return false // ignore event.
 }
 
@@ -265,189 +177,17 @@ type Invisible struct{}
 func (Invisible) Render(_ *Root, _ *Surface) {
 }
 
-// Mapper is a handler that maps events to individual handlers.
-type Mapper struct {
-	Handlers [LastMessage]func(*Root, Event) bool
-	Renderer func(*Root, *Surface)
-}
-
-func (m Mapper) HandleEvent(r *Root, e Event) bool {
-	if e.Msg <= NoMessage {
-		return false
-	}
-	if e.Msg >= LastMessage {
-		return false
-	}
-	handler := m.Handlers[e.Msg]
-	if handler == nil {
-		return false
-	}
-
-	return handler(r, e)
-}
-
-func (m Mapper) Render(r *Root, s *Surface) {
-	if m.Renderer != nil {
-		m.Renderer(r, s)
-	}
-}
-
-func NewMapper(r func(*Root, *Surface)) *Mapper {
-	m := &Mapper{}
-	m.Renderer = r
-	return m
-}
-
-func (m *Mapper) Add(e Message, h func(*Root, Event) bool) *Mapper {
-	if e <= NoMessage {
-		panic("Mapper.Add Message out of range")
-	}
-	if e >= LastMessage {
-		panic("Mapper.Add Message out of range")
-	}
-
-	m.Handlers[e] = h
-	return m
-}
-
-type Dispatcher struct {
-	Target any
-}
-
-func (d Dispatcher) HandleEvent(r *Root, e Event) bool {
-	return Dispatch(d.Target, r, e)
-}
-
-func Dispatch(d any, r *Root, e Event) bool {
-	switch e.Msg {
-	case PadDetach:
-		if impl, ok := d.(interface{ OnPadDetach(r *Root, e Event) bool }); ok {
-			return impl.OnPadDetach(r, e)
-		}
-	case PadAttach:
-		if impl, ok := d.(interface{ OnPadAttach(r *Root, e Event) bool }); ok {
-			impl.OnPadAttach(r, e)
-		}
-	case PadPress:
-		if impl, ok := d.(interface{ OnPadPress(r *Root, e Event) bool }); ok {
-			impl.OnPadPress(r, e)
-		}
-	case PadHold:
-		if impl, ok := d.(interface{ OnPadHold(r *Root, e Event) bool }); ok {
-			impl.OnPadHold(r, e)
-		}
-	case PadRelease:
-		if impl, ok := d.(interface{ OnPadRelease(r *Root, e Event) bool }); ok {
-			impl.OnPadRelease(r, e)
-		}
-	case PadMove:
-		if impl, ok := d.(interface{ OnPadMove(r *Root, e Event) bool }); ok {
-			impl.OnPadMove(r, e)
-		}
-	case KeyPress:
-		if impl, ok := d.(interface{ OnKeyPress(r *Root, e Event) bool }); ok {
-			impl.OnKeyPress(r, e)
-		}
-	case KeyHold:
-		if impl, ok := d.(interface{ OnKeyHold(r *Root, e Event) bool }); ok {
-			impl.OnKeyHold(r, e)
-		}
-	case KeyRelease:
-		if impl, ok := d.(interface{ OnKeyRelease(r *Root, e Event) bool }); ok {
-			impl.OnKeyRelease(r, e)
-		}
-	case KeyText:
-		if impl, ok := d.(interface{ OnKeyText(r *Root, e Event) bool }); ok {
-			impl.OnKeyText(r, e)
-		}
-	case TouchPress:
-		if impl, ok := d.(interface{ OnTouchPress(r *Root, e Event) bool }); ok {
-			impl.OnTouchPress(r, e)
-		}
-	case TouchHold:
-		if impl, ok := d.(interface{ OnTouchHold(r *Root, e Event) bool }); ok {
-			impl.OnTouchHold(r, e)
-		}
-	case TouchRelease:
-		if impl, ok := d.(interface{ OnTouchRelease(r *Root, e Event) bool }); ok {
-			impl.OnTouchRelease(r, e)
-		}
-	case MousePress:
-		if impl, ok := d.(interface{ OnMousePress(r *Root, e Event) bool }); ok {
-			impl.OnMousePress(r, e)
-		}
-	case MouseRelease:
-		if impl, ok := d.(interface{ OnMouseRelease(r *Root, e Event) bool }); ok {
-			impl.OnMouseRelease(r, e)
-		}
-	case MouseHold:
-		if impl, ok := d.(interface{ OnMouseHold(r *Root, e Event) bool }); ok {
-			impl.OnMouseHold(r, e)
-		}
-	case MouseMove:
-		if impl, ok := d.(interface{ OnMouseMove(r *Root, e Event) bool }); ok {
-			impl.OnMouseMove(r, e)
-		}
-	case MouseWheel:
-		if impl, ok := d.(interface{ OnMouseWheel(r *Root, e Event) bool }); ok {
-			impl.OnMouseWheel(r, e)
-		}
-	case ActionFocus:
-		if impl, ok := d.(interface{ OnActionFocus(r *Root, e Event) bool }); ok {
-			impl.OnActionFocus(r, e)
-		}
-	case ActionBlur:
-		if impl, ok := d.(interface{ OnActionBlur(r *Root, e Event) bool }); ok {
-			impl.OnActionBlur(r, e)
-		}
-	case ActionHover:
-		if impl, ok := d.(interface{ OnActionHover(r *Root, e Event) bool }); ok {
-			impl.OnActionHover(r, e)
-		}
-	case ActionCrash:
-		if impl, ok := d.(interface{ OnActionCrash(r *Root, e Event) bool }); ok {
-			impl.OnActionCrash(r, e)
-		}
-	case ActionDrag:
-		if impl, ok := d.(interface{ OnActionDrag(r *Root, e Event) bool }); ok {
-			impl.OnActionDrag(r, e)
-		}
-	case ActionDrop:
-		if impl, ok := d.(interface{ OnActionDrop(r *Root, e Event) bool }); ok {
-			impl.OnActionDrop(r, e)
-		}
-	case ActionMark:
-		if impl, ok := d.(interface{ OnActionMark(r *Root, e Event) bool }); ok {
-			impl.OnActionMark(r, e)
-		}
-	case ActionClean:
-		if impl, ok := d.(interface{ OnActionClean(r *Root, e Event) bool }); ok {
-			impl.OnActionClean(r, e)
-		}
-	case LayoutGet:
-		if impl, ok := d.(interface{ OnLayoutGet(r *Root, e Event) bool }); ok {
-			impl.OnLayoutGet(r, e)
-		}
-	case LayoutSet:
-		if impl, ok := d.(interface{ OnLayoutSet(r *Root, e Event) bool }); ok {
-			impl.OnLayoutSet(r, e)
-		}
-	default:
-		panic("Unknown message")
-	}
-	return false
-}
-
 // Widget is a widget in the UI.
 // It can be the Root widget, a Widget widget or a simple widget.
 type Widget struct {
-	Control           // A widget must be a Control.
+	Control           // A widget must embed a Control with the specific behavior.
 	Layer   int       // Layer is the Z ordering of the widget.
 	Bounds  Rectangle // Actual position and size of the widget.
 	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
 	Style   Style
 	State   State
 	Widgets []*Widget // Sub widgets of the widget if any.
+	Hover   *Widget   // Hover is the Widget that is being hovered by the mouse.
 }
 
 func (w *Widget) FindTop(at Point) *Widget {
@@ -469,81 +209,32 @@ func (w *Widget) Append(widgets ...*Widget) {
 	w.Widgets = append(w.Widgets, widgets...)
 }
 
-func (r *Root) HandleMouseMove(e Event) bool {
-	hover := r.FindTop(e.At)
+func (w *Widget) OnMouseMove(e MouseEvent) bool {
+	println("Root.OnMouseMove ", e.Message())
+	hover := w.FindTop(e.At)
 
-	if r.Hover != nil && r.Hover != hover {
-		r.Hover.HandleEvent(r, Event{Msg: ActionCrash, At: e.At})
+	if w.Hover != nil && w.Hover != hover {
+		MakeActionEvent(e.Root(), ActionCrash, e.At, image.Point{}).Dispatch(w.Hover)
 	}
 
-	r.Hover = hover
-	if r.Hover != nil {
-		return r.Hover.HandleEvent(r, Event{Msg: ActionHover, At: e.At})
+	w.Hover = hover
+	if w.Hover != nil {
+		return MakeActionEvent(e.Root(), ActionHover, e.At, image.Point{}).Dispatch(w.Hover)
 	}
 	return false
 }
 
 func (r *Root) On(e Event) bool {
-	switch e.Msg {
-	case PadDetach:
-		return r.Default.HandleEvent(r, e)
-	case PadAttach:
-		return r.Default.HandleEvent(r, e)
-	case PadPress:
-		return r.Default.HandleEvent(r, e)
-	case PadHold:
-		return r.Default.HandleEvent(r, e)
-	case PadRelease:
-		return r.Default.HandleEvent(r, e)
-	case PadMove:
-		return r.Default.HandleEvent(r, e)
-	case KeyPress:
-		return r.Default.HandleEvent(r, e)
-	case KeyHold:
-		return r.Default.HandleEvent(r, e)
-	case KeyRelease:
-		return r.Default.HandleEvent(r, e)
-	case KeyText:
-		return r.Default.HandleEvent(r, e)
-	case TouchPress:
-		return r.Default.HandleEvent(r, e)
-	case TouchHold:
-		return r.Default.HandleEvent(r, e)
-	case TouchRelease:
-		return r.Default.HandleEvent(r, e)
-	case MousePress:
-		return r.Default.HandleEvent(r, e)
-	case MouseMove:
-		return r.HandleMouseMove(e)
-	case MouseRelease:
-		return r.Default.HandleEvent(r, e)
-	case MouseHold:
-		return r.Default.HandleEvent(r, e)
-	case MouseWheel:
-		return r.Default.HandleEvent(r, e)
-	case ActionFocus:
-		return r.Default.HandleEvent(r, e)
-	case ActionBlur:
-		return r.Default.HandleEvent(r, e)
-	case ActionHover:
-		return r.Default.HandleEvent(r, e)
-	case ActionCrash:
-		return r.Default.HandleEvent(r, e)
-	case ActionDrag:
-		return r.Default.HandleEvent(r, e)
-	case ActionDrop:
-		return r.Default.HandleEvent(r, e)
-	case ActionMark:
-		return r.Default.HandleEvent(r, e)
-	case ActionClean:
-		return r.Default.HandleEvent(r, e)
-	case LayoutGet:
-		return r.Default.HandleEvent(r, e)
-	case LayoutSet:
-		return r.Default.HandleEvent(r, e)
-	default:
-		panic("Unknown event message")
+	println("Root.On ", e.Message())
+	return e.Dispatch(r)
+}
+
+func (r *Root) HandleEvent(e Event) bool {
+	if r.Default != nil {
+		return r.Default.HandleEvent(e)
 	}
+	println("warning: Root.HandleEvent, event not handled: ", e.Message())
+	return false
 }
 
 // Update is called 60 times per second.
@@ -551,13 +242,13 @@ func (r *Root) On(e Event) bool {
 func (r *Root) Update() error {
 	for _, gid := range r.gamepads {
 		if inpututil.IsGamepadJustDisconnected(gid) {
-			r.On(Event{Msg: PadDetach, ID: int(gid)})
+			r.On(MakePadEvent(r, PadDetach, int(gid), 0, 0, nil))
 		}
 	}
 
 	r.connected = inpututil.AppendJustConnectedGamepadIDs(nil)
 	for _, gid := range r.connected {
-		r.On(Event{Msg: PadAttach, ID: int(gid)})
+		r.On(MakePadEvent(r, PadAttach, int(gid), 0, 0, nil))
 	}
 
 	r.gamepads = r.gamepads[0:0]
@@ -565,18 +256,18 @@ func (r *Root) Update() error {
 	for _, gid := range r.gamepads {
 		buttons := inpututil.AppendJustPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			r.On(Event{Msg: PadPress, ID: int(gid), Button: int(button)})
+			r.On(MakePadEvent(r, PadPress, int(gid), int(button), 0, nil))
 		}
 
 		buttons = inpututil.AppendPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
 			dur := inpututil.GamepadButtonPressDuration(gid, button)
-			r.On(Event{Msg: PadHold, ID: int(gid), Button: int(button), Duration: dur})
+			r.On(MakePadEvent(r, PadHold, int(gid), int(button), dur, nil))
 		}
 
 		buttons = inpututil.AppendJustReleasedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			r.On(Event{Msg: PadRelease, ID: int(gid), Button: int(button)})
+			r.On(MakePadEvent(r, PadRelease, int(gid), int(button), 0, nil))
 		}
 
 		count := ebiten.GamepadAxisCount(gid)
@@ -588,24 +279,24 @@ func (r *Root) Update() error {
 			moved = moved || ((value > 0.1) || (value < -0.1))
 		}
 		if (len(axes) > 0) && moved {
-			r.On(Event{Msg: PadRelease, ID: int(gid), Axes: axes})
+			r.On(MakePadEvent(r, PadMove, int(gid), 0, 0, axes))
 		}
 	}
 
 	keys := inpututil.AppendJustPressedKeys(nil)
 	for _, key := range keys {
-		r.On(Event{Msg: KeyPress, Code: int(key)})
+		r.On(MakeKeyEvent(r, KeyPress, -1, int(key), 0, ""))
 	}
 
 	keys = inpututil.AppendPressedKeys(nil)
 	for _, key := range keys {
 		dur := inpututil.KeyPressDuration(key)
-		r.On(Event{Msg: KeyHold, Code: int(key), Duration: dur})
+		r.On(MakeKeyEvent(r, KeyHold, -1, int(key), dur, ""))
 	}
 
 	keys = inpututil.AppendJustReleasedKeys(nil)
 	for _, key := range keys {
-		r.On(Event{Msg: KeyRelease, Code: int(key)})
+		r.On(MakeKeyEvent(r, KeyRelease, -1, int(key), 0, ""))
 	}
 
 	if len(r.chars) == 0 && cap(r.chars) == 0 {
@@ -616,7 +307,7 @@ func (r *Root) Update() error {
 
 	r.chars = ebiten.AppendInputChars(r.chars)
 	if len(r.chars) > 0 {
-		r.On(Event{Msg: KeyText, ID: -1, Chars: string(r.chars)})
+		r.On(MakeKeyEvent(r, KeyText, -1, 0, 0, string(r.chars)))
 	}
 	r.chars = r.chars[0:0]
 
@@ -624,7 +315,7 @@ func (r *Root) Update() error {
 		if field.IsFocused() {
 			handled, _ := field.HandleInput(field.X, field.Y)
 			if handled {
-				r.On(Event{Msg: KeyText, ID: id, Chars: field.Text()})
+				r.On(MakeKeyEvent(r, KeyText, id, 0, 0, field.Text()))
 			}
 		}
 	}
@@ -632,7 +323,7 @@ func (r *Root) Update() error {
 	touches := inpututil.AppendJustPressedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(Event{Msg: TouchPress, ID: int(touch), At: image.Pt(x, y)})
+		r.On(MakeTouchEvent(r, TouchPress, int(touch), image.Pt(x, y), image.Point{}, 0))
 	}
 
 	touches = ebiten.AppendTouchIDs(nil)
@@ -641,13 +332,13 @@ func (r *Root) Update() error {
 		px, py := inpututil.TouchPositionInPreviousTick(touch)
 		dx, dy := x-px, y-py
 		dur := inpututil.TouchPressDuration(touch)
-		r.On(Event{Msg: TouchHold, ID: int(touch), At: image.Pt(x, y), Delta: image.Pt(dx, dy), Duration: dur})
+		r.On(MakeTouchEvent(r, TouchHold, int(touch), image.Pt(x, y), image.Pt(dx, dy), dur))
 	}
 
 	touches = inpututil.AppendJustReleasedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(Event{Msg: TouchRelease, ID: int(touch), At: image.Pt(x, y)})
+		r.On(MakeTouchEvent(r, TouchRelease, int(touch), image.Pt(x, y), image.Point{}, 0))
 	}
 
 	x, y := ebiten.CursorPosition()
@@ -657,18 +348,18 @@ func (r *Root) Update() error {
 
 	for mb := ebiten.MouseButton(0); mb < ebiten.MouseButtonMax; mb++ {
 		if inpututil.IsMouseButtonJustPressed(mb) {
-			r.On(Event{Msg: MousePress, At: at, Delta: delta})
+			r.On(MakeMouseEvent(r, MousePress, at, delta, 0))
 		}
 		if ebiten.IsMouseButtonPressed(mb) {
 			dur := inpututil.MouseButtonPressDuration(mb)
-			r.On(Event{Msg: MouseHold, At: at, Delta: delta, Duration: dur})
+			r.On(MakeMouseEvent(r, MouseHold, at, delta, dur))
 		}
 		if inpututil.IsMouseButtonJustReleased(mb) {
-			r.On(Event{Msg: MouseRelease, At: at, Delta: delta})
+			r.On(MakeMouseEvent(r, MouseRelease, at, delta, 0))
 		}
 	}
 	if dx != 0 || dy != 0 {
-		r.On(Event{Msg: MouseMove, At: at, Delta: delta})
+		r.On(MakeMouseEvent(r, MouseMove, at, delta, 0))
 	}
 	r.cx = x
 	r.cy = y
@@ -676,7 +367,7 @@ func (r *Root) Update() error {
 	wx, wy := ebiten.Wheel()
 	if wx != 0 || wy != 0 {
 		wheel := image.Pt(int(wx), int(wy))
-		r.On(Event{Msg: MouseWheel, At: at, Delta: delta, Wheel: wheel})
+		r.On(MakeMouseWheelEvent(r, MousePress, at, delta, wheel))
 	}
 
 	return nil
@@ -686,7 +377,7 @@ func (r *Root) Update() error {
 func (r *Root) Draw(screen *Surface) {
 	for _, p := range r.Widgets {
 		if !p.State.Hide {
-			p.Render(r, screen)
+			p.Control.Render(r, screen)
 		}
 	}
 }
@@ -724,6 +415,12 @@ func FocusStyle() Style {
 func HoverStyle() Style {
 	s := DefaultStyle()
 	s.Border = color.RGBA{240, 240, 50, 250}
+	return s
+}
+
+func PressStyle() Style {
+	s := DefaultStyle()
+	s.Fill = color.RGBA{0, 45, 245, 245}
 	return s
 }
 
@@ -807,29 +504,25 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 
 func NewBox(bounds Rectangle) *Widget {
 	p := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	p.Control = &box{Widget: p}
+	box := &box{Basic: Basic{Widget: p}}
+	p.Control = box
 	return p
 }
 
-type HoverHandler struct {
-	*State
+type Basic struct {
+	*Widget
 }
 
-func (h *HoverHandler) HandleEvent(r *Root, e Event) bool {
-	switch e.Msg {
-	case ActionHover:
-		h.State.Hover = true
-		return true
-	case ActionCrash:
-		h.State.Hover = false
-		return true
-	default:
-		return false
+func (b Basic) HandleEvent(e Event) bool {
+	if b.Widget.Control != nil {
+		return e.Dispatch(b.Widget.Control)
 	}
+	println("warning: basic event handler called for ", int(e.Message()))
+	return false
 }
 
 type box struct {
-	*Widget
+	Basic
 }
 
 // Render is called when the element needs to be drawn.
@@ -841,32 +534,29 @@ func (b box) Render(r *Root, screen *Surface) {
 	style.DrawBox(screen, b.Bounds)
 	for _, w := range b.Widgets {
 		if !w.State.Hide {
-			w.Render(r, screen)
+			w.Control.Render(r, screen)
 		}
 	}
 }
 
-func (b *box) HandleEvent(r *Root, e Event) bool {
-	switch e.Msg {
-	case ActionHover:
-		b.State.Hover = true
-		return true
-	case ActionCrash:
-		b.State.Hover = false
-		return true
-	default:
-		return false
-	}
+func (b *box) OnActionHover(e ActionEvent) bool {
+	b.State.Hover = true
+	return true
+}
+
+func (b *box) OnActionCrash(e ActionEvent) bool {
+	b.State.Hover = false
+	return true
 }
 
 func NewButton(bounds Rectangle, text string) *Widget {
 	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Control = &button{Widget: b, Text: text}
+	b.Control = &button{Basic: Basic{Widget: b}, Text: text}
 	return b
 }
 
 type button struct {
-	*Widget
+	Basic
 	Text    string
 	Clicked func(*button)
 	pressed bool
@@ -875,27 +565,35 @@ type button struct {
 
 func (b button) Render(r *Root, screen *Surface) {
 	box := b.Bounds
+	style := b.Style
 
 	if b.pressed {
 		box = box.Add(b.Style.Margin)
+		style = PressStyle()
 	}
 
 	at := box.Min
 
-	b.Style.DrawBox(screen, box)
-	b.Style.DrawText(screen, at, b.Text)
+	style.DrawBox(screen, box)
+	style.DrawText(screen, at, b.Text)
 }
 
-func (b *button) HandleEvent(r *Root, e Event) bool {
-	return Dispatch(b, r, e)
+func (b *button) OnActionHover(e ActionEvent) bool {
+	b.State.Hover = true
+	return true
 }
 
-func (b *button) OnMousePress(r *Root, ev Event) bool {
+func (b *button) OnActionCrash(e ActionEvent) bool {
+	b.State.Hover = false
+	return true
+}
+
+func (b *button) OnMousePress(e MouseEvent) bool {
 	b.pressed = true
 	return true
 }
 
-func (b *button) OnMouseRelease(r *Root, ev Event) bool {
+func (b *button) OnMouseRelease(e MouseEvent) bool {
 	b.pressed = false
 	if b.Clicked != nil {
 		b.Clicked(b)
@@ -907,32 +605,4 @@ func (p *Widget) AddButton(bounds Rectangle, text string) *Widget {
 	b := NewButton(bounds, text)
 	p.Widgets = append(p.Widgets, b)
 	return b
-}
-
-type EventHandlerMux struct {
-	handlers [LastMessage]Handler
-}
-
-func NewEventhandlerMux() *EventHandlerMux {
-	return &EventHandlerMux{}
-}
-
-func (mux *EventHandlerMux) Handle(message Message, handler Handler) {
-	mux.handlers[message] = handler
-}
-
-func (mux *EventHandlerMux) Handler(e Event) (h Handler, message Message) {
-	if e.Msg < 0 || e.Msg >= LastMessage {
-		return Discard{}, LastMessage
-	}
-	handler := mux.handlers[e.Msg]
-	if handler == nil {
-		return Discard{}, e.Msg
-	}
-	return handler, e.Msg
-}
-
-func (mux *EventHandlerMux) HandleEvent(r *Root, e Event) {
-	handler, _ := mux.Handler(e)
-	handler.HandleEvent(r, e)
 }
