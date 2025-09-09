@@ -51,7 +51,7 @@ type Event struct {
 
 // Event can dispatch itself to a Listener.
 func (e Event) Dispatch(l Listener) bool {
-	slog.Info("Event.Dispatch", "Msg", e.Msg)
+	slog.Debug("Event.Dispatch", "Msg", e.Msg)
 	switch e.Msg {
 	case PadDetach:
 		return l.OnPadDetach(e.Pad)

@@ -190,6 +190,7 @@ type Widget struct {
 	State   State
 	Widgets []*Widget // Sub widgets of the widget if any.
 	Hover   *Widget   // Hover is the Widget that is being hovered by the mouse.
+	Focus   *Widget   // Hover is the Widget that is being focused.
 }
 
 func (w *Widget) FindTop(at Point) *Widget {
@@ -204,6 +205,12 @@ func (w *Widget) FindTop(at Point) *Widget {
 			}
 		}
 	}
+	if top != nil {
+		sub := top.FindTop(at)
+		if sub != nil {
+			return sub
+		}
+	}
 	return top
 }
 
@@ -212,7 +219,7 @@ func (w *Widget) Append(widgets ...*Widget) {
 }
 
 func (r *Root) On(e Event) bool {
-	slog.Info("Root.On ", "event", e)
+	slog.Debug("Root.On ", "event", e)
 	return e.Dispatch(r.Control)
 }
 
@@ -502,7 +509,6 @@ type Basic struct {
 }
 
 func (b *Basic) OnMouseMove(e MouseEvent) bool {
-	println("Basic.OnMouseMove ")
 	w := b.Widget
 	hover := w.FindTop(e.At)
 
@@ -513,6 +519,33 @@ func (b *Basic) OnMouseMove(e MouseEvent) bool {
 	w.Hover = hover
 	if w.Hover != nil {
 		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+	}
+	return false
+}
+
+func (b *Basic) OnMousePress(e MouseEvent) bool {
+	w := b.Widget
+	top := w.FindTop(e.At)
+
+	if w.Focus != nil && w.Focus != top {
+		Event{Msg: ActionBlur, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+	}
+
+	if w.Focus != top {
+		w.Focus = top
+		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+	}
+
+	if w.Focus != nil {
+		return Event{Msg: MousePress, Mouse: e}.Dispatch(w.Focus.Control)
+	}
+	return false
+}
+
+func (b *Basic) OnMouseRelease(e MouseEvent) bool {
+	w := b.Widget
+	if w.Focus != nil {
+		return Event{Msg: MouseRelease, Mouse: e}.Dispatch(w.Focus.Control)
 	}
 	return false
 }
@@ -554,16 +587,65 @@ func (b *box) OnActionCrash(e ActionEvent) bool {
 	return true
 }
 
-func NewButton(bounds Rectangle, text string) *Widget {
-	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Control = &button{Basic: Basic{Widget: b}, Text: text}
+type label struct {
+	Basic
+	Text    string
+	pressed bool
+}
+
+func (b label) Render(r *Root, screen *Surface) {
+	box := b.Bounds
+	style := b.Style
+
+	if b.State.Hover {
+		style = HoverStyle()
+	}
+
+	at := box.Min
+
+	style.DrawBox(screen, box)
+	style.DrawText(screen, at, b.Text)
+}
+
+func (b *label) OnActionHover(e ActionEvent) bool {
+	b.State.Hover = true
+	return true
+}
+
+func (b *label) OnActionCrash(e ActionEvent) bool {
+	b.State.Hover = false
+	return true
+}
+
+func (l *label) SetText(text string) {
+	l.Text = text
+}
+
+func (p *Widget) AddLabel(bounds Rectangle, text string) *Widget {
+	b := NewLabel(bounds, text)
+	p.Widgets = append(p.Widgets, b)
 	return b
+}
+
+func NewLabel(bounds Rectangle, text string) *Widget {
+	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Control = &label{Basic: Basic{Widget: b}, Text: text}
+	return b
+}
+
+func SetText(c Control, text string) {
+	switch w := c.(type) {
+	case interface{ SetText(text string) }:
+		w.SetText(text)
+	default:
+		slog.Warn("cannot set text", "control", c)
+	}
 }
 
 type button struct {
 	Basic
 	Text    string
-	Clicked func(*button)
+	Clicked func(*Widget)
 	pressed bool
 	Result  int // May be set freely except on dialog buttons.
 }
@@ -575,6 +657,8 @@ func (b button) Render(r *Root, screen *Surface) {
 	if b.pressed {
 		box = box.Add(b.Style.Margin)
 		style = PressStyle()
+	} else if b.State.Hover {
+		style = HoverStyle()
 	}
 
 	at := box.Min
@@ -601,13 +685,23 @@ func (b *button) OnMousePress(e MouseEvent) bool {
 func (b *button) OnMouseRelease(e MouseEvent) bool {
 	b.pressed = false
 	if b.Clicked != nil {
-		b.Clicked(b)
+		b.Clicked(b.Widget)
 	}
 	return true
 }
 
-func (p *Widget) AddButton(bounds Rectangle, text string) *Widget {
-	b := NewButton(bounds, text)
+func (b *button) SetText(text string) {
+	b.Text = text
+}
+
+func NewButton(bounds Rectangle, text string, cl func(*Widget)) *Widget {
+	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Control = &button{Basic: Basic{Widget: b}, Text: text, Clicked: cl}
+	return b
+}
+
+func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Widget)) *Widget {
+	b := NewButton(bounds, text, cl)
 	p.Widgets = append(p.Widgets, b)
 	return b
 }
