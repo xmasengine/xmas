@@ -132,7 +132,7 @@ type Root struct {
 
 func NewRoot() *Root {
 	res := &Root{}
-	res.Control = Basic{Widget: &res.Widget}
+	res.Control = &Basic{Widget: &res.Widget}
 	res.Default = Discard{}
 	return res
 }
@@ -160,9 +160,9 @@ type Renderer interface {
 	Render(*Root, *Surface)
 }
 
-// A control is a renderer and a handler
+// A control is a renderer and a listener
 type Control interface {
-	EventHandler
+	Listener
 	Renderer
 }
 
@@ -229,13 +229,13 @@ func (r *Root) HandleEvent(e Event) bool {
 func (r *Root) Update() error {
 	for _, gid := range r.gamepads {
 		if inpututil.IsGamepadJustDisconnected(gid) {
-			r.On(PadDetachEvent{MakePadEvent(r, int(gid), 0, 0, nil)})
+			r.On(Event{Msg: PadDetach, Pad: MakePadEvent(r, int(gid), 0, 0, nil)})
 		}
 	}
 
 	r.connected = inpututil.AppendJustConnectedGamepadIDs(nil)
 	for _, gid := range r.connected {
-		r.On(PadAttachEvent{MakePadEvent(r, int(gid), 0, 0, nil)})
+		r.On(Event{Msg: PadAttach, Pad: MakePadEvent(r, int(gid), 0, 0, nil)})
 	}
 
 	r.gamepads = r.gamepads[0:0]
@@ -243,18 +243,18 @@ func (r *Root) Update() error {
 	for _, gid := range r.gamepads {
 		buttons := inpututil.AppendJustPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			r.On(PadPressEvent{MakePadEvent(r, int(gid), int(button), 0, nil)})
+			r.On(Event{Msg: PadPress, Pad: MakePadEvent(r, int(gid), int(button), 0, nil)})
 		}
 
 		buttons = inpututil.AppendPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
 			dur := inpututil.GamepadButtonPressDuration(gid, button)
-			r.On(PadHoldEvent{MakePadEvent(r, int(gid), int(button), dur, nil)})
+			r.On(Event{Msg: PadHold, Pad: MakePadEvent(r, int(gid), int(button), dur, nil)})
 		}
 
 		buttons = inpututil.AppendJustReleasedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			r.On(PadReleaseEvent{MakePadEvent(r, int(gid), int(button), 0, nil)})
+			r.On(Event{Msg: PadRelease, Pad: MakePadEvent(r, int(gid), int(button), 0, nil)})
 		}
 
 		count := ebiten.GamepadAxisCount(gid)
@@ -266,24 +266,24 @@ func (r *Root) Update() error {
 			moved = moved || ((value > 0.1) || (value < -0.1))
 		}
 		if (len(axes) > 0) && moved {
-			r.On(PadMoveEvent{MakePadEvent(r, int(gid), 0, 0, axes)})
+			r.On(Event{Msg: PadMove, Pad: MakePadEvent(r, int(gid), 0, 0, axes)})
 		}
 	}
 
 	keys := inpututil.AppendJustPressedKeys(nil)
 	for _, key := range keys {
-		r.On(KeyPressEvent{MakeKeyEvent(r, -1, int(key), 0, "")})
+		r.On(Event{Msg: KeyPress, Key: MakeKeyEvent(r, -1, int(key), 0, "")})
 	}
 
 	keys = inpututil.AppendPressedKeys(nil)
 	for _, key := range keys {
 		dur := inpututil.KeyPressDuration(key)
-		r.On(KeyHoldEvent{MakeKeyEvent(r, -1, int(key), dur, "")})
+		r.On(Event{Msg: KeyHold, Key: MakeKeyEvent(r, -1, int(key), dur, "")})
 	}
 
 	keys = inpututil.AppendJustReleasedKeys(nil)
 	for _, key := range keys {
-		r.On(KeyReleaseEvent{MakeKeyEvent(r, -1, int(key), 0, "")})
+		r.On(Event{Msg: KeyRelease, Key: MakeKeyEvent(r, -1, int(key), 0, "")})
 	}
 
 	if len(r.chars) == 0 && cap(r.chars) == 0 {
@@ -294,7 +294,7 @@ func (r *Root) Update() error {
 
 	r.chars = ebiten.AppendInputChars(r.chars)
 	if len(r.chars) > 0 {
-		r.On(KeyTextEvent{MakeKeyEvent(r, -1, 0, 0, string(r.chars))})
+		r.On(Event{Msg: KeyText, Key: MakeKeyEvent(r, -1, 0, 0, string(r.chars))})
 	}
 	r.chars = r.chars[0:0]
 
@@ -302,7 +302,7 @@ func (r *Root) Update() error {
 		if field.IsFocused() {
 			handled, _ := field.HandleInput(field.X, field.Y)
 			if handled {
-				r.On(KeyTextEvent{MakeKeyEvent(r, id, 0, 0, field.Text())})
+				r.On(Event{Msg: KeyText, Key: MakeKeyEvent(r, id, 0, 0, field.Text())})
 			}
 		}
 	}
@@ -310,7 +310,7 @@ func (r *Root) Update() error {
 	touches := inpututil.AppendJustPressedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(TouchPressEvent{MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Point{}, 0)})
+		r.On(Event{Msg: TouchPress, Touch: MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Point{}, 0)})
 	}
 
 	touches = ebiten.AppendTouchIDs(nil)
@@ -319,13 +319,13 @@ func (r *Root) Update() error {
 		px, py := inpututil.TouchPositionInPreviousTick(touch)
 		dx, dy := x-px, y-py
 		dur := inpututil.TouchPressDuration(touch)
-		r.On(TouchHoldEvent{MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Pt(dx, dy), dur)})
+		r.On(Event{Msg: TouchHold, Touch: MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Pt(dx, dy), dur)})
 	}
 
 	touches = inpututil.AppendJustReleasedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(TouchReleaseEvent{MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Point{}, 0)})
+		r.On(Event{Msg: TouchRelease, Touch: MakeTouchEvent(r, int(touch), image.Pt(x, y), image.Point{}, 0)})
 	}
 
 	x, y := ebiten.CursorPosition()
@@ -335,18 +335,18 @@ func (r *Root) Update() error {
 
 	for mb := ebiten.MouseButton(0); mb < ebiten.MouseButtonMax; mb++ {
 		if inpututil.IsMouseButtonJustPressed(mb) {
-			r.On(MousePressEvent{MakeMouseEvent(r, at, delta, 0)})
+			r.On(Event{Msg: MousePress, Mouse: MakeMouseEvent(r, at, delta, 0)})
 		}
 		if ebiten.IsMouseButtonPressed(mb) {
 			dur := inpututil.MouseButtonPressDuration(mb)
-			r.On(MouseHoldEvent{MakeMouseEvent(r, at, delta, dur)})
+			r.On(Event{Msg: MouseHold, Mouse: MakeMouseEvent(r, at, delta, dur)})
 		}
 		if inpututil.IsMouseButtonJustReleased(mb) {
-			r.On(MouseReleaseEvent{MakeMouseEvent(r, at, delta, 0)})
+			r.On(Event{Msg: MouseRelease, Mouse: MakeMouseEvent(r, at, delta, 0)})
 		}
 	}
 	if dx != 0 || dy != 0 {
-		r.On(MouseMoveEvent{MakeMouseEvent(r, at, delta, 0)})
+		r.On(Event{Msg: MouseMove, Mouse: MakeMouseEvent(r, at, delta, 0)})
 	}
 	r.cx = x
 	r.cy = y
@@ -354,7 +354,7 @@ func (r *Root) Update() error {
 	wx, wy := ebiten.Wheel()
 	if wx != 0 || wy != 0 {
 		wheel := image.Pt(int(wx), int(wy))
-		r.On(MousePressEvent{MakeMouseWheelEvent(r, at, delta, wheel)})
+		r.On(Event{Msg: MouseWheel, Mouse: MakeMouseWheelEvent(r, at, delta, wheel)})
 	}
 
 	return nil
@@ -378,10 +378,6 @@ func (r *Root) Layout(availableWidth, availableHeight int) (elementWidth, elemen
 
 	return availableWidth, availableHeight
 }
-
-var (
-	_ MouseMoveHandler = &Basic{}
-)
 
 func DefaultStyle() Style {
 	s := Style{}
@@ -502,21 +498,21 @@ func NewBox(bounds Rectangle) *Widget {
 
 type Basic struct {
 	*Widget
-	BasicMouseHandler
+	BasicListener
 }
 
-func (b *Basic) OnMouseMove(e MouseMoveEvent) bool {
+func (b *Basic) OnMouseMove(e MouseEvent) bool {
 	println("Basic.OnMouseMove ")
 	w := b.Widget
 	hover := w.FindTop(e.At)
 
 	if w.Hover != nil && w.Hover != hover {
-		ActionCrashEvent{MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+		Event{Msg: ActionCrash, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
 	}
 
 	w.Hover = hover
 	if w.Hover != nil {
-		return ActionHoverEvent{MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
 	}
 	return false
 }

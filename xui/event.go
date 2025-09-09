@@ -2,48 +2,159 @@ package xui
 
 import "log/slog"
 
-// Event can dispatch itself to a dispatcher, it also has a
-// reference to the root.
-type Event interface {
-	Dispatch(Dispatcher) bool
-	Root() *Root
+// Message is a kind of message that is sent to the listeners.
+type Message int
+
+const (
+	NoMessage Message = iota
+	PadDetach
+	PadAttach
+	PadPress
+	PadHold
+	PadRelease
+	PadMove
+	KeyPress
+	KeyHold
+	KeyRelease
+	KeyText
+	TouchPress
+	TouchHold
+	TouchRelease
+	MousePress
+	MouseRelease
+	MouseHold
+	MouseMove
+	MouseWheel
+	ActionFocus
+	ActionBlur
+	ActionHover
+	ActionCrash
+	ActionDrag
+	ActionDrop
+	ActionMark
+	ActionClean
+	LayoutGet
+	LayoutSet
+	LastMessage
+)
+
+// Event in an event that is sent to the UI components.
+type Event struct {
+	Msg    Message
+	Pad    PadEvent
+	Touch  TouchEvent
+	Key    KeyEvent
+	Mouse  MouseEvent
+	Action ActionEvent
+	Layout LayoutEvent
 }
 
-// Dispatcher is normally one of the one method handlers below.
-type Dispatcher any
+// Event can dispatch itself to a Listener.
+func (e Event) Dispatch(l Listener) bool {
+	slog.Info("Event.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case PadDetach:
+		return l.OnPadDetach(e.Pad)
+
+	case PadAttach:
+		return l.OnPadAttach(e.Pad)
+
+	case PadPress:
+		return l.OnPadPress(e.Pad)
+
+	case PadHold:
+		return l.OnPadHold(e.Pad)
+
+	case PadRelease:
+		return l.OnPadRelease(e.Pad)
+
+	case PadMove:
+		return l.OnPadMove(e.Pad)
+
+	case KeyPress:
+		return l.OnKeyPress(e.Key)
+
+	case KeyHold:
+		return l.OnKeyHold(e.Key)
+
+	case KeyRelease:
+		return l.OnKeyRelease(e.Key)
+
+	case KeyText:
+		return l.OnKeyText(e.Key)
+
+	case TouchPress:
+		return l.OnTouchPress(e.Touch)
+
+	case TouchHold:
+		return l.OnTouchHold(e.Touch)
+
+	case TouchRelease:
+		return l.OnTouchRelease(e.Touch)
+
+	case MousePress:
+		return l.OnMousePress(e.Mouse)
+
+	case MouseRelease:
+		return l.OnMouseRelease(e.Mouse)
+
+	case MouseHold:
+		return l.OnMouseHold(e.Mouse)
+
+	case MouseMove:
+		return l.OnMouseMove(e.Mouse)
+
+	case MouseWheel:
+		return l.OnMouseWheel(e.Mouse)
+
+	case ActionFocus:
+		return l.OnActionFocus(e.Action)
+
+	case ActionBlur:
+		return l.OnActionBlur(e.Action)
+
+	case ActionHover:
+		return l.OnActionHover(e.Action)
+
+	case ActionCrash:
+		return l.OnActionCrash(e.Action)
+
+	case ActionDrag:
+		return l.OnActionDrag(e.Action)
+
+	case ActionDrop:
+		return l.OnActionDrop(e.Action)
+
+	case ActionMark:
+		return l.OnActionMark(e.Action)
+
+	case ActionClean:
+		return l.OnActionClean(e.Action)
+	case LayoutGet:
+		return l.OnLayoutGet(e.Layout)
+	case LayoutSet:
+		return l.OnLayoutSet(e.Layout)
+	default:
+		return l.HandleEvent(e)
+	}
+	return false
+}
 
 type EventHandler interface {
 	HandleEvent(e Event) bool
 }
 
-type PadDetachHandler interface{ OnPadDetach(PadDetachEvent) bool }
-type PadAttachHandler interface{ OnPadAttach(PadAttachEvent) bool }
-type PadPressHandler interface{ OnPadPress(PadPressEvent) bool }
-type PadHoldHandler interface{ OnPadHold(PadHoldEvent) bool }
-type PadReleaseHandler interface{ OnPadRelease(PadReleaseEvent) bool }
-type PadMoveHandler interface{ OnPadMove(PadMoveEvent) bool }
-type KeyPressHandler interface{ OnKeyPress(KeyPressEvent) bool }
-type KeyHoldHandler interface{ OnKeyHold(KeyHoldEvent) bool }
-type KeyReleaseHandler interface{ OnKeyRelease(KeyReleaseEvent) bool }
-type KeyTextHandler interface{ OnKeyText(KeyTextEvent) bool }
-type TouchPressHandler interface{ OnTouchPress(TouchPressEvent) bool }
-type TouchHoldHandler interface{ OnTouchHold(TouchHoldEvent) bool }
-type TouchReleaseHandler interface{ OnTouchRelease(TouchReleaseEvent) bool }
-type MousePressHandler interface{ OnMousePress(MousePressEvent) bool }
-type MouseHoldHandler interface{ OnMouseHold(MouseHoldEvent) bool }
-type MouseReleaseHandler interface{ OnMouseRelease(MouseReleaseEvent) bool }
-type MouseMoveHandler interface{ OnMouseMove(MouseMoveEvent) bool }
-type MouseWheelHandler interface{ OnMouseWheel(MouseWheelEvent) bool }
-type ActionFocusHandler interface{ OnActionFocus(ActionFocusEvent) bool }
-type ActionBlurHandler interface{ OnActionBlur(ActionBlurEvent) bool }
-type ActionHoverHandler interface{ OnActionHover(ActionHoverEvent) bool }
-type ActionCrashHandler interface{ OnActionCrash(ActionCrashEvent) bool }
-type ActionDragHandler interface{ OnActionDrag(ActionDragEvent) bool }
-type ActionDropHandler interface{ OnActionDrop(ActionDropEvent) bool }
-type ActionMarkHandler interface{ OnActionMark(ActionMarkEvent) bool }
-type ActionCleanHandler interface{ OnActionClean(ActionCleanEvent) bool }
-type LayoutGetHandler interface{ OnLayoutGet(LayoutGetEvent) bool }
-type LayoutSetHandler interface{ OnLayoutSet(LayoutSetEvent) bool }
+// Listener must implement all possible event handlers
+// as well as EventHandler as a fallback.
+type Listener interface {
+	EventHandler
+	PadHandler
+	KeyHandler
+	TouchHandler
+	MouseHandler
+	ActionHandler
+	LayoutHandler
+}
 
 type PadHandler interface {
 	OnPadDetach(PadEvent) bool
@@ -101,237 +212,6 @@ func MakeBasicEvent(r *Root) BasicEvent {
 
 func (e BasicEvent) Root() *Root {
 	return e.R
-}
-
-func (e BasicEvent) Dispatch(c Dispatcher) bool {
-	return false
-}
-
-type PadDetachEvent struct{ PadEvent }
-type PadAttachEvent struct{ PadEvent }
-type PadPressEvent struct{ PadEvent }
-type PadHoldEvent struct{ PadEvent }
-type PadReleaseEvent struct{ PadEvent }
-type PadMoveEvent struct{ PadEvent }
-type KeyPressEvent struct{ KeyEvent }
-type KeyHoldEvent struct{ KeyEvent }
-type KeyReleaseEvent struct{ KeyEvent }
-type KeyTextEvent struct{ KeyEvent }
-type TouchPressEvent struct{ TouchEvent }
-type TouchHoldEvent struct{ TouchEvent }
-type TouchReleaseEvent struct{ TouchEvent }
-type MousePressEvent struct{ MouseEvent }
-type MouseReleaseEvent struct{ MouseEvent }
-type MouseHoldEvent struct{ MouseEvent }
-type MouseMoveEvent struct{ MouseEvent }
-type MouseWheelEvent struct{ MouseEvent }
-type ActionFocusEvent struct{ ActionEvent }
-type ActionBlurEvent struct{ ActionEvent }
-type ActionHoverEvent struct{ ActionEvent }
-type ActionCrashEvent struct{ ActionEvent }
-type ActionDragEvent struct{ ActionEvent }
-type ActionDropEvent struct{ ActionEvent }
-type ActionMarkEvent struct{ ActionEvent }
-type ActionCleanEvent struct{ ActionEvent }
-type LayoutGetEvent struct{ LayoutEvent }
-type LayoutSetEvent struct{ LayoutEvent }
-
-func (e PadDetachEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadDetachHandler); ok {
-		return impl.OnPadDetach(e)
-	}
-	return false
-}
-
-func (e PadAttachEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadAttachHandler); ok {
-		return impl.OnPadAttach(e)
-	}
-	return false
-}
-
-func (e PadPressEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadPressHandler); ok {
-		return impl.OnPadPress(e)
-	}
-	return false
-}
-
-func (e PadHoldEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadHoldHandler); ok {
-		return impl.OnPadHold(e)
-	}
-	return false
-}
-
-func (e PadReleaseEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadReleaseHandler); ok {
-		return impl.OnPadRelease(e)
-	}
-	return false
-}
-
-func (e PadMoveEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(PadMoveHandler); ok {
-		return impl.OnPadMove(e)
-	}
-	return false
-}
-
-func (e KeyPressEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(KeyPressHandler); ok {
-		return impl.OnKeyPress(e)
-	}
-	return false
-}
-
-func (e KeyHoldEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(KeyHoldHandler); ok {
-		return impl.OnKeyHold(e)
-	}
-	return false
-}
-
-func (e KeyReleaseEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(KeyReleaseHandler); ok {
-		return impl.OnKeyRelease(e)
-	}
-	return false
-}
-
-func (e KeyTextEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(KeyTextHandler); ok {
-		return impl.OnKeyText(e)
-	}
-	return false
-}
-
-func (e TouchPressEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(TouchPressHandler); ok {
-		return impl.OnTouchPress(e)
-	}
-	return false
-}
-
-func (e TouchHoldEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(TouchHoldHandler); ok {
-		return impl.OnTouchHold(e)
-	}
-	return false
-}
-
-func (e TouchReleaseEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(TouchReleaseHandler); ok {
-		return impl.OnTouchRelease(e)
-	}
-	return false
-}
-
-func (e MousePressEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(MousePressHandler); ok {
-		return impl.OnMousePress(e)
-	}
-	return false
-}
-
-func (e MouseReleaseEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(MouseReleaseHandler); ok {
-		return impl.OnMouseRelease(e)
-	}
-	return false
-}
-
-func (e MouseHoldEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(MouseHoldHandler); ok {
-		return impl.OnMouseHold(e)
-	}
-	return false
-}
-
-func (e MouseMoveEvent) Dispatch(d Dispatcher) bool {
-	slog.Info("MouseMoveEvent", "d", d)
-	if impl, ok := d.(MouseMoveHandler); ok {
-		slog.Info("MouseMoveEvent ok")
-		return impl.OnMouseMove(e)
-	}
-	return false
-}
-
-func (e MouseWheelEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(MouseWheelHandler); ok {
-		return impl.OnMouseWheel(e)
-	}
-	return false
-}
-
-func (e ActionFocusEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionFocusHandler); ok {
-		return impl.OnActionFocus(e)
-	}
-	return false
-}
-
-func (e ActionBlurEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionBlurHandler); ok {
-		return impl.OnActionBlur(e)
-	}
-	return false
-}
-
-func (e ActionHoverEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionHoverHandler); ok {
-		return impl.OnActionHover(e)
-	}
-	return false
-}
-
-func (e ActionCrashEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionCrashHandler); ok {
-		return impl.OnActionCrash(e)
-	}
-	return false
-}
-
-func (e ActionDragEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionDragHandler); ok {
-		return impl.OnActionDrag(e)
-	}
-	return false
-}
-
-func (e ActionDropEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionDropHandler); ok {
-		return impl.OnActionDrop(e)
-	}
-	return false
-}
-
-func (e ActionMarkEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionMarkHandler); ok {
-		return impl.OnActionMark(e)
-	}
-	return false
-}
-
-func (e ActionCleanEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(ActionCleanHandler); ok {
-		return impl.OnActionClean(e)
-	}
-	return false
-}
-
-func (e LayoutGetEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(LayoutGetHandler); ok {
-		return impl.OnLayoutGet(e)
-	}
-	return false
-}
-
-func (e LayoutSetEvent) Dispatch(d Dispatcher) bool {
-	if impl, ok := d.(LayoutSetHandler); ok {
-		return impl.OnLayoutSet(e)
-	}
-	return false
 }
 
 type PadEvent struct {
@@ -553,3 +433,23 @@ var _ LayoutHandler = BasicLayoutHandler{}
 
 func (BasicLayoutHandler) OnLayoutGet(e LayoutEvent) bool { return false }
 func (BasicLayoutHandler) OnLayoutSet(e LayoutEvent) bool { return false }
+
+type BasicEventHandler struct {
+	*Widget
+}
+
+func (BasicEventHandler) HandleEvent(e Event) bool { return false }
+
+var _ EventHandler = BasicEventHandler{}
+
+type BasicListener struct {
+	BasicPadHandler
+	BasicKeyHandler
+	BasicTouchHandler
+	BasicMouseHandler
+	BasicActionHandler
+	BasicLayoutHandler
+	BasicEventHandler
+}
+
+var _ Listener = BasicListener{}
