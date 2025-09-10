@@ -423,8 +423,10 @@ func (r *RootClass) OnMousePress(e MouseEvent) bool {
 	}
 
 	if w.Focus != top {
+		if w.Focus != nil {
+			Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Class)
+		}
 		w.Focus = top
-		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Class)
 	}
 
 	if w.Focus != nil {
@@ -493,6 +495,12 @@ func HoverStyle() Style {
 func PressStyle() Style {
 	s := DefaultStyle()
 	s.Fill = color.RGBA{0, 45, 245, 245}
+	return s
+}
+
+func CheckStyle() Style {
+	s := DefaultStyle()
+	s.Fill = color.RGBA{245, 245, 245, 250}
 	return s
 }
 
@@ -683,80 +691,4 @@ func NewLabel(bounds Rectangle, text string) *Label {
 	res.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
 	res.Class = NewLabelClass(res)
 	return res
-}
-
-type Button struct {
-	Widget
-	Text    string
-	Clicked func(*Button)
-	pressed bool
-	Result  int // May be set freely except on dialog Buttons.
-}
-
-type ButtonClass struct {
-	*Button
-	*WidgetClass
-}
-
-func NewButtonClass(b *Button) *ButtonClass {
-	res := &ButtonClass{Button: b}
-	res.WidgetClass = NewWidgetClass()
-	return res
-}
-
-func (b ButtonClass) Render(r *Root, screen *Surface) {
-	box := b.Bounds
-	style := b.Style
-
-	if b.pressed {
-		box = box.Add(b.Style.Margin)
-		style = PressStyle()
-	} else if b.State.Hover {
-		style = HoverStyle()
-	}
-
-	at := box.Min
-
-	style.DrawBox(screen, box)
-	style.DrawText(screen, at, b.Text)
-}
-
-func (b *ButtonClass) OnActionHover(e ActionEvent) bool {
-	b.State.Hover = true
-	return true
-}
-
-func (b *ButtonClass) OnActionCrash(e ActionEvent) bool {
-	b.State.Hover = false
-	return true
-}
-
-func (b *ButtonClass) OnMousePress(e MouseEvent) bool {
-	b.pressed = true
-	return true
-}
-
-func (b *ButtonClass) OnMouseRelease(e MouseEvent) bool {
-	b.pressed = false
-	if b.Clicked != nil {
-		b.Clicked(b.Button)
-	}
-	return true
-}
-
-func (b *Button) SetText(text string) {
-	b.Text = text
-}
-
-func NewButton(bounds Rectangle, text string, cl func(*Button)) *Button {
-	b := &Button{Text: text, Clicked: cl}
-	b.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Class = NewButtonClass(b)
-	return b
-}
-
-func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Button)) *Button {
-	b := NewButton(bounds, text, cl)
-	p.Widgets = append(p.Widgets, &b.Widget)
-	return b
 }

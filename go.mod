@@ -9,8 +9,8 @@ require (
 	github.com/hajimehoshi/ebiten/v2 v2.8.8
 	github.com/quasilyte/bitsweetfont v0.0.0-20250520233623-318bd06626e1
 	github.com/zachomedia/go-bdf v0.0.0-20220611021443-a3af701111be
-	golang.design/x/clipboard v0.7.0
-	golang.org/x/image v0.27.0
+	golang.design/x/clipboard v0.7.1
+	golang.org/x/image v0.30.0
 )
 
 require (
@@ -27,10 +27,10 @@ require (
 	github.com/tidbyt/go-bdf v0.0.0-20200807014123-29975f932239 // indirect
 	github.com/yohamta/ganim8/v3 v3.0.1 // indirect
 	golang.org/x/exp v0.0.0-20210916165020-5cb4fee858ee // indirect
-	golang.org/x/exp/shiny v0.0.0-20250506013437-ce4c2cf36ca6 // indirect
-	golang.org/x/mobile v0.0.0-20250520180527-a1d90793fc63 // indirect
-	golang.org/x/sync v0.14.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.25.0 // indirect
-	golang.org/x/tools v0.33.0 // indirect
+	golang.org/x/exp/shiny v0.0.0-20250819193227-8b4c13bb791b // indirect
+	golang.org/x/mobile v0.0.0-20250711185624-d5bb5ecc55c0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 )
