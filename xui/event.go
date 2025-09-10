@@ -443,6 +443,7 @@ func (BasicEventHandler) HandleEvent(e Event) bool { return false }
 var _ EventHandler = BasicEventHandler{}
 
 type BasicListener struct {
+	Widget *Widget
 	BasicPadHandler
 	BasicKeyHandler
 	BasicTouchHandler

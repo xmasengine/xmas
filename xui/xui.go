@@ -7,6 +7,10 @@
 // Each child widget needs to be fully contained in the parent Widget
 // and may not overflow it.
 // Effectively this means the UI is "flat" apart from the Z ordering.
+//
+// Each Widget has a Class that determines its behavior.
+// Widgets and Classes are separate, but can use embedding
+// to extend each other in a double hierarchy.
 package xui
 
 import (
@@ -25,8 +29,6 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
-// http.DefaultServeMux
-
 // TextInputField is an input field for IME text entry.
 type TextInputField struct {
 	textinput.Field
@@ -35,10 +37,10 @@ type TextInputField struct {
 
 // Keymods are the current key modifers.
 type KeyMods struct {
-	Alt     bool
-	Control bool
-	Shift   bool
-	Meta    bool
+	Alt   bool
+	Class bool
+	Shift bool
+	Meta  bool
 }
 
 // Rectangle is used for sizes and positions.
@@ -116,7 +118,7 @@ func LineHeight(face Face) int {
 
 // Root is the top level of the UI.
 type Root struct {
-	Basic                             // basic, root is also a basic widget
+	Widget                            // Widget root is also a widget
 	NoTouchMouse    bool              // NoTouchMouse: set this to true to not translate touches to mouse events.
 	TextInputFields []*TextInputField // Text input fields in use
 	cx, cy          int
@@ -133,8 +135,7 @@ type Root struct {
 func NewRoot() *Root {
 	res := &Root{}
 	res.Default = Discard{}
-	res.Widget = &res.Data
-	res.Control = res
+	res.Class = NewRootClass(res)
 	return res
 }
 
@@ -161,8 +162,8 @@ type Renderer interface {
 	Render(*Root, *Surface)
 }
 
-// A control is a renderer and a listener
-type Control interface {
+// A Class determines the behavior of a widget. It is a renderer and a listener.
+type Class interface {
 	Listener
 	Renderer
 }
@@ -180,10 +181,10 @@ type Invisible struct{}
 func (Invisible) Render(_ *Root, _ *Surface) {
 }
 
-// Widget is a widget in the UI.
-// It can be the Root widget, a Widget widget or a simple widget.
+// Widget is the basic widget in the UI. Embed this to implement a widget.
+// It can be the Root widget, a panel widget or a simple widget.
 type Widget struct {
-	Control Control   // A widget must embed a Control with the specific behavior.
+	Class   Class     // A widget must embed a Class with the specific behavior.
 	Layer   int       // Layer is the Z ordering of the widget.
 	Bounds  Rectangle // Actual position and size of the widget.
 	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
@@ -192,6 +193,19 @@ type Widget struct {
 	Widgets []*Widget // Sub widgets of the widget if any.
 	Hover   *Widget   // Hover is the Widget that is being hovered by the mouse.
 	Focus   *Widget   // Hover is the Widget that is being focused.
+}
+
+// WidgetClass is the basic class for a Widget. Embed this to implement a class.
+type WidgetClass struct {
+	BasicListener
+}
+
+func (w WidgetClass) Render(r *Root, screen *Surface) {
+	// draw nothing
+}
+
+func NewWidgetClass() *WidgetClass {
+	return &WidgetClass{}
 }
 
 func (w *Widget) FindTop(at Point) *Widget {
@@ -219,9 +233,15 @@ func (w *Widget) Append(widgets ...*Widget) {
 	w.Widgets = append(w.Widgets, widgets...)
 }
 
+func NewWidget() *Widget {
+	res := &Widget{}
+	res.Class = NewWidgetClass()
+	return res
+}
+
 func (r *Root) On(e Event) bool {
 	slog.Debug("Root.On ", "event", e)
-	return e.Dispatch(r.Control)
+	return e.Dispatch(r.Class)
 }
 
 func (r *Root) HandleEvent(e Event) bool {
@@ -368,55 +388,70 @@ func (r *Root) Update() error {
 	return nil
 }
 
-func (r *Root) OnMouseMove(e MouseEvent) bool {
-	w := r.Widget
+type RootClass struct {
+	*Root
+	*WidgetClass
+}
+
+func NewRootClass(r *Root) *RootClass {
+	res := &RootClass{Root: r}
+	res.WidgetClass = NewWidgetClass()
+	return res
+}
+
+func (r *RootClass) OnMouseMove(e MouseEvent) bool {
+	w := r.Root
 	hover := w.FindTop(e.At)
 
 	if w.Hover != nil && w.Hover != hover {
-		Event{Msg: ActionCrash, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+		Event{Msg: ActionCrash, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Class)
 	}
 
 	w.Hover = hover
 	if w.Hover != nil {
-		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Class)
 	}
 	return false
 }
 
-func (r *Root) OnMousePress(e MouseEvent) bool {
-	w := r.Widget
+func (r *RootClass) OnMousePress(e MouseEvent) bool {
+	w := r.Root
 	top := w.FindTop(e.At)
 
 	if w.Focus != nil && w.Focus != top {
-		Event{Msg: ActionBlur, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+		Event{Msg: ActionBlur, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Class)
 	}
 
 	if w.Focus != top {
 		w.Focus = top
-		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Class)
 	}
 
 	if w.Focus != nil {
-		return Event{Msg: MousePress, Mouse: e}.Dispatch(w.Focus.Control)
+		return Event{Msg: MousePress, Mouse: e}.Dispatch(w.Focus.Class)
 	}
 	return false
 }
 
-func (r *Root) OnMouseRelease(e MouseEvent) bool {
-	w := r.Widget
+func (r *RootClass) OnMouseRelease(e MouseEvent) bool {
+	w := r.Root
 	if w.Focus != nil {
-		return Event{Msg: MouseRelease, Mouse: e}.Dispatch(w.Focus.Control)
+		return Event{Msg: MouseRelease, Mouse: e}.Dispatch(w.Focus.Class)
 	}
 	return false
+}
+
+func (r *RootClass) Render(_ *Root, screen *Surface) {
+	for _, p := range r.Root.Widgets {
+		if !p.State.Hide {
+			p.Class.Render(r.Root, screen)
+		}
+	}
 }
 
 // Draw is called when the UI needs to be drawn in game.ui
 func (r *Root) Draw(screen *Surface) {
-	for _, p := range r.Widgets {
-		if !p.State.Hide {
-			p.Control.Render(r, screen)
-		}
-	}
+	r.Class.Render(r, screen)
 }
 
 // Layout is called when the contents of the element need to be laid out.
@@ -541,39 +576,35 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 
 func (w *Widget) AddBox(bounds Rectangle) *Box {
 	box := NewBox(bounds)
-	w.Widgets = append(w.Widgets, box.Widget)
+	w.Widgets = append(w.Widgets, &box.Widget)
 	return box
 }
 
 func NewBox(bounds Rectangle) *Box {
 	box := &Box{}
-	box.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
-	box.Widget = &box.Data
-	box.Control = box // self reference
+	box.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	box.Class = NewBoxClass(box)
 	return box
 }
 
-type Basic struct {
-	Data Widget
-	*Widget
-	BasicListener
-}
-
-func (b Basic) HandleEvent(e Event) bool {
-	slog.Warn("basic event handler called", "event", e)
-	return false
-}
-
-func (b Basic) Render(r *Root, screen *Surface) {
-	// draw nothing
-}
-
 type Box struct {
-	Basic
+	Widget
+}
+
+type BoxClass struct {
+	*Box
+	*WidgetClass
+}
+
+func NewBoxClass(b *Box) *BoxClass {
+	res := &BoxClass{Box: b}
+	res.WidgetClass = NewWidgetClass()
+	return res
 }
 
 // Render is called when the element needs to be drawn.
-func (b Box) Render(r *Root, screen *Surface) {
+func (bc BoxClass) Render(r *Root, screen *Surface) {
+	b := bc.Box
 	style := b.Style
 	if b.State.Hover {
 		style = HoverStyle()
@@ -581,28 +612,39 @@ func (b Box) Render(r *Root, screen *Surface) {
 	style.DrawBox(screen, b.Bounds)
 	for _, w := range b.Widgets {
 		if !w.State.Hide {
-			w.Control.Render(r, screen)
+			w.Class.Render(r, screen)
 		}
 	}
 }
 
-func (b *Box) OnActionHover(e ActionEvent) bool {
+func (b *BoxClass) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *Box) OnActionCrash(e ActionEvent) bool {
+func (b *BoxClass) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
 
+type LabelClass struct {
+	*Label
+	*WidgetClass
+}
+
+func NewLabelClass(b *Label) *LabelClass {
+	res := &LabelClass{Label: b}
+	res.WidgetClass = NewWidgetClass()
+	return res
+}
+
 type Label struct {
-	Basic
+	Widget
 	Text    string
 	pressed bool
 }
 
-func (b Label) Render(r *Root, screen *Surface) {
+func (b LabelClass) Render(r *Root, screen *Surface) {
 	box := b.Bounds
 	style := b.Style
 
@@ -616,12 +658,12 @@ func (b Label) Render(r *Root, screen *Surface) {
 	style.DrawText(screen, at, b.Text)
 }
 
-func (b *Label) OnActionHover(e ActionEvent) bool {
+func (b *LabelClass) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *Label) OnActionCrash(e ActionEvent) bool {
+func (b *LabelClass) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
@@ -632,36 +674,37 @@ func (l *Label) SetText(text string) {
 
 func (p *Widget) AddLabel(bounds Rectangle, text string) *Label {
 	b := NewLabel(bounds, text)
-	p.Widgets = append(p.Widgets, b.Widget)
+	p.Widgets = append(p.Widgets, &b.Widget)
 	return b
 }
 
 func NewLabel(bounds Rectangle, text string) *Label {
-	res := &Label{}
-	res.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
-	res.Widget = &res.Data
-	res.Control = res // self reference
+	res := &Label{Text: text}
+	res.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	res.Class = NewLabelClass(res)
 	return res
 }
 
-func SetText(c Control, text string) {
-	switch w := c.(type) {
-	case interface{ SetText(text string) }:
-		w.SetText(text)
-	default:
-		slog.Warn("cannot set text", "control", c)
-	}
-}
-
 type Button struct {
-	Basic
+	Widget
 	Text    string
-	Clicked func(*Widget)
+	Clicked func(*Button)
 	pressed bool
 	Result  int // May be set freely except on dialog Buttons.
 }
 
-func (b Button) Render(r *Root, screen *Surface) {
+type ButtonClass struct {
+	*Button
+	*WidgetClass
+}
+
+func NewButtonClass(b *Button) *ButtonClass {
+	res := &ButtonClass{Button: b}
+	res.WidgetClass = NewWidgetClass()
+	return res
+}
+
+func (b ButtonClass) Render(r *Root, screen *Surface) {
 	box := b.Bounds
 	style := b.Style
 
@@ -678,25 +721,25 @@ func (b Button) Render(r *Root, screen *Surface) {
 	style.DrawText(screen, at, b.Text)
 }
 
-func (b *Button) OnActionHover(e ActionEvent) bool {
+func (b *ButtonClass) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *Button) OnActionCrash(e ActionEvent) bool {
+func (b *ButtonClass) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
 
-func (b *Button) OnMousePress(e MouseEvent) bool {
+func (b *ButtonClass) OnMousePress(e MouseEvent) bool {
 	b.pressed = true
 	return true
 }
 
-func (b *Button) OnMouseRelease(e MouseEvent) bool {
+func (b *ButtonClass) OnMouseRelease(e MouseEvent) bool {
 	b.pressed = false
 	if b.Clicked != nil {
-		b.Clicked(b.Widget)
+		b.Clicked(b.Button)
 	}
 	return true
 }
@@ -705,16 +748,15 @@ func (b *Button) SetText(text string) {
 	b.Text = text
 }
 
-func NewButton(bounds Rectangle, text string, cl func(*Widget)) *Button {
+func NewButton(bounds Rectangle, text string, cl func(*Button)) *Button {
 	b := &Button{Text: text, Clicked: cl}
-	b.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Widget = &b.Data
-	b.Control = b // self reference
+	b.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Class = NewButtonClass(b)
 	return b
 }
 
-func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Widget)) *Button {
+func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Button)) *Button {
 	b := NewButton(bounds, text, cl)
-	p.Widgets = append(p.Widgets, b.Widget)
+	p.Widgets = append(p.Widgets, &b.Widget)
 	return b
 }

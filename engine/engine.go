@@ -39,7 +39,7 @@ func New(sw, sh int) *Engine {
 	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
 	engine.Root.AddBox(image.Rect(170, 90, 200, 120))
 	lab1 := box1.AddLabel(image.Rect(25, 30, 125, 47), "Label")
-	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(*xui.Widget) { xui.SetText(lab1.Control, "Click!"); println("button clicked") })
+	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
 	return engine
 }
 
