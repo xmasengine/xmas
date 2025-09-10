@@ -36,11 +36,10 @@ func New(sw, sh int) *Engine {
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
-	box1 := xui.NewBox(image.Rect(20, 30, 200, 150))
-	box2 := xui.NewBox(image.Rect(70, 90, 150, 100))
+	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
+	engine.Root.AddBox(image.Rect(170, 90, 200, 120))
 	lab1 := box1.AddLabel(image.Rect(25, 30, 125, 47), "Label")
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(*xui.Widget) { xui.SetText(lab1.Control, "Click!"); println("button clicked") })
-	engine.Root.Append(box1, box2)
 	return engine
 }
 

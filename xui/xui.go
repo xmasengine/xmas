@@ -116,7 +116,7 @@ func LineHeight(face Face) int {
 
 // Root is the top level of the UI.
 type Root struct {
-	Widget                            // Root is also a widget
+	Basic                             // basic, root is also a basic widget
 	NoTouchMouse    bool              // NoTouchMouse: set this to true to not translate touches to mouse events.
 	TextInputFields []*TextInputField // Text input fields in use
 	cx, cy          int
@@ -132,8 +132,9 @@ type Root struct {
 
 func NewRoot() *Root {
 	res := &Root{}
-	res.Control = &Basic{Widget: &res.Widget}
 	res.Default = Discard{}
+	res.Widget = &res.Data
+	res.Control = res
 	return res
 }
 
@@ -367,6 +368,48 @@ func (r *Root) Update() error {
 	return nil
 }
 
+func (r *Root) OnMouseMove(e MouseEvent) bool {
+	w := r.Widget
+	hover := w.FindTop(e.At)
+
+	if w.Hover != nil && w.Hover != hover {
+		Event{Msg: ActionCrash, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+	}
+
+	w.Hover = hover
+	if w.Hover != nil {
+		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
+	}
+	return false
+}
+
+func (r *Root) OnMousePress(e MouseEvent) bool {
+	w := r.Widget
+	top := w.FindTop(e.At)
+
+	if w.Focus != nil && w.Focus != top {
+		Event{Msg: ActionBlur, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+	}
+
+	if w.Focus != top {
+		w.Focus = top
+		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
+	}
+
+	if w.Focus != nil {
+		return Event{Msg: MousePress, Mouse: e}.Dispatch(w.Focus.Control)
+	}
+	return false
+}
+
+func (r *Root) OnMouseRelease(e MouseEvent) bool {
+	w := r.Widget
+	if w.Focus != nil {
+		return Event{Msg: MouseRelease, Mouse: e}.Dispatch(w.Focus.Control)
+	}
+	return false
+}
+
 // Draw is called when the UI needs to be drawn in game.ui
 func (r *Root) Draw(screen *Surface) {
 	for _, p := range r.Widgets {
@@ -496,62 +539,28 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 	}
 }
 
-func NewBox(bounds Rectangle) *Widget {
-	p := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	box := &box{Basic: Basic{Widget: p}}
-	p.Control = box
-	return p
+func (w *Widget) AddBox(bounds Rectangle) *Box {
+	box := NewBox(bounds)
+	w.Widgets = append(w.Widgets, box.Widget)
+	return box
+}
+
+func NewBox(bounds Rectangle) *Box {
+	box := &Box{}
+	box.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
+	box.Widget = &box.Data
+	box.Control = box // self reference
+	return box
 }
 
 type Basic struct {
+	Data Widget
 	*Widget
 	BasicListener
 }
 
-func (b *Basic) OnMouseMove(e MouseEvent) bool {
-	w := b.Widget
-	hover := w.FindTop(e.At)
-
-	if w.Hover != nil && w.Hover != hover {
-		Event{Msg: ActionCrash, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
-	}
-
-	w.Hover = hover
-	if w.Hover != nil {
-		return Event{Msg: ActionHover, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Hover.Control)
-	}
-	return false
-}
-
-func (b *Basic) OnMousePress(e MouseEvent) bool {
-	w := b.Widget
-	top := w.FindTop(e.At)
-
-	if w.Focus != nil && w.Focus != top {
-		Event{Msg: ActionBlur, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
-	}
-
-	if w.Focus != top {
-		w.Focus = top
-		Event{Msg: ActionFocus, Action: MakeActionEvent(e.Root(), e.At, image.Point{})}.Dispatch(w.Focus.Control)
-	}
-
-	if w.Focus != nil {
-		return Event{Msg: MousePress, Mouse: e}.Dispatch(w.Focus.Control)
-	}
-	return false
-}
-
-func (b *Basic) OnMouseRelease(e MouseEvent) bool {
-	w := b.Widget
-	if w.Focus != nil {
-		return Event{Msg: MouseRelease, Mouse: e}.Dispatch(w.Focus.Control)
-	}
-	return false
-}
-
 func (b Basic) HandleEvent(e Event) bool {
-	println("warning: basic event handler called")
+	slog.Warn("basic event handler called", "event", e)
 	return false
 }
 
@@ -559,12 +568,12 @@ func (b Basic) Render(r *Root, screen *Surface) {
 	// draw nothing
 }
 
-type box struct {
+type Box struct {
 	Basic
 }
 
 // Render is called when the element needs to be drawn.
-func (b box) Render(r *Root, screen *Surface) {
+func (b Box) Render(r *Root, screen *Surface) {
 	style := b.Style
 	if b.State.Hover {
 		style = HoverStyle()
@@ -577,23 +586,23 @@ func (b box) Render(r *Root, screen *Surface) {
 	}
 }
 
-func (b *box) OnActionHover(e ActionEvent) bool {
+func (b *Box) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *box) OnActionCrash(e ActionEvent) bool {
+func (b *Box) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
 
-type label struct {
+type Label struct {
 	Basic
 	Text    string
 	pressed bool
 }
 
-func (b label) Render(r *Root, screen *Surface) {
+func (b Label) Render(r *Root, screen *Surface) {
 	box := b.Bounds
 	style := b.Style
 
@@ -607,30 +616,32 @@ func (b label) Render(r *Root, screen *Surface) {
 	style.DrawText(screen, at, b.Text)
 }
 
-func (b *label) OnActionHover(e ActionEvent) bool {
+func (b *Label) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *label) OnActionCrash(e ActionEvent) bool {
+func (b *Label) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
 
-func (l *label) SetText(text string) {
+func (l *Label) SetText(text string) {
 	l.Text = text
 }
 
-func (p *Widget) AddLabel(bounds Rectangle, text string) *Widget {
+func (p *Widget) AddLabel(bounds Rectangle, text string) *Label {
 	b := NewLabel(bounds, text)
-	p.Widgets = append(p.Widgets, b)
+	p.Widgets = append(p.Widgets, b.Widget)
 	return b
 }
 
-func NewLabel(bounds Rectangle, text string) *Widget {
-	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Control = &label{Basic: Basic{Widget: b}, Text: text}
-	return b
+func NewLabel(bounds Rectangle, text string) *Label {
+	res := &Label{}
+	res.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
+	res.Widget = &res.Data
+	res.Control = res // self reference
+	return res
 }
 
 func SetText(c Control, text string) {
@@ -642,15 +653,15 @@ func SetText(c Control, text string) {
 	}
 }
 
-type button struct {
+type Button struct {
 	Basic
 	Text    string
 	Clicked func(*Widget)
 	pressed bool
-	Result  int // May be set freely except on dialog buttons.
+	Result  int // May be set freely except on dialog Buttons.
 }
 
-func (b button) Render(r *Root, screen *Surface) {
+func (b Button) Render(r *Root, screen *Surface) {
 	box := b.Bounds
 	style := b.Style
 
@@ -667,22 +678,22 @@ func (b button) Render(r *Root, screen *Surface) {
 	style.DrawText(screen, at, b.Text)
 }
 
-func (b *button) OnActionHover(e ActionEvent) bool {
+func (b *Button) OnActionHover(e ActionEvent) bool {
 	b.State.Hover = true
 	return true
 }
 
-func (b *button) OnActionCrash(e ActionEvent) bool {
+func (b *Button) OnActionCrash(e ActionEvent) bool {
 	b.State.Hover = false
 	return true
 }
 
-func (b *button) OnMousePress(e MouseEvent) bool {
+func (b *Button) OnMousePress(e MouseEvent) bool {
 	b.pressed = true
 	return true
 }
 
-func (b *button) OnMouseRelease(e MouseEvent) bool {
+func (b *Button) OnMouseRelease(e MouseEvent) bool {
 	b.pressed = false
 	if b.Clicked != nil {
 		b.Clicked(b.Widget)
@@ -690,18 +701,20 @@ func (b *button) OnMouseRelease(e MouseEvent) bool {
 	return true
 }
 
-func (b *button) SetText(text string) {
+func (b *Button) SetText(text string) {
 	b.Text = text
 }
 
-func NewButton(bounds Rectangle, text string, cl func(*Widget)) *Widget {
-	b := &Widget{Bounds: bounds, Style: DefaultStyle()}
-	b.Control = &button{Basic: Basic{Widget: b}, Text: text, Clicked: cl}
+func NewButton(bounds Rectangle, text string, cl func(*Widget)) *Button {
+	b := &Button{Text: text, Clicked: cl}
+	b.Data = Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Widget = &b.Data
+	b.Control = b // self reference
 	return b
 }
 
-func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Widget)) *Widget {
+func (p *Widget) AddButton(bounds Rectangle, text string, cl func(*Widget)) *Button {
 	b := NewButton(bounds, text, cl)
-	p.Widgets = append(p.Widgets, b)
+	p.Widgets = append(p.Widgets, b.Widget)
 	return b
 }
