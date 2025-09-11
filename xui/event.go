@@ -49,95 +49,39 @@ type Event struct {
 	Layout LayoutEvent
 }
 
+type Eventer interface {
+	Event() Event
+}
+
+func (e Event) Event() Event {
+	return e
+}
+
 // Event can dispatch itself to a Listener.
 func (e Event) Dispatch(l Listener) bool {
 	slog.Debug("Event.Dispatch", "Msg", e.Msg)
 	switch e.Msg {
-	case PadDetach:
-		return l.OnPadDetach(e.Pad)
+	case PadDetach, PadAttach, PadPress, PadHold, PadRelease, PadMove:
+		return e.Pad.Dispatch(l)
 
-	case PadAttach:
-		return l.OnPadAttach(e.Pad)
+	case KeyPress, KeyHold, KeyRelease, KeyText:
+		return e.Key.Dispatch(l)
 
-	case PadPress:
-		return l.OnPadPress(e.Pad)
+	case TouchPress, TouchHold, TouchRelease:
+		return e.Touch.Dispatch(l)
 
-	case PadHold:
-		return l.OnPadHold(e.Pad)
+	case MousePress, MouseRelease, MouseHold, MouseMove, MouseWheel:
+		return e.Mouse.Dispatch(l)
 
-	case PadRelease:
-		return l.OnPadRelease(e.Pad)
+	case ActionFocus, ActionBlur, ActionHover, ActionCrash, ActionDrag, ActionDrop, ActionMark, ActionClean:
+		return e.Action.Dispatch(l)
 
-	case PadMove:
-		return l.OnPadMove(e.Pad)
+	case LayoutGet, LayoutSet:
+		return e.Layout.Dispatch(l)
 
-	case KeyPress:
-		return l.OnKeyPress(e.Key)
-
-	case KeyHold:
-		return l.OnKeyHold(e.Key)
-
-	case KeyRelease:
-		return l.OnKeyRelease(e.Key)
-
-	case KeyText:
-		return l.OnKeyText(e.Key)
-
-	case TouchPress:
-		return l.OnTouchPress(e.Touch)
-
-	case TouchHold:
-		return l.OnTouchHold(e.Touch)
-
-	case TouchRelease:
-		return l.OnTouchRelease(e.Touch)
-
-	case MousePress:
-		return l.OnMousePress(e.Mouse)
-
-	case MouseRelease:
-		return l.OnMouseRelease(e.Mouse)
-
-	case MouseHold:
-		return l.OnMouseHold(e.Mouse)
-
-	case MouseMove:
-		return l.OnMouseMove(e.Mouse)
-
-	case MouseWheel:
-		return l.OnMouseWheel(e.Mouse)
-
-	case ActionFocus:
-		return l.OnActionFocus(e.Action)
-
-	case ActionBlur:
-		return l.OnActionBlur(e.Action)
-
-	case ActionHover:
-		return l.OnActionHover(e.Action)
-
-	case ActionCrash:
-		return l.OnActionCrash(e.Action)
-
-	case ActionDrag:
-		return l.OnActionDrag(e.Action)
-
-	case ActionDrop:
-		return l.OnActionDrop(e.Action)
-
-	case ActionMark:
-		return l.OnActionMark(e.Action)
-
-	case ActionClean:
-		return l.OnActionClean(e.Action)
-	case LayoutGet:
-		return l.OnLayoutGet(e.Layout)
-	case LayoutSet:
-		return l.OnLayoutSet(e.Layout)
 	default:
 		return l.HandleEvent(e)
 	}
-	return false
 }
 
 type EventHandler interface {
@@ -203,11 +147,12 @@ type LayoutHandler interface {
 }
 
 type BasicEvent struct {
-	R *Root
+	R   *Root
+	Msg Message
 }
 
-func MakeBasicEvent(r *Root) BasicEvent {
-	return BasicEvent{R: r}
+func MakeBasicEvent(msg Message, r *Root) BasicEvent {
+	return BasicEvent{Msg: msg, R: r}
 }
 
 func (e BasicEvent) Root() *Root {
@@ -222,11 +167,37 @@ type PadEvent struct {
 	Axes     []float64
 }
 
-func MakePadEvent(r *Root, id, button, duration int, axes []float64) PadEvent {
+func MakePadEvent(msg Message, r *Root, id, button, duration int, axes []float64) PadEvent {
 	return PadEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		ID:         id, Button: button, Axes: axes,
 	}
+}
+
+// PadEvent can dispatch itself to a Padhandler.
+func (e PadEvent) Dispatch(p PadHandler) bool {
+	slog.Debug("Event.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case PadDetach:
+		return p.OnPadDetach(e)
+	case PadAttach:
+		return p.OnPadAttach(e)
+	case PadPress:
+		return p.OnPadPress(e)
+	case PadHold:
+		return p.OnPadHold(e)
+	case PadRelease:
+		return p.OnPadRelease(e)
+	case PadMove:
+		return p.OnPadMove(e)
+	default:
+		return false
+	}
+}
+
+// Event returns an event that wraps a pad event.
+func (e PadEvent) Event() Event {
+	return Event{Msg: e.Msg, Pad: e}
 }
 
 type BasicPadHandler struct {
@@ -264,14 +235,38 @@ type KeyEvent struct {
 	ID       int
 	Code     int
 	Duration int
-	Chars    string
+	Chars    []rune
 }
 
-func MakeKeyEvent(r *Root, id, code, duration int, chars string) KeyEvent {
+func MakeKeyEvent(msg Message, r *Root, id, code, duration int, chars ...rune) KeyEvent {
 	return KeyEvent{
-		BasicEvent: MakeBasicEvent(r),
-		ID:         id, Code: code, Chars: chars,
+		BasicEvent: MakeBasicEvent(msg, r),
+		ID:         id,
+		Code:       code,
+		Chars:      chars,
 	}
+}
+
+// KeyEvent can dispatch itself to a Keyhandler.
+func (e KeyEvent) Dispatch(p KeyHandler) bool {
+	slog.Debug("KeyEvent.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case KeyPress:
+		return p.OnKeyPress(e)
+	case KeyHold:
+		return p.OnKeyHold(e)
+	case KeyRelease:
+		return p.OnKeyRelease(e)
+	case KeyText:
+		return p.OnKeyText(e)
+	default:
+		panic("Incorrect KeyEvent message")
+	}
+}
+
+// Event returns an event that wraps a Key event.
+func (e KeyEvent) Event() Event {
+	return Event{Msg: e.Msg, Key: e}
 }
 
 type BasicKeyHandler struct {
@@ -304,11 +299,31 @@ type TouchEvent struct {
 	Duration int
 }
 
-func MakeTouchEvent(r *Root, id int, at, delta Point, duration int) TouchEvent {
+func MakeTouchEvent(msg Message, r *Root, id int, at, delta Point, duration int) TouchEvent {
 	return TouchEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		ID:         id, At: at, Delta: delta, Duration: duration,
 	}
+}
+
+// TouchEvent can dispatch itself to a Touchhandler.
+func (e TouchEvent) Dispatch(p TouchHandler) bool {
+	slog.Debug("TouchEvent.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case TouchPress:
+		return p.OnTouchPress(e)
+	case TouchHold:
+		return p.OnTouchHold(e)
+	case TouchRelease:
+		return p.OnTouchRelease(e)
+	default:
+		return false
+	}
+}
+
+// Event returns an event that wraps a Touch event.
+func (e TouchEvent) Event() Event {
+	return Event{Msg: e.Msg, Touch: e}
 }
 
 type BasicTouchHandler struct {
@@ -337,18 +352,42 @@ type MouseEvent struct {
 	Wheel    Point
 }
 
-func MakeMouseEvent(r *Root, at, delta Point, duration int) MouseEvent {
+func MakeMouseEvent(msg Message, r *Root, at, delta Point, duration int) MouseEvent {
 	return MouseEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		At:         at, Delta: delta, Duration: duration,
 	}
 }
 
-func MakeMouseWheelEvent(r *Root, at, delta, wheel Point) MouseEvent {
+func MakeMouseWheelEvent(msg Message, r *Root, at, delta, wheel Point) MouseEvent {
 	return MouseEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		At:         at, Delta: delta, Wheel: wheel,
 	}
+}
+
+// MouseEvent can dispatch itself to a Mousehandler.
+func (e MouseEvent) Dispatch(p MouseHandler) bool {
+	slog.Debug("Event.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case MousePress:
+		return p.OnMousePress(e)
+	case MouseHold:
+		return p.OnMouseHold(e)
+	case MouseRelease:
+		return p.OnMouseRelease(e)
+	case MouseMove:
+		return p.OnMouseMove(e)
+	case MouseWheel:
+		return p.OnMouseWheel(e)
+	default:
+		return false
+	}
+}
+
+// Event returns an event that wraps a Mouse event.
+func (e MouseEvent) Event() Event {
+	return Event{Msg: e.Msg, Mouse: e}
 }
 
 type BasicMouseHandler struct {
@@ -391,6 +430,41 @@ type ActionEvent struct {
 	Delta Point
 }
 
+// Event can dispatch itself to a Listener.
+func (e ActionEvent) Dispatch(l ActionHandler) bool {
+	slog.Debug("ActionEvent.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case ActionFocus:
+		return l.OnActionFocus(e)
+
+	case ActionBlur:
+		return l.OnActionBlur(e)
+
+	case ActionHover:
+		return l.OnActionHover(e)
+
+	case ActionCrash:
+		return l.OnActionCrash(e)
+
+	case ActionDrag:
+		return l.OnActionDrag(e)
+
+	case ActionDrop:
+		return l.OnActionDrop(e)
+
+	case ActionMark:
+		return l.OnActionMark(e)
+	default:
+		return false
+	}
+	return false
+}
+
+// Event returns an event that wraps a Action event.
+func (e ActionEvent) Event() Event {
+	return Event{Msg: e.Msg, Action: e}
+}
+
 type BasicActionHandler struct {
 	*Widget
 }
@@ -406,9 +480,9 @@ func (BasicActionHandler) OnActionClean(e ActionEvent) bool { return false }
 
 var _ ActionHandler = BasicActionHandler{}
 
-func MakeActionEvent(r *Root, at, delta Point) ActionEvent {
+func MakeActionEvent(msg Message, r *Root, at, delta Point) ActionEvent {
 	return ActionEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		At:         at, Delta: delta,
 	}
 }
@@ -418,11 +492,29 @@ type LayoutEvent struct {
 	Bounds Rectangle
 }
 
-func MakeLayoutEvent(r *Root, id int, bounds Rectangle) LayoutEvent {
+func MakeLayoutEvent(msg Message, r *Root, id int, bounds Rectangle) LayoutEvent {
 	return LayoutEvent{
-		BasicEvent: MakeBasicEvent(r),
+		BasicEvent: MakeBasicEvent(msg, r),
 		Bounds:     bounds,
 	}
+}
+
+// Event can dispatch itself to a Listener.
+func (e LayoutEvent) Dispatch(l LayoutHandler) bool {
+	slog.Debug("LayoutEvent.Dispatch", "Msg", e.Msg)
+	switch e.Msg {
+	case LayoutGet:
+		return l.OnLayoutGet(e)
+	case LayoutSet:
+		return l.OnLayoutSet(e)
+	default:
+		return false
+	}
+}
+
+// Event returns an event that wraps a Layout event.
+func (e LayoutEvent) Event() Event {
+	return Event{Msg: e.Msg, Layout: e}
 }
 
 type BasicLayoutHandler struct {
