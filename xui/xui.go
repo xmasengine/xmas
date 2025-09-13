@@ -239,6 +239,24 @@ func (w *Widget) Append(widgets ...*Widget) {
 	w.Widgets = append(w.Widgets, widgets...)
 }
 
+func (w *Widget) Move(delta Point) *Widget {
+	w.Bounds = w.Bounds.Add(delta)
+	for i := 0; i < len(w.Widgets); i-- {
+		sub := w.Widgets[i]
+		sub.Move(delta)
+	}
+	return w
+}
+
+// RenderWidget renders the widgets inside this widget, not the widget itself.
+func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
+	for i := 0; i < len(w.Widgets); i-- {
+		sub := w.Widgets[i]
+		sub.Class.Render(r, screen)
+	}
+	return w
+}
+
 func NewWidget() *Widget {
 	res := &Widget{}
 	res.Class = NewWidgetClass()
@@ -612,115 +630,4 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 			float32(r), float32(s.Stroke), s.Border, false,
 		)
 	}
-}
-
-func (w *Widget) AddBox(bounds Rectangle) *Box {
-	box := NewBox(bounds)
-	w.Widgets = append(w.Widgets, &box.Widget)
-	return box
-}
-
-func NewBox(bounds Rectangle) *Box {
-	box := &Box{}
-	box.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
-	box.Class = NewBoxClass(box)
-	return box
-}
-
-type Box struct {
-	Widget
-}
-
-type BoxClass struct {
-	*Box
-	*WidgetClass
-}
-
-func NewBoxClass(b *Box) *BoxClass {
-	res := &BoxClass{Box: b}
-	res.WidgetClass = NewWidgetClass()
-	return res
-}
-
-// Render is called when the element needs to be drawn.
-func (bc BoxClass) Render(r *Root, screen *Surface) {
-	b := bc.Box
-	style := b.Style
-	if b.State.Hover {
-		style = HoverStyle()
-	}
-	style.DrawBox(screen, b.Bounds)
-	for _, w := range b.Widgets {
-		if !w.State.Hide {
-			w.Class.Render(r, screen)
-		}
-	}
-}
-
-func (b *BoxClass) OnActionHover(e ActionEvent) bool {
-	b.State.Hover = true
-	return true
-}
-
-func (b *BoxClass) OnActionCrash(e ActionEvent) bool {
-	b.State.Hover = false
-	return true
-}
-
-type LabelClass struct {
-	*Label
-	*WidgetClass
-}
-
-func NewLabelClass(b *Label) *LabelClass {
-	res := &LabelClass{Label: b}
-	res.WidgetClass = NewWidgetClass()
-	return res
-}
-
-type Label struct {
-	Widget
-	Text    string
-	pressed bool
-}
-
-func (b LabelClass) Render(r *Root, screen *Surface) {
-	box := b.Bounds
-	style := b.Style
-
-	if b.State.Hover {
-		style = HoverStyle()
-	}
-
-	at := box.Min
-
-	style.DrawBox(screen, box)
-	style.DrawText(screen, at, b.Text)
-}
-
-func (b *LabelClass) OnActionHover(e ActionEvent) bool {
-	b.State.Hover = true
-	return true
-}
-
-func (b *LabelClass) OnActionCrash(e ActionEvent) bool {
-	b.State.Hover = false
-	return true
-}
-
-func (l *Label) SetText(text string) {
-	l.Text = text
-}
-
-func (p *Widget) AddLabel(bounds Rectangle, text string) *Label {
-	b := NewLabel(bounds, text)
-	p.Widgets = append(p.Widgets, &b.Widget)
-	return b
-}
-
-func NewLabel(bounds Rectangle, text string) *Label {
-	res := &Label{Text: text}
-	res.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
-	res.Class = NewLabelClass(res)
-	return res
 }
