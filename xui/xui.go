@@ -223,22 +223,39 @@ func NewWidgetClass() *WidgetClass {
 	return &WidgetClass{}
 }
 
+// Depth first traversal. Stops if non-nil is returned.
+func (w *Widget) EachWidget(cb func(sub *Widget) *Widget) *Widget {
+	for i := len(w.Widgets) - 1; i >= 0; i-- {
+		sub := w.Widgets[i]
+		if res := sub.EachWidget(cb); res != nil {
+			return sub
+		}
+	}
+	if res := cb(w); res != nil {
+		return res
+	}
+	return nil
+}
+
 func (w *Widget) FindTop(at Point) *Widget {
 	var top *Widget
 	for i := len(w.Widgets) - 1; i >= 0; i-- {
 		p := w.Widgets[i]
-		if at.In(p.Bounds) {
-			if top == nil {
-				top = p
-			} else if top.Layer < p.Layer {
-				top = p
+		if !p.State.Hide {
+			subTop := p.FindTop(at)
+			if top == nil && subTop != nil {
+				top = subTop
+			} else if subTop != nil && top.Layer < subTop.Layer {
+				top = subTop
 			}
-		}
-	}
-	if top != nil {
-		sub := top.FindTop(at)
-		if sub != nil {
-			return sub
+			if at.In(p.Bounds) {
+				if top == nil {
+					top = p
+				} else if top.Layer < p.Layer {
+					top = p
+				}
+			}
+
 		}
 	}
 	return top
@@ -250,7 +267,7 @@ func (w *Widget) Append(widgets ...*Widget) {
 
 func (w *Widget) Move(delta Point) *Widget {
 	w.Bounds = w.Bounds.Add(delta)
-	for i := 0; i < len(w.Widgets); i-- {
+	for i := 0; i < len(w.Widgets); i++ {
 		sub := w.Widgets[i]
 		sub.Move(delta)
 	}
@@ -259,7 +276,7 @@ func (w *Widget) Move(delta Point) *Widget {
 
 // RenderWidget renders the widgets inside this widget, not the widget itself.
 func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
-	for i := 0; i < len(w.Widgets); i-- {
+	for i := 0; i < len(w.Widgets); i++ {
 		sub := w.Widgets[i]
 		sub.Class.Render(r, screen)
 	}
@@ -501,10 +518,26 @@ func (r *RootClass) OnMousePress(e MouseEvent) bool {
 	top := w.FindTop(e.At)
 	r.SetFocus(top, e.At)
 	r.SetDrag(top, e.At, e.Delta)
+
+	if r.Hover != nil {
+		e.Dispatch(r.Hover.Class)
+	}
+
+	if r.Focus != nil && r.Focus != r.Hover {
+		e.Dispatch(r.Focus.Class)
+	}
 	return false
 }
 
 func (r *RootClass) OnMouseRelease(e MouseEvent) bool {
+	if r.Hover != nil {
+		e.Dispatch(r.Hover.Class)
+	}
+
+	if r.Focus != nil && r.Focus != r.Hover {
+		e.Dispatch(r.Focus.Class)
+	}
+
 	r.SetDrag(nil, e.At, e.Delta)
 	return false
 }

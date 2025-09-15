@@ -19,7 +19,7 @@ type BarClass struct {
 func (b *Bar) Init(bounds Rectangle, ch func(*Bar)) *Bar {
 	b.Click = ch
 	b.Box.Init(bounds)
-	b.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Widget = Widget{Bounds: bounds, Style: BarStyle()}
 	b.Style.Border = color.RGBA{64, 64, 64, 191}
 	b.Class = NewBarClass(b)
 	return b
@@ -47,8 +47,17 @@ func (b *BarClass) OnActionDrag(e ActionEvent) bool {
 	return true
 }
 
-func (b *Bar) AddNewItem(bounds Rectangle, heading string) *Item {
-	size := image.Pt(bounds.Dx(), b.Style.LineHeight())
+func (b *Bar) AddItem(bounds Rectangle, heading string, cb func(*Item)) *Item {
+	item := NewItem(bounds, heading, cb)
+	b.Widgets = append(b.Widgets, &item.Widget)
+	return item
+}
+
+func (b *Bar) FitItem(heading string, cb func(*Item)) *Item {
+	bounds := b.Bounds
+	size := b.Style.MeasureText(heading)
+	size = size.Add(b.Style.Margin.Mul(2))
+	size.Y = bounds.Dy()
 	r := Rectangle{bounds.Min, bounds.Min.Add(size)}
 	if len(b.Widgets) > 0 {
 		last := b.Widgets[len(b.Widgets)-1]
@@ -56,22 +65,24 @@ func (b *Bar) AddNewItem(bounds Rectangle, heading string) *Item {
 		pos.Y = b.Bounds.Min.Y
 		r = Rectangle{Min: pos, Max: pos.Add(size)}
 	}
-	item := NewItem(bounds, heading, nil)
-	// XXX should use Move()
-	item.Bounds = r
-	b.Widgets = append(b.Widgets, &item.Widget)
-	return item
+	return b.AddItem(r, heading, cb)
 }
 
-/*
-func (b *Bar) AddNewItemWithMenu(bounds Rectangle, heading string) *Item {
-	item := b.AddNewItem(bounds, heading)
-	item.Menu = NewMenu(bounds, "", item)
-	delta := item.Min.Add(image.Pt(0, b.Bounds().Dy()))
-	item.Menu.Move(delta)
+func (b *Bar) FitItemWithMenu(heading string, cb func(*Item)) *Item {
+	item := b.FitItem(heading, cb)
+	bounds := item.Bounds
+	delta := image.Pt(0, item.Bounds.Dy())
+	bounds = item.Bounds.Add(delta)
+
+	item.Menu = NewMenu(bounds, func(m *Menu) {
+		if cb != nil {
+			cb(item)
+		}
+	})
+	item.Menu.State.Hide = true // menu starts out hidden.
+	item.Widgets = append(item.Widgets, &item.Menu.Widget)
 	return item
 }
-*/
 
 func (b *BarClass) Render(r *Root, screen *Surface) {
 	if b.Bar.State.Hide {
@@ -79,8 +90,7 @@ func (b *BarClass) Render(r *Root, screen *Surface) {
 	}
 
 	b.BoxClass.Render(r, screen)
-
-	// RenderChildren(screen, b.Widgets...)
+	b.Bar.RenderWidgets(r, screen)
 }
 
 type MenuNotifier interface {
@@ -107,7 +117,7 @@ func (m *Menu) Init(bounds Rectangle, ch func(*Menu)) *Menu {
 	return m
 }
 
-func NewMenu(bounds Rectangle, text string, ch func(*Menu)) *Menu {
+func NewMenu(bounds Rectangle, ch func(*Menu)) *Menu {
 	e := &Menu{}
 	return e.Init(bounds, ch)
 }
@@ -118,8 +128,15 @@ func NewMenuClass(c *Menu) *MenuClass {
 	return res
 }
 
-func (m *Menu) AddNewItem(bounds Rectangle, heading string, ch func(*Item)) *Item {
-	size := image.Pt(bounds.Dx(), m.Style.LineHeight())
+func (m *Menu) AddItem(bounds Rectangle, heading string, ch func(*Item)) *Item {
+	item := NewItem(bounds, heading, ch)
+	m.Widgets = append(m.Widgets, &item.Widget)
+	m.Bounds = m.Bounds.Union(item.Bounds)
+	return item
+}
+
+func (m *Menu) FitItem(heading string, ch func(*Item)) *Item {
+	size := m.Style.MeasureText(heading)
 	r := Rectangle{m.Bounds.Min, m.Bounds.Min.Add(size)}
 	if len(m.Widgets) > 0 {
 		last := m.Widgets[len(m.Widgets)-1]
@@ -127,27 +144,28 @@ func (m *Menu) AddNewItem(bounds Rectangle, heading string, ch func(*Item)) *Ite
 		pos.X = m.Bounds.Min.X
 		r = Rectangle{Min: pos, Max: pos.Add(size)}
 	}
-	item := NewItem(bounds, heading, ch)
-	item.Bounds = r
-	m.Widgets = append(m.Widgets, &item.Widget)
-	// XXX Should use Resize.
-	m.Bounds.Max.Add(image.Pt(0, m.Style.LineHeight()))
-
+	item := m.AddItem(r, heading, ch)
 	return item
 }
 
-func (m *Menu) AddNewItemWithMenu(bounds Rectangle, heading string, ch func(*Item), chm func(*Menu)) *Item {
-	item := m.AddNewItem(bounds, heading, ch)
-	item.Menu = NewMenu(bounds, heading, chm)
+func (m *Menu) FitItemWithMenu(heading string, ch func(*Item)) *Item {
+	item := m.FitItem(heading, ch)
+	item.Menu = NewMenu(item.Bounds, func(m *Menu) {
+		if ch != nil {
+			ch(item)
+		}
+	})
 
 	delta := item.Bounds.Min.Add(image.Pt(m.Bounds.Dx(), m.Bounds.Dy()/2))
 	item.Menu.Move(delta)
 	return item
 }
 
+/*
 func (m *Menu) Move(delta Point) {
 	m.Box.Move(delta)
 }
+*/
 
 func (m *Menu) HasVisibleSubMenus() bool {
 	for _, sub := range m.Widgets {
@@ -166,15 +184,18 @@ func (m *MenuClass) Render(r *Root, screen *Surface) {
 	if m.Menu.State.Hide {
 		return
 	}
-
-	m.BoxClass.Render(r, screen)
+	style := m.Menu.Style
+	if m.Menu.State.Hover {
+		style = HoverStyle()
+	}
+	style.DrawBox(screen, m.Menu.Bounds)
 	m.Menu.RenderWidgets(r, screen)
 }
 
-// Item is a  with an item to select or toggle or a menu inside it.
+// Item is an item to select or toggle or with a folding menu in it.
 type Item struct {
 	Label
-	Menu   *Menu       // Optional sub-menu.
+	Menu   *Menu       // Optional folding sub-menu.
 	Select func(*Item) // If not nil select will be called.
 	Result int
 }
@@ -186,8 +207,12 @@ type ItemClass struct {
 
 func (i *Item) Init(bounds Rectangle, text string, ch func(*Item)) *Item {
 	i.Select = ch
+	println("item.Init", bounds.Dx(), bounds.Dy(), text)
 	i.Label.Init(bounds, text)
 	i.Style.Border = color.RGBA{127, 127, 127, 191}
+	i.Style.Fill = color.RGBA{0, 127, 250, 191}
+	i.Style.Writing = color.RGBA{255, 255, 200, 255}
+	i.Style = i.Style.WithTinyFont()
 	i.Class = NewItemClass(i)
 	return i
 }
@@ -216,26 +241,13 @@ func (i *ItemClass) OnMouseRelease(e MouseEvent) bool {
 		i.Select(i.Item)
 	}
 
-	closed := true     // Normally close the menu on click.
 	if i.Menu != nil { // If the item has a menu
 		if i.Menu.State.Hide { // The sub menu it is hidden
 			i.Menu.State.Hide = false // Show it
-			closed = false            // We have to keep the menu open.
 		} else { // The sub menu is visible
 			i.Menu.State.Hide = true // Hide the submenu
-			closed = true            // We have too close the whole menu.
-			for _, sub := range i.Menu.Widgets {
-				if iclass, ok := sub.Class.(*ItemClass); ok {
-					item := iclass.Item
-					if item.Menu != nil {
-						item.Menu.State.Hide = true
-					}
-				}
-			}
 		}
 	}
-	// XXX probably not correct.
-	i.Item.State.Hide = !closed
 
 	return true
 }
@@ -274,7 +286,7 @@ type ListClass struct {
 func (l *List) Init(bounds Rectangle, text string, ch func(*Item)) *List {
 	l.Select = ch
 	l.Box.Init(bounds)
-	l.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	l.Widget = Widget{Bounds: bounds, Style: BarStyle()}
 	l.Style.Border = color.RGBA{127, 127, 127, 191}
 	l.Class = NewListClass(l)
 	return l

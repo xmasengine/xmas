@@ -22,7 +22,7 @@ func (b LabelClass) Render(r *Root, screen *Surface) {
 	style := b.Style
 
 	if b.State.Hover {
-		style = HoverStyle()
+		style = HoverStyle().WithTinyFont()
 	}
 
 	at := box.Min
@@ -52,12 +52,13 @@ func (p *Widget) AddLabel(bounds Rectangle, text string) *Label {
 }
 
 func (l *Label) Init(bounds Rectangle, text string) *Label {
+	l.Text = text
 	l.Widget = Widget{Bounds: bounds, Style: DefaultStyle().WithTinyFont()}
 	l.Class = NewLabelClass(l)
 	return l
 }
 
 func NewLabel(bounds Rectangle, text string) *Label {
-	res := &Label{Text: text}
+	res := &Label{}
 	return res.Init(bounds, text)
 }
