@@ -36,6 +36,12 @@ func NewBarClass(c *Bar) *BarClass {
 	return res
 }
 
+func (w *Widget) AddBar(bounds Rectangle, ch func(*Bar)) *Bar {
+	bar := NewBar(bounds, ch)
+	w.Widgets = append(w.Widgets, &bar.Widget)
+	return bar
+}
+
 func (b *BarClass) OnActionDrag(e ActionEvent) bool {
 	b.Bar.Move(e.Delta)
 	return true

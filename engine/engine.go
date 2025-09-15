@@ -37,9 +37,13 @@ func New(sw, sh int) *Engine {
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
 	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
-	box2 := engine.Root.AddBox(image.Rect(210, 40, 410, 160))
-	lab1 := box1.AddLabel(image.Rect(25, 30, 125, 47), "Label")
+	lab1 := box1.AddLabel(image.Rect(25, 100, 125, 120), "Label")
+
+	bar1 := box1.AddBar(image.Rect(25, 35, 125, 55), func(b *xui.Bar) { lab1.SetText("Bar!"); println("bar clicked") })
+	_ = bar1
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
+
+	box2 := engine.Root.AddBox(image.Rect(210, 40, 410, 160))
 	box2.AddCheckbox(image.Rect(220, 50, 380, 70), "Check", func(b *xui.Checkbox) { lab1.SetText("Check!"); println("checkbox clicked") })
 	box2.AddEntry(image.Rect(220, 90, 380, 120), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
 	return engine

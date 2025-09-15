@@ -284,6 +284,7 @@ github.com/yohamta/ganim8/v3 v3.0.1/go.mod h1:ob/TkXmpGtZw1stHhtxobz7ycywwJZ8n5A
 github.com/yuin/goldmark v1.2.1/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.4.0/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
 github.com/yuin/goldmark v1.4.1/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
+github.com/zachomedia/go-bdf v0.0.0-20220611021443-a3af701111be h1:qf05vm7CJA3tcnR42pv2a/+pvCPGylJcg10B9CRFPvg=
 github.com/zachomedia/go-bdf v0.0.0-20220611021443-a3af701111be/go.mod h1:FWqHpmEj39kZYjkb4y+GkFRwJofD3lP2k8ataoNlo2Y=
 go.etcd.io/bbolt v1.3.3/go.mod h1:IbVyRI1SCnLcuJnV2u8VeU0CEYM7e686BmAb1XKL+uU=
 go.etcd.io/etcd v0.0.0-20191023171146-3cf2f69b5738/go.mod h1:dnLIgRNXwCJa5e+c6mIZCrds/GIG4ncV9HhK5PX7jPg=

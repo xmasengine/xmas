@@ -29,6 +29,10 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+import (
+	"github.com/xmasengine/xmas/xres/spleen8"
+)
+
 // TextInputField is an input field for IME text entry.
 type TextInputField struct {
 	textinput.Field
@@ -74,6 +78,11 @@ type Style struct {
 	Margin  Point
 	Stroke  int
 	Face    Face
+}
+
+func (s Style) WithTinyFont() Style {
+	s.Face = spleen8.XFace
+	return s
 }
 
 var defaultFontFace = text.NewGoXFace(bitmapfont.Face)
@@ -425,9 +434,56 @@ func NewRootClass(r *Root) *RootClass {
 	return res
 }
 
+func (r *Root) SetFocus(w *Widget, at Point) *Widget {
+	old := r.Focus
+	if r.Focus != nil && r.Focus != w {
+		MakeActionEvent(ActionBlur, r, at, image.Point{}).Dispatch(r.Focus.Class)
+	}
+
+	if r.Focus != w {
+		r.Focus = w
+		if r.Focus != nil {
+			MakeActionEvent(ActionFocus, r, at, image.Point{}).Dispatch(r.Focus.Class)
+		}
+	}
+	return old
+}
+
+func (r *Root) SetHover(w *Widget, at Point) *Widget {
+	old := r.Hover
+
+	if r.Hover != nil && r.Hover != w {
+		MakeActionEvent(ActionCrash, r, at, image.Point{}).Dispatch(r.Hover.Class)
+	}
+
+	r.Hover = w
+	if r.Hover != nil {
+		MakeActionEvent(ActionHover, r, at, image.Point{}).Dispatch(r.Hover.Class)
+	}
+	return old
+}
+
+func (r *Root) SetDrag(w *Widget, at, delta Point) *Widget {
+	old := r.Drag
+
+	if r.Drag != nil && r.Drag != w {
+		MakeActionEvent(ActionDrop, r, at, delta).Dispatch(r.Drag.Class)
+	}
+
+	r.Drag = w
+	if r.Drag != nil {
+		MakeActionEvent(ActionDrag, r, at, delta).Dispatch(r.Drag.Class)
+	}
+	return old
+}
+
 func (r *RootClass) OnMouseMove(e MouseEvent) bool {
 	w := r.Root
 	hover := w.FindTop(e.At)
+
+	if w.Drag != nil && w.Drag == hover {
+		MakeActionEvent(ActionDrag, e.Root(), e.At, e.Delta).Dispatch(w.Drag.Class)
+	}
 
 	if w.Hover != nil && w.Hover != hover {
 		MakeActionEvent(ActionCrash, e.Root(), e.At, image.Point{}).Dispatch(w.Hover.Class)
@@ -437,34 +493,19 @@ func (r *RootClass) OnMouseMove(e MouseEvent) bool {
 	if w.Hover != nil {
 		MakeActionEvent(ActionHover, e.Root(), e.At, image.Point{}).Dispatch(w.Hover.Class)
 	}
-	return false
+	return true
 }
 
 func (r *RootClass) OnMousePress(e MouseEvent) bool {
 	w := r.Root
 	top := w.FindTop(e.At)
-	if w.Focus != nil && w.Focus != top {
-		MakeActionEvent(ActionBlur, e.Root(), e.At, image.Point{}).Dispatch(w.Hover.Class)
-	}
-
-	if w.Focus != top {
-		w.Focus = top
-		if w.Focus != nil {
-			MakeActionEvent(ActionFocus, e.Root(), e.At, image.Point{}).Dispatch(w.Focus.Class)
-		}
-	}
-
-	if w.Focus != nil {
-		return e.Dispatch(w.Focus.Class)
-	}
+	r.SetFocus(top, e.At)
+	r.SetDrag(top, e.At, e.Delta)
 	return false
 }
 
 func (r *RootClass) OnMouseRelease(e MouseEvent) bool {
-	w := r.Root
-	if w.Focus != nil {
-		return e.Dispatch(w.Focus.Class)
-	}
+	r.SetDrag(nil, e.At, e.Delta)
 	return false
 }
 
@@ -545,6 +586,12 @@ func HoverStyle() Style {
 func PressStyle() Style {
 	s := DefaultStyle()
 	s.Fill = color.RGBA{0, 45, 245, 245}
+	return s
+}
+
+func BarStyle() Style {
+	s := DefaultStyle().WithTinyFont()
+	s.Fill = color.RGBA{45, 45, 245, 250}
 	return s
 }
 

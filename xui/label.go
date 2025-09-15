@@ -52,7 +52,7 @@ func (p *Widget) AddLabel(bounds Rectangle, text string) *Label {
 }
 
 func (l *Label) Init(bounds Rectangle, text string) *Label {
-	l.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	l.Widget = Widget{Bounds: bounds, Style: DefaultStyle().WithTinyFont()}
 	l.Class = NewLabelClass(l)
 	return l
 }
