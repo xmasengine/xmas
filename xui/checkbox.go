@@ -26,10 +26,8 @@ type Checkbox struct {
 
 func (c *Checkbox) Init(bounds Rectangle, text string, ch func(*Checkbox)) *Checkbox {
 	adapt := func(b *Button) {
+		c.Checked = !c.Checked
 		if ch != nil {
-			if c != nil {
-				c.Checked = !c.Checked
-			}
 			ch(c)
 		}
 	}
@@ -59,20 +57,18 @@ func (bc CheckboxClass) Render(r *Root, screen *Surface) {
 	b := bc.Checkbox
 	box := b.Bounds
 
-	tbox := box.Add(image.Pt(CheckboxSize+b.Style.Margin.X*2, CheckboxSize+b.Style.Margin.Y*2))
-	at := tbox.Min
 	style := b.Style
 	if b.State.Hover {
 		style = HoverStyle()
 	}
+	// Draw the outer box.
+	style.DrawBox(screen, box)
 
-	// Draw the checkbox.
-	// The style will have been changed depending on how it should be drawn.
-	// cb := image.Rect(box.Min.X.+b.Style.Margin, box.Min.Y+b.Style.Margin, box.Min.X+CheckboxSize, box.Min.Y+CheckboxSize)
-	style.DrawBox(screen, tbox)
+	shift := image.Pt(b.Style.Margin.X, (box.Dy()-IconSize)/2)
 
-	ibox := image.Rect(tbox.Min.X, tbox.Min.Y, tbox.Min.X+IconSize, tbox.Min.Y+IconSize)
-	at = at.Add(image.Pt(IconSize, 0))
+	ibox := image.Rect(box.Min.X, box.Min.Y, box.Min.X+IconSize, box.Min.Y+IconSize).Add(shift)
+	tshift := image.Pt(b.Style.Margin.X+ibox.Dx(), 0)
+	at := box.Min.Add(tshift)
 	if b.Icon != nil {
 		b.Icon.Draw(screen, ibox)
 	} else {
