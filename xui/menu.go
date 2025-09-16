@@ -48,7 +48,15 @@ func (b *BarClass) OnActionDrag(e ActionEvent) bool {
 }
 
 func (b *Bar) AddItem(bounds Rectangle, heading string, cb func(*Item)) *Item {
-	item := NewItem(bounds, heading, cb)
+	wrap := func(i *Item) {
+		if cb != nil {
+			cb(i)
+		}
+		if i.Menu != nil && !i.Menu.State.Hide {
+			i.Menu.State.Hide = true
+		}
+	}
+	item := NewItem(bounds, heading, wrap)
 	b.Widgets = append(b.Widgets, &item.Widget)
 	return item
 }
@@ -69,16 +77,22 @@ func (b *Bar) FitItem(heading string, cb func(*Item)) *Item {
 }
 
 func (b *Bar) FitItemWithMenu(heading string, cb func(*Item)) *Item {
+
 	item := b.FitItem(heading, cb)
 	bounds := item.Bounds
 	delta := image.Pt(0, item.Bounds.Dy())
 	bounds = item.Bounds.Add(delta)
 
-	item.Menu = NewMenu(bounds, func(m *Menu) {
+	wrap := func(subm *Menu) {
 		if cb != nil {
 			cb(item)
 		}
-	})
+		if !subm.State.Hide {
+			subm.State.Hide = true
+		}
+	}
+
+	item.Menu = NewMenu(bounds, wrap)
 	item.Menu.State.Hide = true // menu starts out hidden.
 	item.Widgets = append(item.Widgets, &item.Menu.Widget)
 	return item
@@ -128,8 +142,16 @@ func NewMenuClass(c *Menu) *MenuClass {
 	return res
 }
 
-func (m *Menu) AddItem(bounds Rectangle, heading string, ch func(*Item)) *Item {
-	item := NewItem(bounds, heading, ch)
+func (m *Menu) AddItem(bounds Rectangle, heading string, cb func(*Item)) *Item {
+	wrap := func(i *Item) {
+		if cb != nil {
+			cb(i)
+		}
+		if i.Menu == nil || !i.Menu.State.Hide {
+			m.State.Hide = true
+		}
+	}
+	item := NewItem(bounds, heading, wrap)
 	m.Widgets = append(m.Widgets, &item.Widget)
 	m.Bounds = m.Bounds.Union(item.Bounds)
 	return item
@@ -148,24 +170,26 @@ func (m *Menu) FitItem(heading string, ch func(*Item)) *Item {
 	return item
 }
 
-func (m *Menu) FitItemWithMenu(heading string, ch func(*Item)) *Item {
-	item := m.FitItem(heading, ch)
-	item.Menu = NewMenu(item.Bounds, func(m *Menu) {
-		if ch != nil {
-			ch(item)
-		}
-	})
+func (m *Menu) FitItemWithMenu(heading string, cb func(*Item)) *Item {
+	item := m.FitItem(heading, cb)
+	bounds := item.Bounds
+	delta := image.Pt(m.Bounds.Dx(), 0)
+	bounds = item.Bounds.Add(delta)
 
-	delta := item.Bounds.Min.Add(image.Pt(m.Bounds.Dx(), m.Bounds.Dy()/2))
-	item.Menu.Move(delta)
+	wrap := func(subm *Menu) {
+		if cb != nil {
+			cb(item)
+		}
+		if !subm.State.Hide {
+			subm.State.Hide = true
+		}
+	}
+
+	item.Menu = NewMenu(bounds, wrap)
+	item.Menu.State.Hide = true // menu starts out hidden.
+	item.Widgets = append(item.Widgets, &item.Menu.Widget)
 	return item
 }
-
-/*
-func (m *Menu) Move(delta Point) {
-	m.Box.Move(delta)
-}
-*/
 
 func (m *Menu) HasVisibleSubMenus() bool {
 	for _, sub := range m.Widgets {

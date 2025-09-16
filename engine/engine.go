@@ -44,7 +44,11 @@ func New(sw, sh int) *Engine {
 	hello := bar1.FitItemWithMenu("hello", func(b *xui.Item) { lab1.SetText("hello"); println("bar item hello clicked") })
 	menu := hello.Menu
 	menu.FitItem("sub1", func(b *xui.Item) { lab1.SetText("sub1"); println("bar item hello > sub1 clicked") })
-	menu.FitItem("sub2", func(b *xui.Item) { lab1.SetText("sub2"); println("bar item hello > sub2 clicked") })
+	sub2 := menu.FitItemWithMenu("sub2", func(b *xui.Item) { lab1.SetText("sub2"); println("bar item hello > sub2 clicked") })
+
+	subMenu := sub2.Menu
+	subMenu.FitItem("subsub1", func(b *xui.Item) { lab1.SetText("subsub1"); println("bar item hello > subsub1 clicked") })
+	subMenu.FitItem("subsub2", func(b *xui.Item) { lab1.SetText("subsub2"); println("bar item hello > subsub2 clicked") })
 
 	bar1.FitItem("world", func(b *xui.Item) { lab1.SetText("world"); println("bar item world clicked") })
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
