@@ -545,6 +545,17 @@ func (r *RootClass) OnMouseRelease(e MouseEvent) bool {
 	return false
 }
 
+func (r *RootClass) OnMouseWheel(e MouseEvent) bool {
+	if r.Hover != nil {
+		e.Dispatch(r.Hover.Class)
+	}
+
+	if r.Focus != nil && r.Focus != r.Hover {
+		e.Dispatch(r.Focus.Class)
+	}
+	return false
+}
+
 func (r *RootClass) OnKeyPress(e KeyEvent) bool {
 	w := r.Root
 	if w.Focus != nil {
@@ -633,6 +644,49 @@ func BarStyle() Style {
 
 func CheckStyle() Style {
 	s := DefaultStyle()
+	s.Fill = color.RGBA{245, 245, 245, 250}
+	return s
+}
+
+func (s Style) HoverStyle() Style {
+	s.Border = color.RGBA{240, 240, 50, 250}
+	return s
+}
+
+func (s Style) FocusStyle() Style {
+	s.Border = color.RGBA{240, 140, 40, 245}
+	s.Writing = color.RGBA{245, 245, 245, 245}
+	s.Fill = color.RGBA{128, 128, 245, 245}
+	return s
+}
+
+func (s Style) PressStyle() Style {
+	s.Fill = color.RGBA{0, 45, 245, 245}
+	return s
+}
+
+func (s Style) ForState(state State) Style {
+	if state.Focus {
+		return s.FocusStyle()
+	}
+	if state.Hover {
+		return s.HoverStyle()
+	}
+	return s
+}
+
+func (s Style) BarStyle() Style {
+	s = s.WithTinyFont()
+	s.Fill = color.RGBA{45, 45, 245, 250}
+	return s
+}
+
+func (s Style) CheckStyle() Style {
+	s.Fill = color.RGBA{245, 245, 245, 250}
+	return s
+}
+
+func (s Style) KnobStyle() Style {
 	s.Fill = color.RGBA{245, 245, 245, 250}
 	return s
 }
