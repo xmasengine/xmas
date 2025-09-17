@@ -346,13 +346,14 @@ var _ TouchHandler = BasicTouchHandler{}
 
 type MouseEvent struct {
 	BasicEvent
+	Button   int
 	At       Point
 	Delta    Point
 	Duration int
 	Wheel    Point
 }
 
-func MakeMouseEvent(msg Message, r *Root, at, delta Point, duration int) MouseEvent {
+func MakeMouseEvent(msg Message, r *Root, button int, at, delta Point, duration int) MouseEvent {
 	return MouseEvent{
 		BasicEvent: MakeBasicEvent(msg, r),
 		At:         at, Delta: delta, Duration: duration,

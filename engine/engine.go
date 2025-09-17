@@ -2,6 +2,7 @@ package engine
 
 import (
 	"image"
+	"log/slog"
 	"strings"
 )
 
@@ -11,6 +12,7 @@ import (
 )
 
 import (
+	"github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
 )
 
@@ -36,6 +38,10 @@ func New(sw, sh int) *Engine {
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
+	img, ierr := xres.LoadImageFromFile("pack/tile/tile_0001.png")
+	if ierr != nil {
+		slog.Error("LoadImageFromFile", "file", "pack/tile/tile_0001.png")
+	}
 	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
 	lab1 := box1.AddLabel(image.Rect(25, 100, 125, 120), "Label")
 
@@ -53,9 +59,15 @@ func New(sw, sh int) *Engine {
 	bar1.FitItem("world", func(b *xui.Item) { lab1.SetText("world"); println("bar item world clicked") })
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
 
-	box2 := engine.Root.AddBox(image.Rect(210, 40, 410, 160))
+	box2 := engine.Root.AddBox(image.Rect(210, 40, 430, 160))
 	box2.AddCheckbox(image.Rect(220, 50, 380, 70), "Check", func(b *xui.Checkbox) { lab1.SetText("Check!"); println("checkbox clicked") })
-	box2.AddEntry(image.Rect(220, 90, 380, 120), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
+	box2.AddChooser(image.Rect(220, 70, 380, 120), img, image.Pt(16, 16), func(c *xui.Chooser) {
+		lab1.SetText("Chooser!")
+		atx := c.Selected.Bounds.Min.X
+		aty := c.Selected.Bounds.Min.Y
+		println("chooser clicked", atx, aty)
+	})
+	box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
 	return engine
 }
 

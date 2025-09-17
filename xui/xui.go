@@ -68,6 +68,9 @@ type RGBA = color.RGBA
 // Face is a font face
 type Face = text.Face
 
+// DrawOptions are options for drawing an image.
+type DrawOptions = ebiten.DrawImageOptions
+
 // Style is the style of a Widget.
 type Style struct {
 	Fore    RGBA
@@ -415,18 +418,18 @@ func (r *Root) Update() error {
 
 	for mb := ebiten.MouseButton(0); mb < ebiten.MouseButtonMax; mb++ {
 		if inpututil.IsMouseButtonJustPressed(mb) {
-			r.On(MakeMouseEvent(MousePress, r, at, delta, 0))
+			r.On(MakeMouseEvent(MousePress, r, int(mb), at, delta, 0))
 		}
 		if ebiten.IsMouseButtonPressed(mb) {
 			dur := inpututil.MouseButtonPressDuration(mb)
-			r.On(MakeMouseEvent(MouseHold, r, at, delta, dur))
+			r.On(MakeMouseEvent(MouseHold, r, int(mb), at, delta, dur))
 		}
 		if inpututil.IsMouseButtonJustReleased(mb) {
-			r.On(MakeMouseEvent(MouseRelease, r, at, delta, 0))
+			r.On(MakeMouseEvent(MouseRelease, r, int(mb), at, delta, 0))
 		}
 	}
 	if dx != 0 || dy != 0 {
-		r.On(MakeMouseEvent(MouseMove, r, at, delta, 0))
+		r.On(MakeMouseEvent(MouseMove, r, -1, at, delta, 0))
 	}
 	r.cx = x
 	r.cy = y
