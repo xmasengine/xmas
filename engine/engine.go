@@ -60,7 +60,7 @@ func New(sw, sh int) *Engine {
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
 	box1.AddSlider(image.Rect(130, 40, 140, 140), nil, func(s *xui.Slider) { lab1.SetText("Slide!"); println("slider clicked", s.Pos) })
 
-	box2 := engine.Root.AddBox(image.Rect(210, 40, 430, 160))
+	box2 := engine.Root.AddBox(image.Rect(210, 40, 430, 170))
 	box2.AddCheckbox(image.Rect(220, 50, 380, 70), "Check", func(b *xui.Checkbox) { lab1.SetText("Check!"); println("checkbox clicked") })
 	box2.AddChooser(image.Rect(220, 70, 380, 120), img, image.Pt(16, 16), func(c *xui.Chooser) {
 		lab1.SetText("Chooser!")
@@ -69,6 +69,7 @@ func New(sw, sh int) *Engine {
 		println("chooser clicked", atx, aty)
 	})
 	box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
+	box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); println("hslider clicked", s.Pos) })
 	return engine
 }
 
