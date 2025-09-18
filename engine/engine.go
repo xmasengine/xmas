@@ -58,7 +58,8 @@ func New(sw, sh int) *Engine {
 
 	bar1.FitItem("world", func(b *xui.Item) { lab1.SetText("world"); println("bar item world clicked") })
 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); println("button clicked") })
-	box1.AddSlider(image.Rect(130, 40, 140, 140), nil, func(s *xui.Slider) { lab1.SetText("Slide!"); println("slider clicked", s.Pos) })
+	// box1.AddSlider(image.Rect(130, 40, 140, 140), nil, func(s *xui.Slider) { lab1.SetText("Slide!"); println("slider clicked", s.Pos) })
+	box1.AddVerticalScroller(func(s *xui.Slider) { lab1.SetText("vScroll!"); println("vscroll clicked", s.Pos) })
 
 	box2 := engine.Root.AddBox(image.Rect(210, 40, 430, 170))
 	box2.AddCheckbox(image.Rect(220, 50, 380, 70), "Check", func(b *xui.Checkbox) { lab1.SetText("Check!"); println("checkbox clicked") })
@@ -69,7 +70,8 @@ func New(sw, sh int) *Engine {
 		println("chooser clicked", atx, aty)
 	})
 	box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
-	box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); println("hslider clicked", s.Pos) })
+	// box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); println("hslider clicked", s.Pos) })
+	box2.AddHorizontalScroller(func(s *xui.Slider) { lab1.SetText("hScroll!"); println("hscroll clicked", s.Pos) })
 	return engine
 }
 

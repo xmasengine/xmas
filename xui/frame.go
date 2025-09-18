@@ -19,8 +19,7 @@ func NewFrameClass(b *Frame) *FrameClass {
 // the image.
 type Frame struct {
 	Box
-	Image  *Surface
-	Extent Rectangle
+	Image *Surface
 }
 
 func (f *Frame) Init(bounds Rectangle, img *Surface) *Frame {
@@ -66,7 +65,7 @@ func (f *Frame) SetImage(img *Surface) {
 	// Correct the size
 	if f.Image != nil {
 		wide, high := f.Image.Size()
-		f.Bounds.Max = f.Bounds.Min.Add(image.Pt(wide, high))
+		f.Extent.Max = f.Bounds.Min.Add(image.Pt(wide, high))
 	}
 }
 

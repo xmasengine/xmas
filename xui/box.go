@@ -11,7 +11,7 @@ func (w *Widget) AddBox(bounds Rectangle) *Box {
 }
 
 func (b *Box) Init(bounds Rectangle) *Box {
-	b.Widget = Widget{Bounds: bounds, Style: DefaultStyle()}
+	b.Widget = Widget{Bounds: bounds, Style: DefaultStyle(), Extent: bounds}
 	b.Class = NewBoxClass(b)
 	return b
 }

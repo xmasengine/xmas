@@ -2,6 +2,7 @@ package xui
 
 import "image"
 
+// SliderClass has to common methods for a slider.
 type SliderClass struct {
 	*Slider
 	*BoxClass
@@ -13,6 +14,7 @@ func NewSliderClass(s *Slider) *SliderClass {
 	return sc
 }
 
+// HorizontalSliderClass embeds SliderClass and implements a horizontal slider.
 type HorizontalSliderClass struct {
 	*Slider
 	*SliderClass
@@ -24,6 +26,7 @@ func NewHorizontalSliderClass(s *Slider) *HorizontalSliderClass {
 	return sc
 }
 
+// VerticalSliderClass embeds SliderClass and implements a vertical slider.
 type VerticalSliderClass struct {
 	*Slider
 	*SliderClass
@@ -105,10 +108,10 @@ func (s *HorizontalSliderClass) SliderUpdate() {
 	s.Knob.X = s.Bounds.Min.X + s.Style.Margin.X
 	dx := ((s.Pos - s.Low) * (s.Bounds.Dx() - 2*s.Style.Margin.X)) / s.High
 	s.Knob.X += dx
-	delta.X = dx // XXX needs scalingfunc (s *HorizontalSliderClass) SliderUpdate() {
+	delta.X = dx
 
 	if s.Scrolled != nil {
-		s.Scrolled.Move(delta)
+		s.Scrolled.ScrollHorizontal(s.Pos, s.Low, s.High)
 	}
 	if s.Scroll != nil {
 		s.Scroll(s.Slider)
@@ -121,10 +124,10 @@ func (s *VerticalSliderClass) SliderUpdate() {
 	s.Knob.Y = s.Bounds.Min.Y + s.Style.Margin.Y
 	dy := ((s.Pos - s.Low) * (s.Bounds.Dy() - 2*s.Style.Margin.Y)) / s.High
 	s.Knob.Y += dy
-	delta.Y = dy // XXX needs scaling
+	delta.Y = dy
 
 	if s.Scrolled != nil {
-		s.Scrolled.Move(delta)
+		s.Scrolled.ScrollVertical(s.Pos, s.Low, s.High)
 	}
 	if s.Scroll != nil {
 		s.Scroll(s.Slider)
@@ -176,8 +179,26 @@ func (w *Widget) AddSlider(bounds Rectangle, scrolled *Widget, cb func(*Slider))
 	return slider
 }
 
-// AddScroller  adds a Slider as a Control of this widget.
+var DefaultScrollerSize Point = image.Pt(10, 10)
+
+// AddVerticalScroller adds a Slider as a Control of this widget.
+// It will be locked on the right.
 // This will set up automatic scrolling for the widget as well.
-func (w *Widget) AddScroller(bounds Rectangle, cb func(*Slider)) *Slider {
-	return w.AddSlider(bounds, w, cb)
+func (w *Widget) AddVerticalScroller(cb func(*Slider)) *Slider {
+	bounds := w.Bounds
+	bounds.Min.X = bounds.Max.X - DefaultScrollerSize.X
+	s := w.AddSlider(bounds, w, cb)
+	s.State.Lock = true
+	return s
+}
+
+// AddHorizontalScroller adds a Slider as a Control of this widget.
+// It will be locked on the bottom.
+// This will set up automatic scrolling for the widget as well.
+func (w *Widget) AddHorizontalScroller(cb func(*Slider)) *Slider {
+	bounds := w.Bounds
+	bounds.Min.Y = bounds.Max.Y - DefaultScrollerSize.Y
+	s := w.AddSlider(bounds, w, cb)
+	s.State.Lock = true
+	return s
 }

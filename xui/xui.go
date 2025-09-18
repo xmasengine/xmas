@@ -166,6 +166,7 @@ type State struct {
 	Pause bool
 	Hide  bool
 	Clip  bool
+	Lock  bool
 }
 
 // Result is the result of an event handler
@@ -207,7 +208,8 @@ type Widget struct {
 	Class   Class     // A widget must embed a Class with the specific behavior.
 	Layer   int       // Layer is the Z ordering of the widget.
 	Bounds  Rectangle // Actual position and size of the widget.
-	Size    Rectangle // Size is the desired size of the widget, may be bigger than Bounds.
+	Extent  Rectangle // Extent is a rectangle with the desired size of the widget. It may be larger than the Bounds.
+	Offset  Point     // Offset for scrolling
 	Style   Style
 	State   State
 	Widgets []*Widget // Sub widgets of the widget if any.
@@ -270,8 +272,16 @@ func (w *Widget) Append(widgets ...*Widget) {
 
 func (w *Widget) Move(delta Point) *Widget {
 	w.Bounds = w.Bounds.Add(delta)
+	w.MoveWidgets(delta)
+	return w
+}
+
+func (w *Widget) MoveWidgets(delta Point) *Widget {
 	for i := 0; i < len(w.Widgets); i++ {
 		sub := w.Widgets[i]
+		if sub.State.Lock {
+			continue
+		}
 		sub.Move(delta)
 	}
 	return w
@@ -284,6 +294,35 @@ func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
 		sub.Class.Render(r, screen)
 	}
 	return w
+}
+
+const WidgetScrollSlack = 2
+
+func (p *Widget) ScrollHorizontal(pos, low, high int) {
+	if low == high {
+		return
+	}
+
+	scrollRange := p.Extent.Dx() - WidgetScrollSlack
+	var noff Point
+	noff.X = ((pos - low) * scrollRange) / (high - low)
+
+	delta := p.Offset.Sub(noff)
+	p.MoveWidgets(delta)
+	p.Offset = noff
+}
+
+func (p *Widget) ScrollVertical(pos, low, high int) {
+	if low == high {
+		return
+	}
+
+	scrollRange := p.Extent.Dy() - WidgetScrollSlack
+	var noff Point
+	noff.Y = ((pos - low) * scrollRange) / (high - low)
+	delta := p.Offset.Sub(noff)
+	p.MoveWidgets(delta)
+	p.Offset = noff
 }
 
 func NewWidget() *Widget {
