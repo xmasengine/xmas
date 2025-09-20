@@ -1,0 +1,22 @@
+<zone>
+<script>
+	On enter then show "Hello".
+</script>
+<background name="forest.png"/>
+<layer w="128" h="128">
+	<objects>
+		<foe name="rat" x="7" y="7"/>
+		<hidden name="item" x="20" y="21"/>
+	</objects>
+	<row><c i="7"/><c i="7"/></row>
+	<row><c i="8"/><c i="9"/></row>
+</layer>
+<layer w="128" h="128">
+	<objects>
+		<foe name="rat" x="7" y="7"/>
+		<hidden name="item" x="20" y="21"/>
+	</objects>
+	<row><c i="7"/><c i="7"/></row>
+	<row><c i="8"/><c i="9"/></row>
+</layer>
+</zone>
