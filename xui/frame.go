@@ -47,17 +47,17 @@ func NewFrame(bounds Rectangle, image *Surface) *Frame {
 func (f *FrameClass) Render(r *Root, screen *Surface) {
 	if f.Image != nil {
 		clipped := screen.SubImage(f.Frame.Bounds).(*Surface)
-		center := f.Frame.Bounds.Inset(f.Frame.Style.Margin.X)
+		center := f.Frame.Bounds.Min.Sub(f.Frame.Offset)
 		opts := DrawOptions{}
 		opts.GeoM.Translate(
-			float64(center.Min.X),
-			float64(center.Min.Y),
+			float64(center.X),
+			float64(center.Y),
 		)
 		clipped.DrawImage(f.Image, &opts)
 	} else {
 		f.BoxClass.Render(r, screen)
 	}
-	f.Frame.Style.DrawBox(screen, f.Frame.Bounds.Add(f.Frame.Style.Margin))
+	f.Frame.Style.DrawBox(screen, f.Frame.Bounds.Inset(f.Frame.Style.Margin.X))
 }
 
 func (f *Frame) SetImage(img *Surface) {
@@ -115,7 +115,7 @@ func (c *Cot) UpdateFromTile(min Point, margin Point) {
 	mct := c.Tile
 	size := c.Bounds.Size()
 	rmin := image.Pt(mct.X*size.X, mct.Y*size.Y)
-	rmin = rmin.Add(min).Add(image.Pt(margin.X*2, margin.Y*2))
+	rmin = rmin.Add(min)
 	rmax := rmin.Add(size)
 	c.Bounds.Min = rmin
 	c.Bounds.Max = rmax
@@ -176,8 +176,8 @@ func NewChooser(bounds Rectangle, image *Surface, cotSize Point, cb func(*Choose
 
 func (c *Chooser) updateMouse(at Point) bool {
 	// New mouse tile location.
-	mx := (at.X - c.Frame.Bounds.Min.X - c.Frame.Style.Margin.X*2) / c.Hovered.Bounds.Dx()
-	my := (at.Y - c.Frame.Bounds.Min.Y - c.Frame.Style.Margin.Y*2) / c.Hovered.Bounds.Dy()
+	mx := (at.X - c.Frame.Bounds.Min.X) / c.Hovered.Bounds.Dx()
+	my := (at.Y - c.Frame.Bounds.Min.Y) / c.Hovered.Bounds.Dy()
 
 	c.Hovered.Tile.X = max(0, mx)
 	c.Hovered.Tile.Y = max(0, my)
@@ -257,6 +257,7 @@ func (c *ChooserClass) Render(r *Root, screen *Surface) {
 	if !c.Selected.State.Hide {
 		c.Selected.Class.Render(r, screen)
 	}
+	c.Chooser.RenderWidgets(r, screen)
 }
 
 func (p *Chooser) SetImage(img *Surface) {

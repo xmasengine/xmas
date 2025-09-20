@@ -179,7 +179,7 @@ func (w *Widget) AddSlider(bounds Rectangle, scrolled *Widget, cb func(*Slider))
 	return slider
 }
 
-var DefaultScrollerSize Point = image.Pt(10, 10)
+var DefaultScrollerSize Point = image.Pt(8, 8)
 
 // AddVerticalScroller adds a Slider as a Control of this widget.
 // It will be locked on the right.
