@@ -1,5 +1,9 @@
+package xmap
+
+import "encoding/xml"
+
 // Zone was generated automatically by zek 0.1.28. DO NOT EDIT.
-type Zone struct {
+type GenZone struct {
 	XMLName    xml.Name `xml:"zone"`
 	Text       string   `xml:",chardata"`
 	Script     string   `xml:"script"`
@@ -11,6 +15,9 @@ type Zone struct {
 		Text    string `xml:",chardata"`
 		W       string `xml:"w,attr"`
 		H       string `xml:"h,attr"`
+		Src     string `xml:"src,attr"`
+		Tw      string `xml:"tw,attr"`
+		Th      string `xml:"th,attr"`
 		Objects struct {
 			Text string `xml:",chardata"`
 			Foe  struct {
@@ -34,4 +41,4 @@ type Zone struct {
 			} `xml:"c"`
 		} `xml:"row"`
 	} `xml:"layer"`
-} 
+}

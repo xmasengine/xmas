@@ -3,7 +3,7 @@
 	On enter then show "Hello".
 </script>
 <background name="forest.png"/>
-<layer w="128" h="128">
+<layer w="128" h="128" src="image/gfx/overworld.png" tw="32" th="32">
 	<objects>
 		<foe name="rat" x="7" y="7"/>
 		<hidden name="item" x="20" y="21"/>
@@ -11,11 +11,11 @@
 	<row><c i="7"/><c i="7"/></row>
 	<row><c i="8"/><c i="9"/></row>
 </layer>
-<layer w="128" h="128">
-	<objects>
+<layer w="128" h="128" src="pack/image/gfx/objects.png" tw="32" th="32">
+	<object>
 		<foe name="rat" x="7" y="7"/>
 		<hidden name="item" x="20" y="21"/>
-	</objects>
+	</object>
 	<row><c i="7"/><c i="7"/></row>
 	<row><c i="8"/><c i="9"/></row>
 </layer>
