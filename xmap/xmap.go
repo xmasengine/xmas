@@ -48,6 +48,7 @@ type Layer struct {
 // Zone is a zone or level of the xmas engine.
 type Zone struct {
 	XMLName    xml.Name   `xml:"zone"`
+	Name       string     `xml:"name,attr"`
 	W          int        `xml:"w,attr"`
 	H          int        `xml:"h,attr"`
 	Script     string     `xml:"script"`
@@ -70,9 +71,9 @@ func MakeLayer(w, h int) Layer {
 	return l
 }
 
-func NewZone(w, h int) *Zone {
+func NewZone(name string, w, h int) *Zone {
 	l := MakeLayer(w, h)
-	return &Zone{Layers: []Layer{l}, W: w, H: h}
+	return &Zone{Layers: []Layer{l}, W: w, H: h, Name: name}
 }
 
 func ReadZone(rd io.Reader) (*Zone, error) {
