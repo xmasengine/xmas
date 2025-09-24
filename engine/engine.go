@@ -55,6 +55,19 @@ func (engine *Engine) testZone() {
 		slog.Error("LoadSource", "file", "pack/image/gfx/overworld.png")
 	}
 	layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
+	player := &zone.Player
+	err = player.LoadSource("pack/image/gfx/character.png")
+	if err != nil {
+		slog.Error("LoadSource", "file", "pack/image/gfx/character.png")
+	}
+	player.Tw = 16
+	player.Th = 32
+	player.At = image.Pt(160, 160)
+
+	player.AddNewPoses(xmap.Stand, 0, 0, 16, 32, 1)
+	player.AddNewPoses(xmap.Walk, 16, 0, 16, 32, 3)
+	zone.Player = *player
+
 	engine.Zone = zone
 }
 
@@ -116,16 +129,38 @@ func (g *Engine) Update() error {
 	g.Pressed = g.Pressed[:0]
 	g.Pressed = inpututil.AppendPressedKeys(g.Pressed)
 	var delta image.Point
+	var mdelta image.Point
+	act := xmap.Stand
+	var dir xmap.Direction
+	if g.Zone != nil {
+		dir = g.Zone.Player.Direction
+	}
 	for _, k := range g.Pressed {
 		switch k {
 		case ebiten.KeyUp:
 			delta.Y = -1
+			dir = xmap.North
+			act = xmap.Walk
 		case ebiten.KeyDown:
 			delta.Y = 1
+			dir = xmap.South
+			act = xmap.Walk
 		case ebiten.KeyLeft:
 			delta.X = -1
+			dir = xmap.West
+			act = xmap.Walk
 		case ebiten.KeyRight:
 			delta.X = 1
+			dir = xmap.East
+			act = xmap.Walk
+		case ebiten.KeyPageUp:
+			mdelta.Y = -1
+		case ebiten.KeyPageDown:
+			mdelta.Y = 1
+		case ebiten.KeyHome:
+			mdelta.X = -1
+		case ebiten.KeyEnd:
+			mdelta.X = 1
 		case ebiten.KeyF:
 			g.Debug = !g.Debug
 		default:
@@ -133,7 +168,11 @@ func (g *Engine) Update() error {
 	}
 
 	if g.Zone != nil {
-		g.Zone.Camera = g.Zone.Camera.Add(delta)
+		g.Zone.Camera = g.Zone.Camera.Add(mdelta)
+		g.Zone.Player.At = g.Zone.Player.At.Add(delta)
+		pose := g.Zone.Player.BestPose(dir, act)
+		g.Zone.Player.Pose = pose
+		g.Zone.Player.Update()
 	}
 
 	switch {
@@ -153,9 +192,14 @@ func (g *Engine) Draw(screen *ebiten.Image) {
 	}
 	if g.Zone != nil {
 		g.Zone.Draw(screen)
+		if g.Debug {
+			pose := g.Zone.Player.Pose
+			ebitenutil.DebugPrint(screen, fmt.Sprintf("pose: %d %d %d %d %d",
+				pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick))
+		}
 	}
 	if g.Debug {
-		ebitenutil.DebugPrint(screen, fmt.Sprintf("%f", ebiten.ActualFPS()))
+		ebitenutil.DebugPrint(screen, fmt.Sprintf("\n%f\n", ebiten.ActualFPS()))
 	}
 }
 
