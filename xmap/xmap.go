@@ -5,6 +5,7 @@ package xmap
 import "encoding/xml"
 import "io"
 import "os"
+import "io/fs"
 
 type Background struct {
 	Name string `xml:"name,attr"`
@@ -86,18 +87,18 @@ func ReadZone(rd io.Reader) (*Zone, error) {
 	return z, nil
 }
 
-func LoadZone(name string) (*Zone, error) {
-	rd, err := os.Open(name)
+func LoadZone(cb func() (io.Reader, error)) (*Zone, error) {
+	rd, err := cb()
 	if err != nil {
 		return nil, err
 	}
-	defer rd.Close()
 	return ReadZone(rd)
 }
 
 func (z *Zone) Write(wr io.Writer) error {
 	enc := xml.NewEncoder(wr)
 	enc.Indent("", "    ")
+	defer enc.Close()
 	err := enc.Encode(z)
 	if err != nil {
 		return err
@@ -105,11 +106,41 @@ func (z *Zone) Write(wr io.Writer) error {
 	return nil
 }
 
-func (z *Zone) Save(name string) error {
-	wr, err := os.Create(name)
+func (z *Zone) Save(cb func() (io.Writer, error)) error {
+	wr, err := cb()
 	if err != nil {
 		return err
 	}
-	defer wr.Close()
 	return z.Write(wr)
+}
+
+func FromName(name string) func() (io.Reader, error) {
+	return func() (io.Reader, error) {
+		return os.Open(name)
+	}
+}
+
+func FromRoot(root *os.Root, name string) func() (io.Reader, error) {
+	return func() (io.Reader, error) {
+		return root.Open(name)
+	}
+}
+
+func FromFS(sys fs.FS, name string) func() (io.Reader, error) {
+	return func() (io.Reader, error) {
+		return sys.Open(name)
+	}
+}
+
+func ToRoot(root *os.Root, name string) func() (io.Writer, error) {
+	return func() (io.Writer, error) {
+		return root.Create(name)
+	}
+}
+
+func ToName(name string) func() (io.Writer, error) {
+
+	return func() (io.Writer, error) {
+		return os.Create(name)
+	}
 }
