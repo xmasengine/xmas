@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"image"
 	"log/slog"
 	"strings"
@@ -8,10 +9,12 @@ import (
 
 import (
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
 import (
+	"github.com/xmasengine/xmas/xmap"
 	"github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
 )
@@ -31,6 +34,8 @@ type Engine struct {
 	ScreenSize image.Point
 	At         image.Rectangle
 	Root       *xui.Root
+	Zone       *xmap.Zone
+	Debug      bool
 }
 
 func New(sw, sh int) *Engine {
@@ -38,6 +43,22 @@ func New(sw, sh int) *Engine {
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
+	engine.testZone()
+	return engine
+}
+
+func (engine *Engine) testZone() {
+	zone := xmap.NewZone("forest", 64, 64)
+	layer := &zone.Layers[0]
+	err := layer.LoadSource("pack/image/gfx/overworld.png")
+	if err != nil {
+		slog.Error("LoadSource", "file", "pack/image/gfx/overworld.png")
+	}
+	layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
+	engine.Zone = zone
+}
+
+func (engine *Engine) testUI() {
 	img, ierr := xres.LoadImageFromFile("pack/tile/tile_0001.png")
 	if ierr != nil {
 		slog.Error("LoadImageFromFile", "file", "pack/tile/tile_0001.png")
@@ -85,7 +106,6 @@ func New(sw, sh int) *Engine {
 	box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
 	// box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); println("hslider clicked", s.Pos) })
 	box2.AddHorizontalScroller(func(s *xui.Slider) { lab1.SetText("hScroll!"); println("hscroll clicked", s.Pos) })
-	return engine
 }
 
 func (g *Engine) Update() error {
@@ -95,14 +115,25 @@ func (g *Engine) Update() error {
 
 	g.Pressed = g.Pressed[:0]
 	g.Pressed = inpututil.AppendPressedKeys(g.Pressed)
+	var delta image.Point
 	for _, k := range g.Pressed {
 		switch k {
 		case ebiten.KeyUp:
+			delta.Y = -1
 		case ebiten.KeyDown:
+			delta.Y = 1
 		case ebiten.KeyLeft:
+			delta.X = -1
 		case ebiten.KeyRight:
+			delta.X = 1
+		case ebiten.KeyF:
+			g.Debug = !g.Debug
 		default:
 		}
+	}
+
+	if g.Zone != nil {
+		g.Zone.Camera = g.Zone.Camera.Add(delta)
 	}
 
 	switch {
@@ -117,7 +148,15 @@ func (g *Engine) Update() error {
 const tileDebug = false
 
 func (g *Engine) Draw(screen *ebiten.Image) {
-	g.Root.Draw(screen)
+	if g.Root != nil {
+		g.Root.Draw(screen)
+	}
+	if g.Zone != nil {
+		g.Zone.Draw(screen)
+	}
+	if g.Debug {
+		ebitenutil.DebugPrint(screen, fmt.Sprintf("%f", ebiten.ActualFPS()))
+	}
 }
 
 func (g *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
