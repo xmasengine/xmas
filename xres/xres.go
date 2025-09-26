@@ -9,6 +9,7 @@ import _ "image/jpeg"
 import _ "image/gif"
 import "image"
 import "os"
+import "log/slog"
 
 func FromName(name string) func() (io.ReadCloser, error) {
 	return func() (io.ReadCloser, error) {
@@ -106,11 +107,11 @@ func LoadImageFromFile(name string) (*ebiten.Image, error) {
 func LoadImageFromFS(from fs.FS, name string) (*ebiten.Image, error) {
 	rd, err := from.Open(name)
 	if err != nil {
-		println("open failed")
+		slog.Error("LoadImageFromFS open failed", "err", err)
 		return nil, err
 	}
 	if rd == nil {
-		println("read nil")
+		slog.Error("LoadImageFromFS rd nil", "err", fs.ErrNotExist)
 		return nil, fs.ErrNotExist
 	}
 	defer rd.Close()

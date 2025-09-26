@@ -40,11 +40,8 @@ func (bc BoxClass) Render(r *Root, screen *Surface) {
 		style = HoverStyle()
 	}
 	style.DrawBox(screen, b.Bounds)
-	for _, w := range b.Widgets {
-		if !w.State.Hide {
-			w.Class.Render(r, screen)
-		}
-	}
+
+	b.Widget.RenderWidgets(r, screen)
 }
 
 func (b *BoxClass) OnActionHover(e ActionEvent) bool {

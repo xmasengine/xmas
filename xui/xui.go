@@ -304,9 +304,6 @@ func (w *Widget) MoveAllWidgets(delta Point) *Widget {
 
 // RenderWidget renders the widgets inside this widget, not the widget itself.
 func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
-	if w.State.Hide {
-		return w
-	}
 	for i := 0; i < len(w.Widgets); i++ {
 		sub := w.Widgets[i]
 		sub.Class.Render(r, screen)
@@ -359,7 +356,7 @@ func (r *Root) HandleEvent(e Event) bool {
 	if r.Default != nil {
 		return r.Default.HandleEvent(e)
 	}
-	println("warning: Root.HandleEvent, event not handled: ")
+	dprintln("warning: Root.HandleEvent, event not handled: ")
 	return false
 }
 
@@ -832,4 +829,8 @@ func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
 			float32(r), float32(s.Stroke), s.Border, false,
 		)
 	}
+}
+
+func dprintln(msg string, vars ...any) {
+	slog.Info(msg, "vars", vars)
 }

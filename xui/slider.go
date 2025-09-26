@@ -38,6 +38,51 @@ func NewVerticalSliderClass(s *Slider) *VerticalSliderClass {
 	return sc
 }
 
+// KnobClass has to common methods for a Knob.
+type KnobClass struct {
+	*Knob
+	*WidgetClass
+}
+
+func NewKnobClass(k *Knob) *KnobClass {
+	kc := &KnobClass{Knob: k}
+	kc.WidgetClass = NewWidgetClass()
+	return kc
+}
+
+func (s *KnobClass) Render(r *Root, screen *Surface) {
+	s.Knob.Style.KnobStyle().DrawCircle(screen, s.Knob.Bounds.Min, s.Knob.Radius)
+}
+
+// Knob is the knob of the slider.
+type Knob struct {
+	Widget
+	Radius   int
+	OnScroll func(*Knob)
+}
+
+// Init initializes a Knob.
+func (k *Knob) Init(bounds Rectangle, cb func(*Knob)) *Knob {
+	k.Bounds = bounds
+	k.OnScroll = cb
+	k.Radius = min(bounds.Dx()/2, bounds.Dy()/2)
+	k.Class = NewKnobClass(k)
+	return k
+}
+
+// NewKnob return a Knob for a slider.
+func NewKnob(bounds Rectangle, cb func(*Knob)) *Knob {
+	s := &Knob{}
+	return s.Init(bounds, cb)
+}
+
+// AddKnob adds a know to this widget.
+func (w *Widget) AddKnob(bounds Rectangle, cb func(*Knob)) *Knob {
+	knob := NewKnob(bounds, cb)
+	w.Widgets = append(w.Widgets, &knob.Widget)
+	return knob
+}
+
 // SliderSpecial is an additional interface of special methods that
 // that a SliderClass has to implement.
 type SliderSpecial interface {
@@ -50,8 +95,7 @@ type Slider struct {
 	Pos    int
 	Low    int
 	High   int
-	Knob   image.Point
-	Radius int
+	Knob   *Knob //
 	Scroll func(*Slider)
 
 	Scrolled      *Widget // Widget that will be scrolled if not nil.
@@ -87,15 +131,15 @@ func (s *Slider) Init(bounds Rectangle, scrolled *Widget, cb func(*Slider)) *Sli
 	s.Low = 0
 	s.Pos = 0
 	s.High = 100
-	s.Radius = min(s.Bounds.Dx(), s.Bounds.Dy()) / 2
-	s.Knob = bounds.Min
 	s.Scrolled = scrolled
 	s.Scroll = cb
+	knob := s.AddKnob(bounds, nil)
+	s.Knob = knob
 	s.SliderSpecial.SliderUpdate()
 	return s
 }
 
-// NewSilder return a Slider that will also scroll scrolled if not nil.
+// NewSlider return a Slider that will also scroll scrolled if not nil.
 func NewSlider(bounds Rectangle, scrolled *Widget, cb func(*Slider)) *Slider {
 	s := &Slider{}
 	return s.Init(bounds, scrolled, cb)
@@ -104,10 +148,10 @@ func NewSlider(bounds Rectangle, scrolled *Widget, cb func(*Slider)) *Slider {
 func (s *HorizontalSliderClass) SliderUpdate() {
 	delta := image.Point{}
 
-	s.Knob.Y = s.Bounds.Min.Y + s.Bounds.Dy()/2
-	s.Knob.X = s.Bounds.Min.X + s.Style.Margin.X
+	s.Knob.Bounds.Min.Y = s.Bounds.Min.Y + s.Bounds.Dy()/2
+	s.Knob.Bounds.Min.X = s.Bounds.Min.X + s.Style.Margin.X
 	dx := ((s.Pos - s.Low) * (s.Bounds.Dx() - 2*s.Style.Margin.X)) / s.High
-	s.Knob.X += dx
+	s.Knob.Bounds.Min.X += dx
 	delta.X = dx
 
 	if s.Scrolled != nil {
@@ -120,10 +164,10 @@ func (s *HorizontalSliderClass) SliderUpdate() {
 
 func (s *VerticalSliderClass) SliderUpdate() {
 	delta := image.Point{}
-	s.Knob.X = s.Bounds.Min.X + s.Bounds.Dx()/2
-	s.Knob.Y = s.Bounds.Min.Y + s.Style.Margin.Y
+	s.Knob.Bounds.Min.X = s.Bounds.Min.X + s.Bounds.Dx()/2
+	s.Knob.Bounds.Min.Y = s.Bounds.Min.Y + s.Style.Margin.Y
 	dy := ((s.Pos - s.Low) * (s.Bounds.Dy() - 2*s.Style.Margin.Y)) / s.High
-	s.Knob.Y += dy
+	s.Knob.Bounds.Min.Y += dy
 	delta.Y = dy
 
 	if s.Scrolled != nil {
@@ -168,7 +212,7 @@ func (s *SliderClass) OnMouseWheel(ev MouseEvent) bool {
 
 func (s *SliderClass) Render(r *Root, screen *Surface) {
 	s.Slider.Style.ForState(s.Slider.State).DrawBox(screen, s.Slider.Bounds)
-	s.Slider.Style.KnobStyle().DrawCircle(screen, s.Knob, s.Radius)
+	s.Slider.Knob.Class.Render(r, screen)
 }
 
 // AddSlider adds a Slider as a Control of this widget.

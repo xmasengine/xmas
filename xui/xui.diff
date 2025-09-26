@@ -11,7 +11,7 @@ index 160ef93..15c270f 100644
 +	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
 +	engine.Root.AddBox(image.Rect(170, 90, 200, 120))
  	lab1 := box1.AddLabel(image.Rect(25, 30, 125, 47), "Label")
- 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(*xui.Widget) { xui.SetText(lab1.Control, "Click!"); println("button clicked") })
+ 	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(*xui.Widget) { xui.SetText(lab1.Control, "Click!"); dprintln("button clicked") })
 -	engine.Root.Append(box1, box2)
  	return engine
  }
@@ -187,7 +187,7 @@ index 9d31f6b..954148e 100644
 -}
 -
 -func (b Basic) HandleEvent(e Event) bool {
--	println("warning: basic event handler called")
+-	dprintln("warning: basic event handler called")
 -	return false
 +func (w *Widget) AddBox(bounds Rectangle) *Box {
 +	box := NewBox(bounds)

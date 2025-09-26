@@ -2,7 +2,8 @@ package main
 
 import (
 	"flag"
-	"log"
+	"fmt"
+	"log/slog"
 	"os"
 	"runtime/pprof"
 
@@ -42,7 +43,11 @@ func main() {
 	ebiten.SetWindowSize(sw, sh)
 	ebiten.SetWindowTitle("xmas: Xmas Game Engine.")
 	en := engine.New(sw, sh)
+	logger := (&en.Log).Logger()
+	fmt.Printf("logger: %#v\n", logger)
+	slog.SetDefault(logger)
 	if err := ebiten.RunGame(en); err != nil {
-		log.Fatal(err)
+		fmt.Printf("error: %s", err)
+		os.Exit(1)
 	}
 }

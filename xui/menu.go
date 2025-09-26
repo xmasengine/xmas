@@ -231,7 +231,7 @@ type ItemClass struct {
 
 func (i *Item) Init(bounds Rectangle, text string, ch func(*Item)) *Item {
 	i.Select = ch
-	println("item.Init", bounds.Dx(), bounds.Dy(), text)
+	dprintln("item.Init", bounds.Dx(), bounds.Dy(), text)
 	i.Label.Init(bounds, text)
 	i.Style.Border = color.RGBA{127, 127, 127, 191}
 	i.Style.Fill = color.RGBA{0, 127, 250, 191}

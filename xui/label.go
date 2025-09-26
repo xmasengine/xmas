@@ -29,6 +29,8 @@ func (b LabelClass) Render(r *Root, screen *Surface) {
 
 	style.DrawBox(screen, box)
 	style.DrawText(screen, at, b.Text)
+
+	b.Widget.RenderWidgets(r, screen)
 }
 
 func (b *LabelClass) OnActionHover(e ActionEvent) bool {

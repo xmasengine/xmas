@@ -138,12 +138,12 @@ const FramesPerSecond = 60
 
 func (a *Animation) Update() {
 	if a.Phase < 0 {
-		println("phase problems")
+		dprintln("phase problems")
 		return
 	}
 
 	if a.Frames < 1 {
-		println("frame problems")
+		dprintln("frame problems")
 		return
 	}
 
@@ -419,3 +419,7 @@ var (
 	ToRoot   = xres.ToRoot
 	ToName   = xres.ToName
 )
+
+func dprintln(msg string, vars ...any) {
+	slog.Info(msg, "vars", vars)
+}

@@ -103,7 +103,7 @@ func (b *EntryClass) OnActionCrash(e ActionEvent) bool {
 
 func (b *EntryClass) OnActionFocus(e ActionEvent) bool {
 	b.State.Focus = true
-	println("entry focused")
+	dprintln("entry focused")
 	return true
 }
 
@@ -152,14 +152,14 @@ func (e *EntryClass) OnKeyPress(ev KeyEvent) bool {
 		case ebiten.KeyC:
 			if ev.Modifiers.Control {
 				WriteClipboard(ClipboardText, []byte(string(e.Input)))
-				println("Entry copy to clipboard.")
+				dprintln("Entry copy to clipboard.")
 
 			}
 		case ebiten.KeyV:
 			if ev.Modifiers.Control {
 				buf := ReadClipboard(ClipboardText)
 				e.insertChars([]rune(string(buf)))
-				println("Entry read from clipboard.", string(buf))
+				dprintln("Entry read from clipboard.", string(buf))
 			}
 	*/
 	default:

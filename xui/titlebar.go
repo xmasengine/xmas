@@ -23,7 +23,7 @@ type TitleBar struct {
 	Box            // Inherit box.
 	Text   string  // Text to display.
 	For    *Widget // Widget that we are the header bar for.
-	Button *Button // Button on the bar to toggle the widget with
+	Button *Button // Button on the bar to hide the widget with. Set to nil to disable.
 }
 
 // OnActionDrag will be called when the drag operation begins.
@@ -52,10 +52,11 @@ func (t *TitleBar) Init(bounds Rectangle, header string, fw *Widget) *TitleBar {
 	bbox := bounds
 	bbox.Max.X = bbox.Min.X + bounds.Dy()*3/4
 	t.Button = t.AddButton(bbox, "X", func(b *Button) {
-		println("TitleBar button")
+		dprintln("TitleBar button")
 		if t.For != nil {
+			dprintln("TitleBar for: ", t.For.State.Hide)
 			t.For.State.Hide = !t.For.State.Hide
-			t.For.State.Hide = false
+			t.State.Hide = false
 		}
 	})
 	t.Button.Style = DefaultStyle().WithTinyFont()
@@ -66,7 +67,9 @@ func (t *TitleBar) Init(bounds Rectangle, header string, fw *Widget) *TitleBar {
 
 func (t TitleBarClass) Render(r *Root, screen *Surface) {
 	t.BoxClass.Render(r, screen)
-	t.Button.Class.Render(r, screen)
+	if t.Button != nil {
+		t.Button.Class.Render(r, screen)
+	}
 
 	bounds := t.TitleBar.Bounds
 	style := t.TitleBar.Style.ForState(t.TitleBar.State)
