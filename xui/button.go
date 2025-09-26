@@ -21,13 +21,10 @@ func NewButtonClass(b *Button) *ButtonClass {
 
 func (b ButtonClass) Render(r *Root, screen *Surface) {
 	box := b.Bounds
-	style := b.Style
+	style := b.Style.ForState(b.State)
 
-	if b.pressed {
+	if b.pressed && !b.State.Lock {
 		box = box.Add(b.Style.Margin)
-		style = PressStyle()
-	} else if b.State.Hover {
-		style = HoverStyle()
 	}
 
 	at := box.Min

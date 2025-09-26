@@ -167,6 +167,7 @@ type State struct {
 	Hide  bool
 	Clip  bool
 	Lock  bool
+	Drag  bool
 }
 
 // Result is the result of an event handler
@@ -287,8 +288,25 @@ func (w *Widget) MoveWidgets(delta Point) *Widget {
 	return w
 }
 
+func (w *Widget) MoveAll(delta Point) *Widget {
+	w.Bounds = w.Bounds.Add(delta)
+	w.MoveAllWidgets(delta)
+	return w
+}
+
+func (w *Widget) MoveAllWidgets(delta Point) *Widget {
+	for i := 0; i < len(w.Widgets); i++ {
+		sub := w.Widgets[i]
+		sub.MoveAll(delta)
+	}
+	return w
+}
+
 // RenderWidget renders the widgets inside this widget, not the widget itself.
 func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
+	if w.State.Hide {
+		return w
+	}
 	for i := 0; i < len(w.Widgets); i++ {
 		sub := w.Widgets[i]
 		sub.Class.Render(r, screen)
@@ -704,12 +722,20 @@ func (s Style) PressStyle() Style {
 	return s
 }
 
+func (s Style) DragStyle() Style {
+	s.Fill = color.RGBA{0, 128, 245, 245}
+	return s
+}
+
 func (s Style) ForState(state State) Style {
 	if state.Focus {
 		return s.FocusStyle()
 	}
 	if state.Hover {
 		return s.HoverStyle()
+	}
+	if state.Drag {
+		return s.DragStyle()
 	}
 	return s
 }

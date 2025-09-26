@@ -44,6 +44,7 @@ func New(sw, sh int) *Engine {
 	engine.Pressed = make([]ebiten.Key, 16)
 	engine.Root = xui.NewRoot()
 	engine.testZone()
+	engine.testUI()
 	return engine
 }
 
@@ -119,6 +120,8 @@ func (engine *Engine) testUI() {
 	box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); println("entry changed") })
 	// box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); println("hslider clicked", s.Pos) })
 	box2.AddHorizontalScroller(func(s *xui.Slider) { lab1.SetText("hScroll!"); println("hscroll clicked", s.Pos) })
+	// Add a title bar for dragging
+	box2.AddTitleBar(10, "Box 2")
 }
 
 func (g *Engine) Update() error {
@@ -187,9 +190,6 @@ func (g *Engine) Update() error {
 const tileDebug = false
 
 func (g *Engine) Draw(screen *ebiten.Image) {
-	if g.Root != nil {
-		g.Root.Draw(screen)
-	}
 	if g.Zone != nil {
 		g.Zone.Draw(screen)
 		if g.Debug {
@@ -197,6 +197,9 @@ func (g *Engine) Draw(screen *ebiten.Image) {
 			ebitenutil.DebugPrint(screen, fmt.Sprintf("pose: %d %d %d %d %d",
 				pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick))
 		}
+	}
+	if g.Root != nil {
+		g.Root.Draw(screen)
 	}
 	if g.Debug {
 		ebitenutil.DebugPrint(screen, fmt.Sprintf("\n%f\n", ebiten.ActualFPS()))
