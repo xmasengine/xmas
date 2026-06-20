@@ -18,6 +18,7 @@ import (
 	"github.com/xmasengine/xmas/xmap"
 	"github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
+	"github.com/xmasengine/xmas/xzed"
 )
 
 // const ViewWidth = 320 // 2
@@ -84,6 +85,7 @@ func (engine *Engine) testUI() {
 	if ierr != nil {
 		slog.Error("LoadImageFromFile", "file", "pack/tile/tile_0001.png")
 	}
+
 	box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
 	lab1 := box1.AddLabel(image.Rect(25, 100, 125, 120), "Label")
 	lab1.AddTitleBar(10, "Drag Me")
@@ -100,7 +102,7 @@ func (engine *Engine) testUI() {
 	subMenu.FitItem("subsub2", func(b *xui.Item) { lab1.SetText("subsub2"); dprintln("bar item hello > subsub2 clicked") })
 
 	bar1.FitItem("world", func(b *xui.Item) { lab1.SetText("world"); dprintln("bar item world clicked") })
-	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!"); dprintln("button clicked") })
+	box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!\nButton"); dprintln("button clicked") })
 	// box1.AddSlider(image.Rect(130, 40, 140, 140), nil, func(s *xui.Slider) { lab1.SetText("Slide!"); dprintln("slider clicked", s.Pos) })
 	box1.AddVerticalScroller(func(s *xui.Slider) { lab1.SetText("vScroll!"); dprintln("vscroll clicked", s.Pos) })
 
@@ -130,6 +132,9 @@ func (engine *Engine) testUI() {
 	box2.AddHorizontalScroller(func(s *xui.Slider) { lab1.SetText("hScroll!"); dprintln("hscroll clicked", s.Pos) })
 	// Add a title bar for dragging
 	box2.AddTitleBar(10, "Box 2")
+
+	// Add xmap Helper test.
+	xzed.AddHelper(&engine.Root.Widget, image.Rect(220, 10, 300, 150), "Help", "Hello\nWorld\nHelp Text", nil)
 }
 
 func (g *Engine) Update() error {

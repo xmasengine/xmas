@@ -90,8 +90,9 @@ func (s Style) WithTinyFont() Style {
 
 var defaultFontFace = text.NewGoXFace(bitmapfont.Face)
 
-func DrawTextLine(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
+func DrawText(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
 	opts := text.DrawOptions{}
+	opts.LineSpacing = float64(LineHeight(face))
 	opts.GeoM.Translate(float64(x), float64(y))
 	opts.ColorScale.Scale(
 		float32(color.R)/255.0,
@@ -102,12 +103,9 @@ func DrawTextLine(dst *Surface, face Face, color color.RGBA, x, y int, str strin
 	text.Draw(dst, str, face, &opts)
 }
 
-func DrawText(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
-	lines := strings.Split(str, "\n")
-	for _, line := range lines {
-		DrawTextLine(dst, face, color, x, y, line)
-		y += LineHeight(face)
-	}
+func DrawTextLine(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
+	line, _, _ := strings.Cut(str, "\n")
+	DrawText(dst, face, color, x, y, line)
 }
 
 func MeasureText(txt string, face Face, lineSpacingInPixels float64) (width, height float64) {
@@ -122,6 +120,11 @@ func (s Style) MeasureText(txt string) Point {
 func (s Style) DrawText(dst *Surface, at Point, txt string) {
 	pt := at.Add(s.Margin)
 	DrawText(dst, s.Face, s.Writing, pt.X, pt.Y, txt)
+}
+
+func (s Style) DrawTextLine(dst *Surface, at Point, txt string) {
+	pt := at.Add(s.Margin)
+	DrawTextLine(dst, s.Face, s.Writing, pt.X, pt.Y, txt)
 }
 
 func LineHeight(face Face) int {
@@ -338,6 +341,10 @@ func (p *Widget) ScrollVertical(pos, low, high int) {
 	delta := p.Offset.Sub(noff)
 	p.MoveWidgets(delta)
 	p.Offset = noff
+}
+
+func (w *Widget) AddWidget(sub *Widget) {
+	w.Widgets = append(w.Widgets, sub)
 }
 
 func NewWidget() *Widget {
@@ -663,7 +670,7 @@ func DefaultStyle() Style {
 	s.Border = color.RGBA{50, 50, 50, 245}
 	s.Writing = color.RGBA{245, 245, 245, 245}
 	s.Shadow = color.RGBA{15, 15, 15, 191}
-	s.Fill = color.RGBA{0, 0, 245, 245}
+	s.Fill = color.RGBA{15, 15, 150, 200}
 	s.Face = defaultFontFace
 	s.Stroke = 1
 	s.Margin = image.Pt(2, 2)
@@ -674,7 +681,7 @@ func FocusStyle() Style {
 	s := DefaultStyle()
 	s.Border = color.RGBA{240, 140, 40, 245}
 	s.Writing = color.RGBA{245, 245, 245, 245}
-	s.Fill = color.RGBA{128, 128, 245, 245}
+	s.Fill = color.RGBA{128, 128, 200, 240}
 	return s
 }
 
@@ -686,13 +693,13 @@ func HoverStyle() Style {
 
 func PressStyle() Style {
 	s := DefaultStyle()
-	s.Fill = color.RGBA{0, 45, 245, 245}
+	s.Fill = color.RGBA{15, 45, 200, 240}
 	return s
 }
 
 func BarStyle() Style {
 	s := DefaultStyle().WithTinyFont()
-	s.Fill = color.RGBA{45, 45, 245, 250}
+	s.Fill = color.RGBA{45, 45, 200, 250}
 	return s
 }
 
@@ -703,24 +710,24 @@ func CheckStyle() Style {
 }
 
 func (s Style) HoverStyle() Style {
-	s.Border = color.RGBA{240, 240, 50, 250}
+	s.Border = color.RGBA{200, 200, 45, 250}
 	return s
 }
 
 func (s Style) FocusStyle() Style {
 	s.Border = color.RGBA{240, 140, 40, 245}
 	s.Writing = color.RGBA{245, 245, 245, 245}
-	s.Fill = color.RGBA{128, 128, 245, 245}
+	s.Fill = color.RGBA{128, 128, 200, 245}
 	return s
 }
 
 func (s Style) PressStyle() Style {
-	s.Fill = color.RGBA{0, 45, 245, 245}
+	s.Fill = color.RGBA{15, 45, 200, 240}
 	return s
 }
 
 func (s Style) DragStyle() Style {
-	s.Fill = color.RGBA{0, 128, 245, 245}
+	s.Fill = color.RGBA{15, 128, 200, 240}
 	return s
 }
 
