@@ -18,7 +18,7 @@ import (
 	"github.com/xmasengine/xmas/xmap"
 	"github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
-	"github.com/xmasengine/xmas/xzed"
+	// "github.com/xmasengine/xmas/xzed"
 )
 
 // const ViewWidth = 320 // 2
@@ -134,7 +134,7 @@ func (engine *Engine) testUI() {
 	box2.AddTitleBar(10, "Box 2")
 
 	// Add xmap Helper test.
-	xzed.AddHelper(&engine.Root.Widget, image.Rect(220, 10, 300, 150), "Help", "Hello\nWorld\nHelp Text", nil)
+	// xzed.AddHelper(&engine.Root.Widget, image.Rect(220, 10, 300, 150), "Help", "Hello\nWorld\nHelp Text", nil)
 }
 
 func (g *Engine) Update() error {

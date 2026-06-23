@@ -31,6 +31,8 @@ var BitmapFontFace = bitmapfont.Face
 // It embeds the original textinput.Field
 type TextInputField struct {
 	textinput.Field
+	X int
+	Y int
 }
 
 // KeyMods are the current key modifers.
@@ -297,113 +299,180 @@ func DrawCircle(Surface *Surface, c Point, r int, stroke int, fill, border RGBA)
 	}
 }
 
-type GamepadID = ebiten.GamepadID
-type ButtonID = ebiten.GamepadButtonID
-type AxisID = ebiten.AxisID
+type PadID = ebiten.GamepadID
+type PadButton = ebiten.GamepadButton
+type PadAxis = ebiten.GamepadAxisType
 
-type GamepadButton struct {
-	Pad      GamepadID
-	Button   ButtonID
+type Inputter interface {
+	Input() Inputter
+}
+
+type Pulse struct {
+	Tick int64
+}
+
+func (c Pulse) Input() Inputter {
+	return c
+}
+
+type PadInput struct {
+	Pulse
+	Pad PadID
+}
+
+type PadPlug PadInput
+type PadYank PadInput
+
+type PadButtonInput struct {
+	PadInput
+	Button   PadButton
+	Duration int
+}
+
+type PadButtonPressInput PadButtonInput
+type PadButtonHoldInput PadButtonInput
+type PadButtonReleaseInput PadButtonInput
+
+type PadAxisInput struct {
+	PadInput
+	Axis  PadAxis
+	Value float64
+}
+
+type KeyInput struct {
+	Pulse
+	Key      Key
 	Press    bool
 	Release  bool
 	Duration int
 }
 
-type GamepadAxis struct {
-	Pad   GamepadID
-	Axis  AxisID
-	Value int
+type KeyPressInput KeyInput
+type KeyHoldInput KeyInput
+type KeyReleaseInput KeyInput
+
+type TextInput struct {
+	Pulse
+	ID   int
+	Text []rune
 }
 
-type Input struct {
-	GamepadIDs       []GamepadID
-	GamepadDetached  []GamepadID
-	GamepadConnected []GamepadID
-	GamepadButtons   []GamepadButton
+type TouchID = ebiten.TouchID
+
+type TouchInput struct {
+	Pulse
+	Touch    TouchID
+	X        int
+	Y        int
+	DX       int
+	DY       int
+	Duration int
+}
+
+type TouchPressInput TouchInput
+type TouchHoldInput TouchInput
+type TouchReleaseInput TouchInput
+
+type MouseInput struct {
+	Pulse
+	X        int
+	Y        int
+	DX       int
+	DY       int
+	Press    bool
+	Duration int
+}
+
+type MousePressInput MouseInput
+type MouseHoldInput MouseInput
+type MouseMoveInput MouseInput
+type MouseReleaseInput MouseInput
+
+type WheelInput struct {
+	Pulse
+	DX float64
+	DY float64
+}
+
+type InputState struct {
+	PadIDs []PadID
+	Fields []TextInputField
+	MouseX int
+	MouseY int
 }
 
 // Update updates the input state.
-func (i *Input) Update() error {
-	for _, gid := range i.GamepadIDs {
+func (i *InputState) Poll(to chan<- Inputter) error {
+	core := Pulse{Tick: ebiten.Tick()}
+
+	for _, gid := range i.PadIDs {
 		if inpututil.IsGamepadJustDisconnected(gid) {
-			i.GamepadDetached = append(i.GamepadDetached, gid)
+			to <- PadYank{Pulse: core, Pad: gid}
 		}
 	}
 
-	i.GamepadConnected = inpututil.AppendJustConnectedGamepadIDs(nil)
+	gamepadConnected := inpututil.AppendJustConnectedGamepadIDs(nil)
+	for _, gid := range gamepadConnected {
+		to <- PadPlug{Pulse: core, Pad: gid}
+	}
 
-	i.GamepadIDs = i.GamepadIDs[0:0]
-	i.GamepadIDs = ebiten.AppendGamepadIDs(i.GamepadIDs)
-	for _, gid := range i.GamepadIDs {
+	i.PadIDs = i.PadIDs[0:0]
+	i.PadIDs = ebiten.AppendGamepadIDs(i.PadIDs)
+	for _, gid := range i.PadIDs {
 		buttons := inpututil.AppendJustPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			i.GamepadButtons = append(i.GamepadButtons,
-				GamepadButton{Pad: gid, Button: button, Press: true},
-			)
+			to <- PadButtonPressInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button}
 		}
 
 		buttons = inpututil.AppendPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
 			dur := inpututil.GamepadButtonPressDuration(gid, button)
-			i.GamepadButtons = append(i.GamepadButtons,
-				GamepadButton{Pad: gid, Button: button, Press: true, Duration: dur},
-			)
+			to <- PadButtonHoldInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button, Duration: dur}
 		}
 
 		buttons = inpututil.AppendJustReleasedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			i.GamepadButtons = append(i.GamepadButtons,
-				GamepadButton{Pad: gid, Button: button, Release: true},
-			)
+			to <- PadButtonReleaseInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button}
+
 		}
 
 		count := ebiten.GamepadAxisCount(gid)
-		axes := make([]float64, count)
 		moved := false
 		for axis := 0; axis < count; axis++ {
 			value := ebiten.GamepadAxisValue(gid, axis)
-			axes[axis] = value
-			moved = moved || ((value > 0.1) || (value < -0.1))
-		}
-		if (len(axes) > 0) && moved {
-			r.On(MakePadEvent(PadMove, r, int(gid), 0, 0, axes))
+			moved = ((value > 0.1) || (value < -0.1))
+			if moved {
+				to <- PadAxisInput{PadInput: PadInput{Pulse: core, Pad: gid}, Axis: axis, Value: value}
+			}
 		}
 	}
 
 	keys := inpututil.AppendJustPressedKeys(nil)
 	for _, key := range keys {
-		r.On(MakeKeyEvent(KeyPress, r, -1, int(key), 0))
+		to <- KeyPressInput{Pulse: core, Key: Key(key)}
 	}
 
 	keys = inpututil.AppendPressedKeys(nil)
 	for _, key := range keys {
 		dur := inpututil.KeyPressDuration(key)
-		r.On(MakeKeyEvent(KeyHold, r, -1, int(key), dur))
+		to <- KeyHoldInput{Pulse: core, Key: Key(key), Press: true, Duration: dur}
 	}
 
 	keys = inpututil.AppendJustReleasedKeys(nil)
 	for _, key := range keys {
-		r.On(MakeKeyEvent(KeyRelease, r, -1, int(key), 0))
+		to <- KeyReleaseInput{Pulse: core, Key: Key(key)}
 	}
 
-	if len(r.chars) == 0 && cap(r.chars) == 0 {
-		r.chars = make([]rune, 0, 32)
-	} else {
-		r.chars = r.chars[0:0]
+	chars := ebiten.AppendInputChars(nil)
+	if len(chars) > 0 {
+		to <- TextInput{Pulse: core, Text: chars, ID: -1}
 	}
 
-	r.chars = ebiten.AppendInputChars(r.chars)
-	if len(r.chars) > 0 {
-		slog.Debug("input chars", "chars", r.chars)
-		r.On(MakeKeyEvent(KeyText, r, -1, 0, 0, r.chars...))
-	}
-	r.chars = r.chars[0:0]
-
-	for id, field := range r.TextInputFields {
+	for id, field := range i.Fields {
 		if field.IsFocused() {
 			handled, _ := field.HandleInput(field.X, field.Y)
 			if handled {
-				r.On(MakeKeyEvent(KeyText, r, id, 0, 0, []rune(field.Text())...))
+				to <- TextInput{Pulse: core, ID: id, Text: []rune(field.Text())}
 			}
 		}
 	}
@@ -411,7 +480,7 @@ func (i *Input) Update() error {
 	touches := inpututil.AppendJustPressedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(MakeTouchEvent(TouchPress, r, int(touch), image.Pt(x, y), image.Point{}, 0))
+		to <- TouchPressInput{Pulse: core, Touch: touch, X: x, Y: y}
 	}
 
 	touches = ebiten.AppendTouchIDs(nil)
@@ -420,42 +489,43 @@ func (i *Input) Update() error {
 		px, py := inpututil.TouchPositionInPreviousTick(touch)
 		dx, dy := x-px, y-py
 		dur := inpututil.TouchPressDuration(touch)
-		r.On(MakeTouchEvent(TouchHold, r, int(touch), image.Pt(x, y), image.Pt(dx, dy), dur))
+		to <- TouchHoldInput{Pulse: core, Touch: touch, X: x, Y: y,
+			DX: dx, DY: dy, Duration: dur}
 	}
 
 	touches = inpututil.AppendJustReleasedTouchIDs(nil)
 	for _, touch := range touches {
 		x, y := ebiten.TouchPosition(touch)
-		r.On(MakeTouchEvent(TouchRelease, r, int(touch), image.Pt(x, y), image.Point{}, 0))
+		to <- TouchReleaseInput{Pulse: core, Touch: touch, X: x, Y: y}
 	}
 
 	x, y := ebiten.CursorPosition()
-	dx, dy := x-r.cx, y-r.cy
-	at := image.Pt(x, y)
-	delta := image.Pt(dx, dy)
+	dx, dy := x-i.MouseX, y-i.MouseY
+	i.MouseX = x
+	i.MouseY = y
+	me := MouseInput{Pulse: core, X: x, Y: y, DX: dx, DY: dy}
 
 	for mb := ebiten.MouseButton(0); mb < ebiten.MouseButtonMax; mb++ {
 		if inpututil.IsMouseButtonJustPressed(mb) {
-			r.On(MakeMouseEvent(MousePress, r, int(mb), at, delta, 0))
+			to <- MousePressInput(me)
 		}
 		if ebiten.IsMouseButtonPressed(mb) {
 			dur := inpututil.MouseButtonPressDuration(mb)
-			r.On(MakeMouseEvent(MouseHold, r, int(mb), at, delta, dur))
+			mh := MouseHoldInput(me)
+			mh.Duration = dur
+			to <- mh
 		}
 		if inpututil.IsMouseButtonJustReleased(mb) {
-			r.On(MakeMouseEvent(MouseRelease, r, int(mb), at, delta, 0))
+			to <- MouseReleaseInput(me)
 		}
 	}
 	if dx != 0 || dy != 0 {
-		r.On(MakeMouseEvent(MouseMove, r, -1, at, delta, 0))
+		to <- MouseMoveInput(me)
 	}
-	r.cx = x
-	r.cy = y
 
 	wx, wy := ebiten.Wheel()
 	if wx != 0 || wy != 0 {
-		wheel := image.Pt(int(wx), int(wy))
-		r.On(MakeMouseWheelEvent(MouseWheel, r, at, delta, wheel))
+		to <- WheelInput{Pulse: core, DX: wx, DY: wy}
 	}
 
 	return nil
