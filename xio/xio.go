@@ -20,6 +20,7 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
+type Color = color.Color
 type RGBA = color.RGBA
 
 type Rectangle = image.Rectangle
@@ -35,14 +36,6 @@ type TextInputField struct {
 	Y int
 }
 
-// KeyMods are the current key modifers.
-type KeyMods struct {
-	Alt   bool
-	Class bool
-	Shift bool
-	Meta  bool
-}
-
 // Surface is an ebiten.Image
 // We use surface to still be able to use image.Image together easily.
 type Surface = ebiten.Image
@@ -53,159 +46,159 @@ type Face = text.Face
 // DrawOptions are options for drawing a Surface.
 type DrawOptions = ebiten.DrawImageOptions
 
-// A Key represents a physical keyboard key code as if it was typed on a QWERTY
+// A KeyCode represents a physical keyboard key code as if it was typed on a QWERTY
 // keyboard.
-type Key int
+type KeyCode int
 
 const (
-	KeyA              Key = Key(ebiten.KeyA)
-	KeyB              Key = Key(ebiten.KeyB)
-	KeyC              Key = Key(ebiten.KeyC)
-	KeyD              Key = Key(ebiten.KeyD)
-	KeyE              Key = Key(ebiten.KeyE)
-	KeyF              Key = Key(ebiten.KeyF)
-	KeyG              Key = Key(ebiten.KeyG)
-	KeyH              Key = Key(ebiten.KeyH)
-	KeyI              Key = Key(ebiten.KeyI)
-	KeyJ              Key = Key(ebiten.KeyJ)
-	KeyK              Key = Key(ebiten.KeyK)
-	KeyL              Key = Key(ebiten.KeyL)
-	KeyM              Key = Key(ebiten.KeyM)
-	KeyN              Key = Key(ebiten.KeyN)
-	KeyO              Key = Key(ebiten.KeyO)
-	KeyP              Key = Key(ebiten.KeyP)
-	KeyQ              Key = Key(ebiten.KeyQ)
-	KeyR              Key = Key(ebiten.KeyR)
-	KeyS              Key = Key(ebiten.KeyS)
-	KeyT              Key = Key(ebiten.KeyT)
-	KeyU              Key = Key(ebiten.KeyU)
-	KeyV              Key = Key(ebiten.KeyV)
-	KeyW              Key = Key(ebiten.KeyW)
-	KeyX              Key = Key(ebiten.KeyX)
-	KeyY              Key = Key(ebiten.KeyY)
-	KeyZ              Key = Key(ebiten.KeyZ)
-	KeyAltLeft        Key = Key(ebiten.KeyAltLeft)
-	KeyAltRight       Key = Key(ebiten.KeyAltRight)
-	KeyArrowDown      Key = Key(ebiten.KeyArrowDown)
-	KeyArrowLeft      Key = Key(ebiten.KeyArrowLeft)
-	KeyArrowRight     Key = Key(ebiten.KeyArrowRight)
-	KeyArrowUp        Key = Key(ebiten.KeyArrowUp)
-	KeyBackquote      Key = Key(ebiten.KeyBackquote)
-	KeyBackslash      Key = Key(ebiten.KeyBackslash)
-	KeyBackspace      Key = Key(ebiten.KeyBackspace)
-	KeyBracketLeft    Key = Key(ebiten.KeyBracketLeft)
-	KeyBracketRight   Key = Key(ebiten.KeyBracketRight)
-	KeyCapsLock       Key = Key(ebiten.KeyCapsLock)
-	KeyComma          Key = Key(ebiten.KeyComma)
-	KeyContextMenu    Key = Key(ebiten.KeyContextMenu)
-	KeyControlLeft    Key = Key(ebiten.KeyControlLeft)
-	KeyControlRight   Key = Key(ebiten.KeyControlRight)
-	KeyDelete         Key = Key(ebiten.KeyDelete)
-	KeyDigit0         Key = Key(ebiten.KeyDigit0)
-	KeyDigit1         Key = Key(ebiten.KeyDigit1)
-	KeyDigit2         Key = Key(ebiten.KeyDigit2)
-	KeyDigit3         Key = Key(ebiten.KeyDigit3)
-	KeyDigit4         Key = Key(ebiten.KeyDigit4)
-	KeyDigit5         Key = Key(ebiten.KeyDigit5)
-	KeyDigit6         Key = Key(ebiten.KeyDigit6)
-	KeyDigit7         Key = Key(ebiten.KeyDigit7)
-	KeyDigit8         Key = Key(ebiten.KeyDigit8)
-	KeyDigit9         Key = Key(ebiten.KeyDigit9)
-	KeyEnd            Key = Key(ebiten.KeyEnd)
-	KeyEnter          Key = Key(ebiten.KeyEnter)
-	KeyEqual          Key = Key(ebiten.KeyEqual)
-	KeyEscape         Key = Key(ebiten.KeyEscape)
-	KeyF1             Key = Key(ebiten.KeyF1)
-	KeyF2             Key = Key(ebiten.KeyF2)
-	KeyF3             Key = Key(ebiten.KeyF3)
-	KeyF4             Key = Key(ebiten.KeyF4)
-	KeyF5             Key = Key(ebiten.KeyF5)
-	KeyF6             Key = Key(ebiten.KeyF6)
-	KeyF7             Key = Key(ebiten.KeyF7)
-	KeyF8             Key = Key(ebiten.KeyF8)
-	KeyF9             Key = Key(ebiten.KeyF9)
-	KeyF10            Key = Key(ebiten.KeyF10)
-	KeyF11            Key = Key(ebiten.KeyF11)
-	KeyF12            Key = Key(ebiten.KeyF12)
-	KeyF13            Key = Key(ebiten.KeyF13)
-	KeyF14            Key = Key(ebiten.KeyF14)
-	KeyF15            Key = Key(ebiten.KeyF15)
-	KeyF16            Key = Key(ebiten.KeyF16)
-	KeyF17            Key = Key(ebiten.KeyF17)
-	KeyF18            Key = Key(ebiten.KeyF18)
-	KeyF19            Key = Key(ebiten.KeyF19)
-	KeyF20            Key = Key(ebiten.KeyF20)
-	KeyF21            Key = Key(ebiten.KeyF21)
-	KeyF22            Key = Key(ebiten.KeyF22)
-	KeyF23            Key = Key(ebiten.KeyF23)
-	KeyF24            Key = Key(ebiten.KeyF24)
-	KeyHome           Key = Key(ebiten.KeyHome)
-	KeyInsert         Key = Key(ebiten.KeyInsert)
-	KeyIntlBackslash  Key = Key(ebiten.KeyIntlBackslash)
-	KeyMetaLeft       Key = Key(ebiten.KeyMetaLeft)
-	KeyMetaRight      Key = Key(ebiten.KeyMetaRight)
-	KeyMinus          Key = Key(ebiten.KeyMinus)
-	KeyNumLock        Key = Key(ebiten.KeyNumLock)
-	KeyNumpad0        Key = Key(ebiten.KeyNumpad0)
-	KeyNumpad1        Key = Key(ebiten.KeyNumpad1)
-	KeyNumpad2        Key = Key(ebiten.KeyNumpad2)
-	KeyNumpad3        Key = Key(ebiten.KeyNumpad3)
-	KeyNumpad4        Key = Key(ebiten.KeyNumpad4)
-	KeyNumpad5        Key = Key(ebiten.KeyNumpad5)
-	KeyNumpad6        Key = Key(ebiten.KeyNumpad6)
-	KeyNumpad7        Key = Key(ebiten.KeyNumpad7)
-	KeyNumpad8        Key = Key(ebiten.KeyNumpad8)
-	KeyNumpad9        Key = Key(ebiten.KeyNumpad9)
-	KeyNumpadAdd      Key = Key(ebiten.KeyNumpadAdd)
-	KeyNumpadDecimal  Key = Key(ebiten.KeyNumpadDecimal)
-	KeyNumpadDivide   Key = Key(ebiten.KeyNumpadDivide)
-	KeyNumpadEnter    Key = Key(ebiten.KeyNumpadEnter)
-	KeyNumpadEqual    Key = Key(ebiten.KeyNumpadEqual)
-	KeyNumpadMultiply Key = Key(ebiten.KeyNumpadMultiply)
-	KeyNumpadSubtract Key = Key(ebiten.KeyNumpadSubtract)
-	KeyPageDown       Key = Key(ebiten.KeyPageDown)
-	KeyPageUp         Key = Key(ebiten.KeyPageUp)
-	KeyPause          Key = Key(ebiten.KeyPause)
-	KeyPeriod         Key = Key(ebiten.KeyPeriod)
-	KeyPrintScreen    Key = Key(ebiten.KeyPrintScreen)
-	KeyQuote          Key = Key(ebiten.KeyQuote)
-	KeyScrollLock     Key = Key(ebiten.KeyScrollLock)
-	KeySemicolon      Key = Key(ebiten.KeySemicolon)
-	KeyShiftLeft      Key = Key(ebiten.KeyShiftLeft)
-	KeyShiftRight     Key = Key(ebiten.KeyShiftRight)
-	KeySlash          Key = Key(ebiten.KeySlash)
-	KeySpace          Key = Key(ebiten.KeySpace)
-	KeyTab            Key = Key(ebiten.KeyTab)
-	KeyAlt            Key = Key(ebiten.KeyAlt)
-	KeyControl        Key = Key(ebiten.KeyControl)
-	KeyShift          Key = Key(ebiten.KeyShift)
-	KeyMeta           Key = Key(ebiten.KeyMeta)
-	KeyMax            Key = KeyMeta
+	KeyA              KeyCode = KeyCode(ebiten.KeyA)
+	KeyB              KeyCode = KeyCode(ebiten.KeyB)
+	KeyC              KeyCode = KeyCode(ebiten.KeyC)
+	KeyD              KeyCode = KeyCode(ebiten.KeyD)
+	KeyE              KeyCode = KeyCode(ebiten.KeyE)
+	KeyF              KeyCode = KeyCode(ebiten.KeyF)
+	KeyG              KeyCode = KeyCode(ebiten.KeyG)
+	KeyH              KeyCode = KeyCode(ebiten.KeyH)
+	KeyI              KeyCode = KeyCode(ebiten.KeyI)
+	KeyJ              KeyCode = KeyCode(ebiten.KeyJ)
+	KeyK              KeyCode = KeyCode(ebiten.KeyK)
+	KeyL              KeyCode = KeyCode(ebiten.KeyL)
+	KeyM              KeyCode = KeyCode(ebiten.KeyM)
+	KeyN              KeyCode = KeyCode(ebiten.KeyN)
+	KeyO              KeyCode = KeyCode(ebiten.KeyO)
+	KeyP              KeyCode = KeyCode(ebiten.KeyP)
+	KeyQ              KeyCode = KeyCode(ebiten.KeyQ)
+	KeyR              KeyCode = KeyCode(ebiten.KeyR)
+	KeyS              KeyCode = KeyCode(ebiten.KeyS)
+	KeyT              KeyCode = KeyCode(ebiten.KeyT)
+	KeyU              KeyCode = KeyCode(ebiten.KeyU)
+	KeyV              KeyCode = KeyCode(ebiten.KeyV)
+	KeyW              KeyCode = KeyCode(ebiten.KeyW)
+	KeyX              KeyCode = KeyCode(ebiten.KeyX)
+	KeyY              KeyCode = KeyCode(ebiten.KeyY)
+	KeyZ              KeyCode = KeyCode(ebiten.KeyZ)
+	KeyAltLeft        KeyCode = KeyCode(ebiten.KeyAltLeft)
+	KeyAltRight       KeyCode = KeyCode(ebiten.KeyAltRight)
+	KeyArrowDown      KeyCode = KeyCode(ebiten.KeyArrowDown)
+	KeyArrowLeft      KeyCode = KeyCode(ebiten.KeyArrowLeft)
+	KeyArrowRight     KeyCode = KeyCode(ebiten.KeyArrowRight)
+	KeyArrowUp        KeyCode = KeyCode(ebiten.KeyArrowUp)
+	KeyBackquote      KeyCode = KeyCode(ebiten.KeyBackquote)
+	KeyBackslash      KeyCode = KeyCode(ebiten.KeyBackslash)
+	KeyBackspace      KeyCode = KeyCode(ebiten.KeyBackspace)
+	KeyBracketLeft    KeyCode = KeyCode(ebiten.KeyBracketLeft)
+	KeyBracketRight   KeyCode = KeyCode(ebiten.KeyBracketRight)
+	KeyCapsLock       KeyCode = KeyCode(ebiten.KeyCapsLock)
+	KeyComma          KeyCode = KeyCode(ebiten.KeyComma)
+	KeyContextMenu    KeyCode = KeyCode(ebiten.KeyContextMenu)
+	KeyControlLeft    KeyCode = KeyCode(ebiten.KeyControlLeft)
+	KeyControlRight   KeyCode = KeyCode(ebiten.KeyControlRight)
+	KeyDelete         KeyCode = KeyCode(ebiten.KeyDelete)
+	KeyDigit0         KeyCode = KeyCode(ebiten.KeyDigit0)
+	KeyDigit1         KeyCode = KeyCode(ebiten.KeyDigit1)
+	KeyDigit2         KeyCode = KeyCode(ebiten.KeyDigit2)
+	KeyDigit3         KeyCode = KeyCode(ebiten.KeyDigit3)
+	KeyDigit4         KeyCode = KeyCode(ebiten.KeyDigit4)
+	KeyDigit5         KeyCode = KeyCode(ebiten.KeyDigit5)
+	KeyDigit6         KeyCode = KeyCode(ebiten.KeyDigit6)
+	KeyDigit7         KeyCode = KeyCode(ebiten.KeyDigit7)
+	KeyDigit8         KeyCode = KeyCode(ebiten.KeyDigit8)
+	KeyDigit9         KeyCode = KeyCode(ebiten.KeyDigit9)
+	KeyEnd            KeyCode = KeyCode(ebiten.KeyEnd)
+	KeyEnter          KeyCode = KeyCode(ebiten.KeyEnter)
+	KeyEqual          KeyCode = KeyCode(ebiten.KeyEqual)
+	KeyEscape         KeyCode = KeyCode(ebiten.KeyEscape)
+	KeyF1             KeyCode = KeyCode(ebiten.KeyF1)
+	KeyF2             KeyCode = KeyCode(ebiten.KeyF2)
+	KeyF3             KeyCode = KeyCode(ebiten.KeyF3)
+	KeyF4             KeyCode = KeyCode(ebiten.KeyF4)
+	KeyF5             KeyCode = KeyCode(ebiten.KeyF5)
+	KeyF6             KeyCode = KeyCode(ebiten.KeyF6)
+	KeyF7             KeyCode = KeyCode(ebiten.KeyF7)
+	KeyF8             KeyCode = KeyCode(ebiten.KeyF8)
+	KeyF9             KeyCode = KeyCode(ebiten.KeyF9)
+	KeyF10            KeyCode = KeyCode(ebiten.KeyF10)
+	KeyF11            KeyCode = KeyCode(ebiten.KeyF11)
+	KeyF12            KeyCode = KeyCode(ebiten.KeyF12)
+	KeyF13            KeyCode = KeyCode(ebiten.KeyF13)
+	KeyF14            KeyCode = KeyCode(ebiten.KeyF14)
+	KeyF15            KeyCode = KeyCode(ebiten.KeyF15)
+	KeyF16            KeyCode = KeyCode(ebiten.KeyF16)
+	KeyF17            KeyCode = KeyCode(ebiten.KeyF17)
+	KeyF18            KeyCode = KeyCode(ebiten.KeyF18)
+	KeyF19            KeyCode = KeyCode(ebiten.KeyF19)
+	KeyF20            KeyCode = KeyCode(ebiten.KeyF20)
+	KeyF21            KeyCode = KeyCode(ebiten.KeyF21)
+	KeyF22            KeyCode = KeyCode(ebiten.KeyF22)
+	KeyF23            KeyCode = KeyCode(ebiten.KeyF23)
+	KeyF24            KeyCode = KeyCode(ebiten.KeyF24)
+	KeyHome           KeyCode = KeyCode(ebiten.KeyHome)
+	KeyInsert         KeyCode = KeyCode(ebiten.KeyInsert)
+	KeyIntlBackslash  KeyCode = KeyCode(ebiten.KeyIntlBackslash)
+	KeyMetaLeft       KeyCode = KeyCode(ebiten.KeyMetaLeft)
+	KeyMetaRight      KeyCode = KeyCode(ebiten.KeyMetaRight)
+	KeyMinus          KeyCode = KeyCode(ebiten.KeyMinus)
+	KeyNumLock        KeyCode = KeyCode(ebiten.KeyNumLock)
+	KeyNumpad0        KeyCode = KeyCode(ebiten.KeyNumpad0)
+	KeyNumpad1        KeyCode = KeyCode(ebiten.KeyNumpad1)
+	KeyNumpad2        KeyCode = KeyCode(ebiten.KeyNumpad2)
+	KeyNumpad3        KeyCode = KeyCode(ebiten.KeyNumpad3)
+	KeyNumpad4        KeyCode = KeyCode(ebiten.KeyNumpad4)
+	KeyNumpad5        KeyCode = KeyCode(ebiten.KeyNumpad5)
+	KeyNumpad6        KeyCode = KeyCode(ebiten.KeyNumpad6)
+	KeyNumpad7        KeyCode = KeyCode(ebiten.KeyNumpad7)
+	KeyNumpad8        KeyCode = KeyCode(ebiten.KeyNumpad8)
+	KeyNumpad9        KeyCode = KeyCode(ebiten.KeyNumpad9)
+	KeyNumpadAdd      KeyCode = KeyCode(ebiten.KeyNumpadAdd)
+	KeyNumpadDecimal  KeyCode = KeyCode(ebiten.KeyNumpadDecimal)
+	KeyNumpadDivide   KeyCode = KeyCode(ebiten.KeyNumpadDivide)
+	KeyNumpadEnter    KeyCode = KeyCode(ebiten.KeyNumpadEnter)
+	KeyNumpadEqual    KeyCode = KeyCode(ebiten.KeyNumpadEqual)
+	KeyNumpadMultiply KeyCode = KeyCode(ebiten.KeyNumpadMultiply)
+	KeyNumpadSubtract KeyCode = KeyCode(ebiten.KeyNumpadSubtract)
+	KeyPageDown       KeyCode = KeyCode(ebiten.KeyPageDown)
+	KeyPageUp         KeyCode = KeyCode(ebiten.KeyPageUp)
+	KeyPause          KeyCode = KeyCode(ebiten.KeyPause)
+	KeyPeriod         KeyCode = KeyCode(ebiten.KeyPeriod)
+	KeyPrintScreen    KeyCode = KeyCode(ebiten.KeyPrintScreen)
+	KeyQuote          KeyCode = KeyCode(ebiten.KeyQuote)
+	KeyScrollLock     KeyCode = KeyCode(ebiten.KeyScrollLock)
+	KeySemicolon      KeyCode = KeyCode(ebiten.KeySemicolon)
+	KeyShiftLeft      KeyCode = KeyCode(ebiten.KeyShiftLeft)
+	KeyShiftRight     KeyCode = KeyCode(ebiten.KeyShiftRight)
+	KeySlash          KeyCode = KeyCode(ebiten.KeySlash)
+	KeySpace          KeyCode = KeyCode(ebiten.KeySpace)
+	KeyTab            KeyCode = KeyCode(ebiten.KeyTab)
+	KeyAlt            KeyCode = KeyCode(ebiten.KeyAlt)
+	KeyControl        KeyCode = KeyCode(ebiten.KeyControl)
+	KeyShift          KeyCode = KeyCode(ebiten.KeyShift)
+	KeyMeta           KeyCode = KeyCode(ebiten.KeyMeta)
+	KeyMax            KeyCode = KeyMeta
 )
 
 // MarshalText implements encoding.TextMarshaler.
-func (k Key) MarshalText() ([]byte, error) {
+func (k KeyCode) MarshalText() ([]byte, error) {
 	return ebiten.Key(k).MarshalText()
 }
 
 // String returns a string representing the key.
 // If k is an undefined key, String returns an empty string.
-func (k Key) String() string {
+func (k KeyCode) String() string {
 	return ebiten.Key(k).String()
 }
 
 // UnmarshalText implements encoding.TextUnmarshaler.
-func (k *Key) UnmarshalText(text []byte) error {
+func (k *KeyCode) UnmarshalText(text []byte) error {
 	v := ebiten.Key(0)
 	err := v.UnmarshalText(text)
 	if err != nil {
 		return err
 	}
-	*k = Key(v)
+	*k = KeyCode(v)
 	return nil
 }
 
-func DrawText(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
+func DrawText(dst *Surface, face Face, color RGBA, x, y int, str string) {
 	opts := text.DrawOptions{}
 	opts.LineSpacing = float64(LineHeight(face))
 	opts.GeoM.Translate(float64(x), float64(y))
@@ -299,9 +292,17 @@ func DrawCircle(Surface *Surface, c Point, r int, stroke int, fill, border RGBA)
 	}
 }
 
+// Keymods are the current key modifers.
+type KeyMods struct {
+	Alt     bool
+	Control bool
+	Shift   bool
+	Meta    bool
+}
+
 type PadID = ebiten.GamepadID
-type PadButton = ebiten.GamepadButton
-type PadAxis = ebiten.GamepadAxisType
+type TriggerID = ebiten.GamepadButton
+type AxisID = ebiten.GamepadAxisType
 
 type Inputter interface {
 	Input() Inputter
@@ -323,25 +324,26 @@ type PadInput struct {
 type PadPlug PadInput
 type PadYank PadInput
 
-type PadButtonInput struct {
+type TriggerInput struct {
 	PadInput
-	Button   PadButton
+	Trigger  TriggerID
 	Duration int
 }
 
-type PadButtonPressInput PadButtonInput
-type PadButtonHoldInput PadButtonInput
-type PadButtonReleaseInput PadButtonInput
+type TriggerPressInput TriggerInput
+type TriggerHoldInput TriggerInput
+type TriggerReleaseInput TriggerInput
 
-type PadAxisInput struct {
+type AxisInput struct {
 	PadInput
-	Axis  PadAxis
+	Axis  AxisID
 	Value float64
 }
 
 type KeyInput struct {
 	Pulse
-	Key      Key
+	Key      KeyCode
+	Mods     KeyMods
 	Press    bool
 	Release  bool
 	Duration int
@@ -379,7 +381,6 @@ type MouseInput struct {
 	Y        int
 	DX       int
 	DY       int
-	Press    bool
 	Duration int
 }
 
@@ -399,6 +400,7 @@ type InputState struct {
 	Fields []TextInputField
 	MouseX int
 	MouseY int
+	Mods   KeyMods
 }
 
 // Update updates the input state.
@@ -421,18 +423,18 @@ func (i *InputState) Poll(to chan<- Inputter) error {
 	for _, gid := range i.PadIDs {
 		buttons := inpututil.AppendJustPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			to <- PadButtonPressInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button}
+			to <- TriggerPressInput{PadInput: PadInput{Pulse: core, Pad: gid}, Trigger: button}
 		}
 
 		buttons = inpututil.AppendPressedGamepadButtons(gid, nil)
 		for _, button := range buttons {
 			dur := inpututil.GamepadButtonPressDuration(gid, button)
-			to <- PadButtonHoldInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button, Duration: dur}
+			to <- TriggerHoldInput{PadInput: PadInput{Pulse: core, Pad: gid}, Trigger: button, Duration: dur}
 		}
 
 		buttons = inpututil.AppendJustReleasedGamepadButtons(gid, nil)
 		for _, button := range buttons {
-			to <- PadButtonReleaseInput{PadInput: PadInput{Pulse: core, Pad: gid}, Button: button}
+			to <- TriggerReleaseInput{PadInput: PadInput{Pulse: core, Pad: gid}, Trigger: button}
 
 		}
 
@@ -442,25 +444,46 @@ func (i *InputState) Poll(to chan<- Inputter) error {
 			value := ebiten.GamepadAxisValue(gid, axis)
 			moved = ((value > 0.1) || (value < -0.1))
 			if moved {
-				to <- PadAxisInput{PadInput: PadInput{Pulse: core, Pad: gid}, Axis: axis, Value: value}
+				to <- AxisInput{PadInput: PadInput{Pulse: core, Pad: gid}, Axis: axis, Value: value}
 			}
 		}
 	}
 
 	keys := inpututil.AppendJustPressedKeys(nil)
 	for _, key := range keys {
-		to <- KeyPressInput{Pulse: core, Key: Key(key)}
+		switch KeyCode(key) {
+		case KeyAlt:
+			i.Mods.Alt = true
+		case KeyShift:
+			i.Mods.Shift = true
+		case KeyControl:
+			i.Mods.Control = true
+		case KeyMeta:
+			i.Mods.Meta = true
+		}
+
+		to <- KeyPressInput{Pulse: core, Key: KeyCode(key)}
 	}
 
 	keys = inpututil.AppendPressedKeys(nil)
 	for _, key := range keys {
 		dur := inpututil.KeyPressDuration(key)
-		to <- KeyHoldInput{Pulse: core, Key: Key(key), Press: true, Duration: dur}
+		to <- KeyHoldInput{Pulse: core, Key: KeyCode(key), Press: true, Duration: dur, Mods: i.Mods}
 	}
 
 	keys = inpututil.AppendJustReleasedKeys(nil)
 	for _, key := range keys {
-		to <- KeyReleaseInput{Pulse: core, Key: Key(key)}
+		switch KeyCode(key) {
+		case KeyAlt:
+			i.Mods.Alt = false
+		case KeyShift:
+			i.Mods.Shift = false
+		case KeyControl:
+			i.Mods.Control = false
+		case KeyMeta:
+			i.Mods.Meta = false
+		}
+		to <- KeyReleaseInput{Pulse: core, Key: KeyCode(key)}
 	}
 
 	chars := ebiten.AppendInputChars(nil)
