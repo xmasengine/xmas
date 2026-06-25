@@ -1,4 +1,4 @@
-package xui
+package xgal
 
 import (
 	"golang.design/x/clipboard"
@@ -18,21 +18,24 @@ const (
 	ClipboardImage = clipboard.FmtImage
 )
 
-func ReadClipboard(form ClipboardFormat) []byte {
+// Paste gets clipped data from the clipboard.
+func Paste(form ClipboardFormat) []byte {
 	if !clipboardAvailable {
 		return nil
 	}
 	return clipboard.Read(form)
 }
 
-func WriteClipboard(form ClipboardFormat, data []byte) <-chan struct{} {
+// Board pastes to the clipboard if available.
+func Board(form ClipboardFormat, data []byte) <-chan struct{} {
 	if !clipboardAvailable {
 		return nil
 	}
 	return clipboard.Write(form, data)
 }
 
-func WatchClipboard(ctx context.Context, form ClipboardFormat) <-chan []byte {
+// Boarded returns a channel to watch any changed to the clipboard.
+func Boarded(ctx context.Context, form ClipboardFormat) <-chan []byte {
 	if !clipboardAvailable {
 		return nil
 	}
