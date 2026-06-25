@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/ebitengine/microui v0.0.0-20241009125851-376dbfefa1cd
-	github.com/gen2brain/mpeg v0.5.0
+	github.com/gen2brain/mpeg v0.6.1
 	github.com/hajimehoshi/bitmapfont/v3 v3.3.0
 	github.com/hajimehoshi/ebiten/v2 v2.9.9
 	github.com/quasilyte/bitsweetfont v0.0.0-20250520233623-318bd06626e1
@@ -19,9 +19,12 @@ require (
 	github.com/ebitengine/oto/v3 v3.4.0 // indirect
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
+	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/hjson/hjson-go/v4 v4.4.0 // indirect
 	github.com/jessevdk/go-flags v1.4.0 // indirect
 	github.com/jezek/xgb v1.3.1 // indirect
+	github.com/jfreymuth/oggvorbis v1.0.5 // indirect
+	github.com/jfreymuth/vorbis v1.0.2 // indirect
 	github.com/matryer/is v1.4.1 // indirect
 	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/piranha/goreplace v0.0.0-20210607142521-0b456bf5531e // indirect
