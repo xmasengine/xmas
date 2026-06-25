@@ -21,8 +21,28 @@ func Play(game Game) error {
 	return ebiten.RunGame(game)
 }
 
+// MonitorType holds info about a display monitor.
+type MonitorType = ebiten.MonitorType
+
+// Monitor returns the current display monitor. It has a Size() method.
+func Monitor() *MonitorType {
+	return ebiten.Monitor()
+}
+
 // Screen sets the window size and title.
+// If w or h is 0 or negative, that dimension is set to the monitor size.
 func Screen(w, h int, title string) {
+	if w <= 0 || h <= 0 {
+		if m := ebiten.Monitor(); m != nil {
+			mw, mh := m.Size()
+			if w <= 0 {
+				w = mw
+			}
+			if h <= 0 {
+				h = mh
+			}
+		}
+	}
 	ebiten.SetWindowSize(w, h)
 	ebiten.SetWindowTitle(title)
 }
