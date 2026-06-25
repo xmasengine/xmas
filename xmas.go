@@ -7,8 +7,8 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/xmasengine/xmas/engine"
+	"github.com/xmasengine/xmas/xgal"
 )
 
 func main() {
@@ -39,14 +39,13 @@ func main() {
 		}()
 	}
 
-	sw, sh := ebiten.Monitor().Size()
-	ebiten.SetWindowSize(sw, sh)
-	ebiten.SetWindowTitle("xmas: Xmas Game Engine.")
-	en := engine.New(sw, sh)
+	mon := xgal.Monitor()
+	xgal.Screen(-1, -1, "xmas: Xmas Game Engine.")
+	en := engine.New(mon.Size())
 	logger := (&en.Log).Logger()
 	fmt.Printf("logger: %#v\n", logger)
 	slog.SetDefault(logger)
-	if err := ebiten.RunGame(en); err != nil {
+	if err := xgal.Play(en); err != nil {
 		fmt.Printf("error: %s", err)
 		os.Exit(1)
 	}
