@@ -34,6 +34,12 @@ func Circle(dst *Surface, c Point, r int, stroke int, col RGBA) {
 		float32(r), float32(stroke), col, false)
 }
 
+// Line draws a line from (x1, y1) to (x2, y2) with the given stroke width.
+func Line(dst *Surface, x1, y1, x2, y2, stroke int, col RGBA) {
+	vector.StrokeLine(dst, float32(x1), float32(y1), float32(x2), float32(y2),
+		float32(stroke), col, false)
+}
+
 // Clear fills dst with a solid color.
 func Clear(dst *Surface, color RGBA) {
 	dst.Fill(color)
