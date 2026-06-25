@@ -2,11 +2,12 @@ package xgal
 
 import (
 	"image"
+	"image/png"
 	"io/fs"
+	"os"
 
 	_ "image/gif"
 	_ "image/jpeg"
-	_ "image/png"
 )
 
 import (
@@ -54,4 +55,19 @@ func Scoop(surf *Surface) image.Image {
 	img := image.NewRGBA(image.Rect(0, 0, w, h))
 	copy(img.Pix, pixels)
 	return img
+}
+
+// Snap saves screen as a PNG file.
+func Snap(screen *Surface, name string) error {
+	w, h := screen.Size()
+	pixels := make([]byte, w*h*4)
+	screen.ReadPixels(pixels)
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	copy(img.Pix, pixels)
+	f, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return png.Encode(f, img)
 }

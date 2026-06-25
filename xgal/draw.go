@@ -33,3 +33,8 @@ func Circle(dst *Surface, c Point, r int, stroke int, col RGBA) {
 	vector.StrokeCircle(dst, float32(c.X), float32(c.Y),
 		float32(r), float32(stroke), col, false)
 }
+
+// Clear fills dst with a solid color.
+func Clear(dst *Surface, color RGBA) {
+	dst.Fill(color)
+}

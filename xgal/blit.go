@@ -17,13 +17,23 @@ const (
 	Rot270               // Rotate 270 degrees clockwise.
 )
 
-// Blit copies the source rectangle sr from src onto the destination rectangle
-// dr of dst. Ops are flags: rotation is applied first, then flips.
-func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOp) {
+// BlendMode is a blend mode for [Blend].
+type BlendMode = ebiten.Blend
+
+var (
+	// BlendNormal is standard alpha blending (source over destination).
+	BlendNormal BlendMode = ebiten.BlendSourceOver
+	// BlendCopy overwrites the destination with the source.
+	BlendCopy BlendMode = ebiten.BlendCopy
+	// BlendAdd is additive blending (source added to destination).
+	BlendAdd BlendMode = ebiten.BlendLighter
+	// BlendErase clears the destination.
+	BlendErase BlendMode = ebiten.BlendClear
+)
+
+func blitOpts(dr, sr Rectangle, ops []BlitOp) *ebiten.DrawImageOptions {
 	sw, sh := float64(sr.Dx()), float64(sr.Dy())
 	dw, dh := float64(dr.Dx()), float64(dr.Dy())
-
-	sub := src.SubImage(sr).(*ebiten.Image)
 
 	op := &ebiten.DrawImageOptions{}
 
@@ -80,5 +90,29 @@ func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOp) {
 	op.GeoM.Scale(dw/w, dh/h)
 	op.GeoM.Translate(float64(dr.Min.X), float64(dr.Min.Y))
 
+	return op
+}
+
+// Blit copies the source rectangle sr from src onto the destination rectangle
+// dr of dst. Ops are flags: rotation is applied first, then flips.
+func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOp) {
+	sub := src.SubImage(sr).(*ebiten.Image)
+	op := blitOpts(dr, sr, ops)
 	dst.DrawImage(sub, op)
+}
+
+// Blend copies sr from src onto dr of dst with the given blend mode.
+// Ops are the same rotation/flip flags as Blit.
+func Blend(dst, src *Surface, dr, sr Rectangle, mode BlendMode, ops ...BlitOp) {
+	sub := src.SubImage(sr).(*ebiten.Image)
+	op := blitOpts(dr, sr, ops)
+	op.Blend = mode
+	dst.DrawImage(sub, op)
+}
+
+// Scale draws src onto dst scaled by sx and sy.
+func Scale(dst, src *Surface, sx, sy float64) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(sx, sy)
+	dst.DrawImage(src, op)
 }
