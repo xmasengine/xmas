@@ -3,7 +3,6 @@ package xui
 import "image"
 import "slices"
 import "fmt"
-import "errors"
 import "github.com/xmasengine/xmas/xgal"
 
 type Reply int
@@ -27,26 +26,26 @@ type Widget interface {
 // It simply implements the Widget interface
 type Layer struct {
 	Kids   []Widget
-	Bounds Rectangle
+	Bounds xgal.Rectangle
 	Style
 	Done bool
 }
 
-func MakeLayer(bounds Rectangle) Layer {
+func MakeLayer(bounds xgal.Rectangle) Layer {
 	return Layer{Bounds: bounds, Style: DefaultStyle()}
 }
 
 func (m *Layer) Poll() Reply {
-	res := m.UpdateKids()
+	res := m.PollKids()
 	if res != Ignore {
 		return res
 	}
 	return Ignore
 }
 
-func (m *Layer) Render(s *Surface) {
+func (m *Layer) Render(s *xgal.Surface) {
 	m.Style.DrawBox(s, m.Bounds)
-	m.DrawKids(s)
+	m.RenderKids(s)
 }
 
 func (m *Layer) Add(g Widget) Widget {
@@ -60,22 +59,22 @@ func (m *Layer) PollKids() Reply {
 			continue
 		}
 		res := kid.Poll()
-		if res == errors.Is(err, Termination) {
+		if res == Finish {
 			m.Kids = slices.Delete(m.Kids, i, i+1)
-		} else if errors.Is(err, LayerOK) {
+		} else if res == Accept {
 			break // handled by toplevel
 		} else {
-			return err
+			return res
 		}
 	}
-	return nil
+	return Ignore
 }
 
-func (m *Layer) DrawKids(s *Surface) {
+func (m *Layer) RenderKids(s *xgal.Surface) {
 	for i := len(m.Kids) - 1; i >= 0; i-- {
 		kid := m.Kids[i]
 		if kid != nil {
-			kid.Draw(s)
+			kid.Render(s)
 		}
 	}
 }
@@ -95,22 +94,22 @@ type Asker struct {
 	Cursor int
 }
 
-func Ask(bounds Rectangle, prompt, def string, on func(res string)) *Asker {
+func Ask(bounds xgal.Rectangle, prompt, def string, on func(res string)) *Asker {
 	return &Asker{Layer: MakeLayer(bounds), Prompt: prompt, On: on, Buf: []rune(def)}
 }
 
-func (a *Asker) Update() error {
-	var keys []Key
-	keys = inpututil.AppendJustPressedKeys(keys)
+func (a *Asker) Poll() Reply {
+	var keys []xgal.KeyCode
+	keys = xgal.Taps(keys)
 	for _, key := range keys {
 		switch key {
-		case ebiten.KeyEnter:
+		case xgal.KeyEnter:
 			a.On(string(a.Buf))
-			return Termination
-		case ebiten.KeyEscape:
+			return Finish
+		case xgal.KeyEscape:
 			println("esc in ", a.Prompt)
-			return Termination
-		case ebiten.KeyBackspace:
+			return Finish
+		case xgal.KeyBackspace:
 			if len(a.Buf) > 0 {
 				a.Buf = slices.Delete(a.Buf, len(a.Buf)-1, len(a.Buf))
 			}
@@ -118,22 +117,22 @@ func (a *Asker) Update() error {
 	}
 
 	var chars []rune
-	chars = ebiten.AppendInputChars(chars)
+	chars = xgal.Chars(chars)
 	if len(chars) > 0 {
 		a.Buf = append(a.Buf, chars...)
 
 	}
-	return LayerOK
+	return Accept
 }
 
-func (a Asker) Draw(s *Surface) {
-	a.Layer.Draw(s)
-	ebitenutil.DebugPrintAt(s,
-		fmt.Sprintf("%s>%s|", a.Prompt, string(a.Buf)),
-		a.Bounds.Min.X, a.Bounds.Min.Y)
+func (a Asker) Draw(s *xgal.Surface) {
+	a.Layer.Render(s)
+	xgal.Ink(s, a.Style.Face, a.Style.Fore,
+		a.Bounds.Min.X, a.Bounds.Min.Y,
+		fmt.Sprintf("%s>%s|", a.Prompt, string(a.Buf)))
 }
 
-func Bounds(x, y, w, h int) Rectangle {
+func Bounds(x, y, w, h int) xgal.Rectangle {
 	return image.Rect(x, y, x+w, y+h)
 }
 
