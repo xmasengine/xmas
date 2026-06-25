@@ -44,3 +44,10 @@ func Line(dst *Surface, x1, y1, x2, y2, stroke int, col RGBA) {
 func Clear(dst *Surface, color RGBA) {
 	dst.Fill(color)
 }
+
+// Andrew draws St Andrews cross, or an X shape.
+func Andreas(surface *Surface, r Rectangle, thick int, col RGBA) {
+	Line(surface, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y, thick, col)
+	r.Min.X, r.Max.X = r.Max.X, r.Min.X
+	Line(surface, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y, thick, col)
+}

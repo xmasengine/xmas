@@ -59,6 +59,9 @@ func Typeface(fsys fs.FS, name string, size ...float64) (Face, error) {
 
 // Ink draws str onto dst at (x, y) using face and color.
 func Ink(dst *Surface, face Face, color RGBA, x, y int, str string) {
+	if face == nil {
+		face = BuiltinFace
+	}
 	opts := text.DrawOptions{}
 	opts.LineSpacing = float64(Stride(face))
 	opts.GeoM.Translate(float64(x), float64(y))

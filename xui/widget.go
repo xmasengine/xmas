@@ -1,3 +1,4 @@
+// package xui implements simple layer based UI
 package xui
 
 import "image"
@@ -15,6 +16,7 @@ const (
 	Finish
 )
 
+// A Widget is an element of an UI.
 type Widget interface {
 	Poll() Reply
 	Render(screen *xgal.Surface)
@@ -28,8 +30,13 @@ type Layer struct {
 	Kids   []Widget
 	Bounds xgal.Rectangle
 	Style
+	From xgal.Point
 	Done bool
+	Lock bool
+	Drag bool
 }
+
+var _ Widget = &Layer{}
 
 func MakeLayer(bounds xgal.Rectangle) Layer {
 	return Layer{Bounds: bounds, Style: DefaultStyle()}
@@ -63,7 +70,15 @@ func (m *Layer) PollKids() Reply {
 			m.Kids = slices.Delete(m.Kids, i, i+1)
 		} else if res == Accept {
 			break // handled by toplevel
-		} else {
+		} else if res == Raise {
+			if i < len(m.Kids)-1 {
+				m.Kids[i], m.Kids[i+1] = m.Kids[i+1], m.Kids[i]
+			}
+			return res
+		} else if res == Lower {
+			if i > 0 {
+				m.Kids[i], m.Kids[i-1] = m.Kids[i-1], m.Kids[i]
+			}
 			return res
 		}
 	}

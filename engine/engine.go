@@ -31,7 +31,7 @@ type Engine struct {
 	DebugRow   int
 	ScreenSize image.Point
 	At         image.Rectangle
-	Root       xui.Layer
+	Root       *xui.PaneLayer
 	Zone       *xmap.Zone
 	Debug      bool
 }
@@ -40,7 +40,7 @@ func New(sw, sh int) *Engine {
 	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
 	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]xgal.KeyCode, 16)
-	engine.Root = xui.MakeLayer(engine.At)
+	engine.Root = xui.Pane(engine.At.Inset(20), "UI")
 	engine.Log.Hide = true
 	engine.testZone()
 	engine.testUI()
@@ -141,7 +141,15 @@ func (engine *Engine) testUI() {
 func (g *Engine) Update() error {
 	g.Log.Update()
 
-	// g.Root.Poll()
+	if g.Root != nil {
+		res := g.Root.Poll()
+		if res != xui.Ignore {
+			if res == xui.Finish {
+				g.Root = nil
+			}
+			return nil
+		}
+	}
 
 	g.Pressed = g.Pressed[:0]
 	g.Pressed = xgal.Keys(g.Pressed)
@@ -195,6 +203,10 @@ func (g *Engine) Update() error {
 		return xgal.Quit
 	case xgal.Tap(xgal.KeyF):
 		g.Debug = !g.Debug
+	case xgal.Tap(xgal.KeyU):
+		if g.Root == nil {
+			g.Root = xui.Pane(g.At.Inset(20), "UI 2")
+		}
 	default:
 	}
 
@@ -212,7 +224,11 @@ func (g *Engine) Draw(screen *xgal.Surface) {
 				pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick), 0, 0)
 		}
 	}
-	// g.Root.Render(screen)
+
+	if g.Root != nil {
+		g.Root.Render(screen)
+	}
+
 	if g.Debug {
 		xgal.Debug(screen, fmt.Sprintf("\n%f\n", xgal.FPS()), 0, 0)
 	}

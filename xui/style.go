@@ -30,6 +30,7 @@ type Style struct {
 
 func DefaultStyle() Style {
 	s := Style{}
+	s.Fore = xgal.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
 	s.Border = xgal.RGBA{R: 0x55, G: 0x55, B: 0x55, A: 0xff}
 	s.Shadow = xgal.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xaa}
 	s.Fill = xgal.RGBA{R: 0x00, G: 0x00, B: 0x55, A: 0xaa}
@@ -77,6 +78,16 @@ func (s Style) DrawCircle(dst *xgal.Surface, c xgal.Point, r int) {
 	if s.Stroke > 0 {
 		xgal.Circle(dst, c, r, s.Stroke, s.Border)
 	}
+}
+
+func (s Style) DrawX(dst *xgal.Surface, bounds xgal.Rectangle) {
+	if s.Stroke > 0 {
+		xgal.Andreas(dst, bounds, s.Stroke, s.Border)
+	}
+}
+
+func (s Style) Ink(dst *xgal.Surface, bounds xgal.Rectangle, text string) {
+	xgal.Ink(dst, s.Face, s.Fore, bounds.Min.X+s.Margin.X, bounds.Min.Y+s.Margin.Y, text)
 }
 
 func FocusStyle() Style {
