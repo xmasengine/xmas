@@ -18,6 +18,12 @@ type Color = color.Color
 // RGBA is an 8-bit-per-channel RGBA color.
 type RGBA = color.RGBA
 
+// Palette is a set of colors, typically for indexed images.
+type Palette = color.Palette
+
+// PalettedImage is an image with a palette.
+type PalettedImage = image.PalettedImage
+
 // Rectangle is a 2D rectangle defined by two [Point] values.
 // Use [Rect] to construct one.
 type Rectangle = image.Rectangle
