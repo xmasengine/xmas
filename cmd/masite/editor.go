@@ -2,45 +2,43 @@ package main
 
 import (
 	"fmt"
-	"image"
 )
 
 import (
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
+	"github.com/xmasengine/xmas/xgal"
+	"github.com/xmasengine/xmas/xui"
 )
 
 type Editor struct {
 	Name   string
 	Map    *Map
-	Camera image.Rectangle
-	Hover  image.Point
-	Tile   image.Point // Tile we are hovering
+	Camera xgal.Rectangle
+	Hover  xgal.Point
+	Tile   xgal.Point // Tile we are hovering
 	Cell   Cell
 	Scale  int
 	Error  error
-	Midget Midget // Child mini widgets
+	Midget xui.Layer // Child widget layers
 }
 
-func (e Editor) Draw(screen *ebiten.Image) {
+func (e Editor) Draw(screen *xgal.Surface) {
 	if e.Map != nil {
 		e.Map.Render(screen, e.Camera)
 	}
 	if e.Error != nil {
-		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Error: %s", e.Error),
+		xgal.Debug(screen, fmt.Sprintf("Error: %s", e.Error),
 			e.Map.Width*e.Map.Tw, 10,
 		)
 	} else {
-		ebitenutil.DebugPrintAt(screen, fmt.Sprintf("%s: (%d,%d): %d %d",
+		xgal.Debug(screen, fmt.Sprintf("%s: (%d,%d): %d %d",
 			e.Name, e.Hover.X, e.Hover.Y, e.Cell.Index, e.Cell.Flag,
 		), e.Map.Width*e.Map.Tw, 10)
 	}
-	e.Midget.Draw(screen)
+	e.Midget.Render(screen)
 }
 
 func (e Editor) Layout(w, h int) (rw, th int) {
-	e.Midget.Layout(w, h)
+	e.Midget.Place(w, h)
 	return e.Camera.Dx() / e.Scale, e.Camera.Dy() / e.Scale
 }
 
@@ -54,20 +52,20 @@ const HELP = `HELP:
 
 func (e *Editor) Update() error {
 	var err error
-	e.Hover = image.Pt(ebiten.CursorPosition())
+	e.Hover = xgal.Mouse()
 	e.Tile = e.Map.ToTile(e.Hover, e.Camera)
 
-	_, wheel := ebiten.Wheel()
+	_, wheel := xgal.Wheel()
 	if wheel > 0 {
 		e.Cell.Index++
 	} else if wheel < 0 {
 		e.Cell.Index = max(0, e.Cell.Index-1)
 	}
 
-	err = e.Midget.Update()
-	if err != MidgetOK {
+	res := e.Midget.Poll()
+	if res != xui.Accept {
 		switch {
-		case inpututil.IsKeyJustPressed(ebiten.KeyPause):
+		case xgal.Tap(xgal.KeyPause):
 			if len(e.Midget.Kids) < 1 {
 				e.Midget.YesNo(50, 50, 250, 100, "Quit", "Y",
 					func(resp bool) {
@@ -75,15 +73,15 @@ func (e *Editor) Update() error {
 					},
 				)
 			}
-		case inpututil.IsKeyJustPressed(ebiten.KeyH):
+		case xgal.Tap(xgal.KeyH):
 			e.Cell.Flag ^= FlagHorizontalFlip
-		case inpututil.IsKeyJustPressed(ebiten.KeyV):
+		case xgal.Tap(xgal.KeyV):
 			e.Cell.Flag ^= FlagVerticalFlip
-		case inpututil.IsKeyJustPressed(ebiten.KeyF10):
+		case xgal.Tap(xgal.KeyF10):
 			e.Error = nil
-		case inpututil.IsKeyJustPressed(ebiten.KeyF1):
+		case xgal.Tap(xgal.KeyF1):
 			e.Midget.Ask(100, 0, 250, 200, HELP, "", func(name string) {})
-		case inpututil.IsKeyJustPressed(ebiten.KeyF2):
+		case xgal.Tap(xgal.KeyF2):
 			e.Midget.Ask(50, 50, 250, 100, "Save As", e.Name,
 				func(name string) {
 					e.Error = e.Map.Save(name)
@@ -92,7 +90,7 @@ func (e *Editor) Update() error {
 					}
 				},
 			)
-		case inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft):
+		case xgal.Click(xgal.MouseButtonLeft):
 			e.Map.Put(e.Tile, e.Cell)
 		default:
 		}
@@ -105,8 +103,8 @@ func (e *Editor) Update() error {
 }
 
 func NewEditor(tm *Map, name string, w, h, scale int) *Editor {
-	return &Editor{Map: tm, Name: name, Camera: image.Rect(0, 0, w, h),
+	return &Editor{Map: tm, Name: name, Camera: xgal.Rect(0, 0, w, h),
 		Scale:  scale,
-		Midget: MakeMidget(image.Rect(0, 0, 0, 0)),
+		Midget: xui.MakeLayer(xgal.Rect(0, 0, 0, 0)),
 	}
 }

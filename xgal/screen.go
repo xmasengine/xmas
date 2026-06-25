@@ -4,6 +4,7 @@ import (
 	"image"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 )
 
 // Game is the interface a user implements. It has three methods:
@@ -143,4 +144,9 @@ func Decorate(bordered bool, icons ...image.Image) {
 func Pixel(w, h int) {
 	ebiten.SetWindowSizeLimits(w, h, -1, -1)
 	Stretch(true)
+}
+
+// Debug print a debug text at the given location.
+func Debug(surface *Surface, str string, x, y int) {
+	ebitenutil.DebugPrintAt(surface, str, x, y)
 }
