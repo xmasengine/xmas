@@ -1,15 +1,15 @@
 // Package xui is the xmas engine UI package.
 // To keep everything relatively simple, there can only be a single active UI.
-// However this UI can consist of multiple Widgets.
-// Only one Widget is active at the time.
-// Each Widgets has an optional set of child widgets.
-// Only one child widget per Widget is active at one time.
-// Each child widget needs to be fully contained in the parent Widget
+// However this UI can consist of multiple Controls.
+// Only one Control is active at the time.
+// Each Controls has an optional set of child Controls.
+// Only one child Control per Control is active at one time.
+// Each child Control needs to be fully contained in the parent Control
 // and may not overflow it.
 // Effectively this means the UI is "flat" apart from the Z ordering.
 //
-// Each Widget has a Class that determines its behavior.
-// Widgets and Classes are separate, but can use embedding
+// Each Control has a Class that determines its behavior.
+// Controls and Classes are separate, but can use embedding
 // to extend each other in a double hierarchy.
 package xui
 
@@ -71,23 +71,6 @@ type Face = text.Face
 // DrawOptions are options for drawing an image.
 type DrawOptions = ebiten.DrawImageOptions
 
-// Style is the style of a Widget.
-type Style struct {
-	Fore    RGBA
-	Border  RGBA
-	Shadow  RGBA
-	Fill    RGBA
-	Writing RGBA
-	Margin  Point
-	Stroke  int
-	Face    Face
-}
-
-func (s Style) WithTinyFont() Style {
-	s.Face = spleen8.XFace
-	return s
-}
-
 var defaultFontFace = text.NewGoXFace(bitmapfont.Face)
 
 func DrawText(dst *Surface, face Face, color color.RGBA, x, y int, str string) {
@@ -140,7 +123,7 @@ func (s Style) LineHeight() int {
 
 // Root is the top level of the UI.
 type Root struct {
-	Widget                            // Widget root is also a widget
+	Control                           // Control root is also a Control
 	NoTouchMouse    bool              // NoTouchMouse: set this to true to not translate touches to mouse events.
 	TextInputFields []*TextInputField // Text input fields in use
 	cx, cy          int
@@ -148,11 +131,11 @@ type Root struct {
 	keyMods         KeyMods // Current key KeyMods
 	connected       []ebiten.GamepadID
 	gamepads        []ebiten.GamepadID
-	Hover           *Widget      // Hover is the Widget that is being hovered by the mouse.
-	Focus           *Widget      // Focus is the Widget that has the input focus.
-	Drag            *Widget      // Drag is the Widget that is being dragged by the mouse or touch.
-	Mark            *Widget      // Mark is the Widget that has the joystick and arrow key marker.
-	Default         EventHandler // Default event handler, used if none of the Widgets accepts the event.
+	Hover           *Control     // Hover is the Control that is being hovered by the mouse.
+	Focus           *Control     // Focus is the Control that has the input focus.
+	Drag            *Control     // Drag is the Control that is being dragged by the mouse or touch.
+	Mark            *Control     // Mark is the Control that has the joystick and arrow key marker.
+	Default         EventHandler // Default event handler, used if none of the Controls accepts the event.
 }
 
 func NewRoot() *Root {
@@ -162,7 +145,7 @@ func NewRoot() *Root {
 	return res
 }
 
-// State is the state of a Widget, or a requested state change.
+// State is the state of a Control, or a requested state change.
 type State struct {
 	Focus bool
 	Hover bool
@@ -176,18 +159,18 @@ type State struct {
 // Result is the result of an event handler
 type Result struct {
 	OK    bool
-	State State // Reqquested state of the Widget.
+	State State // Reqquested state of the Control.
 }
 
 // A Renderer can render itself.
 type Renderer interface {
-	// Render renders the Widget.
+	// Render renders the Control.
 	// The root is passed for convenience, for example to
 	// get fonts easily.
 	Render(*Root, *Surface)
 }
 
-// A Class determines the behavior of a widget. It is a renderer and a listener.
+// A Class determines the behavior of a Control. It is a renderer and a listener.
 type Class interface {
 	Listener
 	Renderer
@@ -206,37 +189,37 @@ type Invisible struct{}
 func (Invisible) Render(_ *Root, _ *Surface) {
 }
 
-// Widget is the basic widget in the UI. Embed this to implement a widget.
-// It can be the Root widget, a panel widget or a simple widget.
-type Widget struct {
-	Class   Class     // A widget must embed a Class with the specific behavior.
-	Layer   int       // Layer is the Z ordering of the widget.
-	Bounds  Rectangle // Actual position and size of the widget.
-	Extent  Rectangle // Extent is a rectangle with the desired size of the widget. It may be larger than the Bounds.
-	Offset  Point     // Offset for scrolling
-	Style   Style
-	State   State
-	Widgets []*Widget // Sub widgets of the widget if any.
+// Control is the basic Control in the UI. Embed this to implement a Control.
+// It can be the Root Control, a panel Control or a simple Control.
+type Control struct {
+	Class    Class     // A Control must embed a Class with the specific behavior.
+	Layer    int       // Layer is the Z ordering of the Control.
+	Bounds   Rectangle // Actual position and size of the Control.
+	Extent   Rectangle // Extent is a rectangle with the desired size of the Control. It may be larger than the Bounds.
+	Offset   Point     // Offset for scrolling
+	Style    Style
+	State    State
+	Controls []*Control // Sub Controls of the Control if any.
 }
 
-// WidgetClass is the basic class for a Widget. Embed this to implement a class.
-type WidgetClass struct {
+// ControlClass is the basic class for a Control. Embed this to implement a class.
+type ControlClass struct {
 	BasicListener
 }
 
-func (w WidgetClass) Render(r *Root, screen *Surface) {
+func (w ControlClass) Render(r *Root, screen *Surface) {
 	// draw nothing
 }
 
-func NewWidgetClass() *WidgetClass {
-	return &WidgetClass{}
+func NewControlClass() *ControlClass {
+	return &ControlClass{}
 }
 
 // Depth first traversal. Stops if non-nil is returned.
-func (w *Widget) EachWidget(cb func(sub *Widget) *Widget) *Widget {
-	for i := len(w.Widgets) - 1; i >= 0; i-- {
-		sub := w.Widgets[i]
-		if res := sub.EachWidget(cb); res != nil {
+func (w *Control) EachControl(cb func(sub *Control) *Control) *Control {
+	for i := len(w.Controls) - 1; i >= 0; i-- {
+		sub := w.Controls[i]
+		if res := sub.EachControl(cb); res != nil {
 			return sub
 		}
 	}
@@ -246,10 +229,10 @@ func (w *Widget) EachWidget(cb func(sub *Widget) *Widget) *Widget {
 	return nil
 }
 
-func (w *Widget) FindTop(at Point) *Widget {
-	var top *Widget
-	for i := len(w.Widgets) - 1; i >= 0; i-- {
-		p := w.Widgets[i]
+func (w *Control) FindTop(at Point) *Control {
+	var top *Control
+	for i := len(w.Controls) - 1; i >= 0; i-- {
+		p := w.Controls[i]
 		if !p.State.Hide {
 			subTop := p.FindTop(at)
 			if top == nil && subTop != nil {
@@ -270,19 +253,19 @@ func (w *Widget) FindTop(at Point) *Widget {
 	return top
 }
 
-func (w *Widget) Append(widgets ...*Widget) {
-	w.Widgets = append(w.Widgets, widgets...)
+func (w *Control) Append(Controls ...*Control) {
+	w.Controls = append(w.Controls, Controls...)
 }
 
-func (w *Widget) Move(delta Point) *Widget {
+func (w *Control) Move(delta Point) *Control {
 	w.Bounds = w.Bounds.Add(delta)
-	w.MoveWidgets(delta)
+	w.MoveControls(delta)
 	return w
 }
 
-func (w *Widget) MoveWidgets(delta Point) *Widget {
-	for i := 0; i < len(w.Widgets); i++ {
-		sub := w.Widgets[i]
+func (w *Control) MoveControls(delta Point) *Control {
+	for i := 0; i < len(w.Controls); i++ {
+		sub := w.Controls[i]
 		if sub.State.Lock {
 			continue
 		}
@@ -291,65 +274,65 @@ func (w *Widget) MoveWidgets(delta Point) *Widget {
 	return w
 }
 
-func (w *Widget) MoveAll(delta Point) *Widget {
+func (w *Control) MoveAll(delta Point) *Control {
 	w.Bounds = w.Bounds.Add(delta)
-	w.MoveAllWidgets(delta)
+	w.MoveAllControls(delta)
 	return w
 }
 
-func (w *Widget) MoveAllWidgets(delta Point) *Widget {
-	for i := 0; i < len(w.Widgets); i++ {
-		sub := w.Widgets[i]
+func (w *Control) MoveAllControls(delta Point) *Control {
+	for i := 0; i < len(w.Controls); i++ {
+		sub := w.Controls[i]
 		sub.MoveAll(delta)
 	}
 	return w
 }
 
-// RenderWidget renders the widgets inside this widget, not the widget itself.
-func (w *Widget) RenderWidgets(r *Root, screen *Surface) *Widget {
-	for i := 0; i < len(w.Widgets); i++ {
-		sub := w.Widgets[i]
+// RenderControl renders the Controls inside this Control, not the Control itself.
+func (w *Control) RenderControls(r *Root, screen *Surface) *Control {
+	for i := 0; i < len(w.Controls); i++ {
+		sub := w.Controls[i]
 		sub.Class.Render(r, screen)
 	}
 	return w
 }
 
-const WidgetScrollSlack = 2
+const ControlScrollSlack = 2
 
-func (p *Widget) ScrollHorizontal(pos, low, high int) {
+func (p *Control) ScrollHorizontal(pos, low, high int) {
 	if low == high {
 		return
 	}
 
-	scrollRange := p.Extent.Dx() - WidgetScrollSlack
+	scrollRange := p.Extent.Dx() - ControlScrollSlack
 	var noff Point
 	noff.X = ((pos - low) * scrollRange) / (high - low)
 
 	delta := p.Offset.Sub(noff)
-	p.MoveWidgets(delta)
+	p.MoveControls(delta)
 	p.Offset = noff
 }
 
-func (p *Widget) ScrollVertical(pos, low, high int) {
+func (p *Control) ScrollVertical(pos, low, high int) {
 	if low == high {
 		return
 	}
 
-	scrollRange := p.Extent.Dy() - WidgetScrollSlack
+	scrollRange := p.Extent.Dy() - ControlScrollSlack
 	var noff Point
 	noff.Y = ((pos - low) * scrollRange) / (high - low)
 	delta := p.Offset.Sub(noff)
-	p.MoveWidgets(delta)
+	p.MoveControls(delta)
 	p.Offset = noff
 }
 
-func (w *Widget) AddWidget(sub *Widget) {
-	w.Widgets = append(w.Widgets, sub)
+func (w *Control) AddControl(sub *Control) {
+	w.Controls = append(w.Controls, sub)
 }
 
-func NewWidget() *Widget {
-	res := &Widget{}
-	res.Class = NewWidgetClass()
+func NewControl() *Control {
+	res := &Control{}
+	res.Class = NewControlClass()
 	return res
 }
 
@@ -506,16 +489,16 @@ func (r *Root) Update() error {
 
 type RootClass struct {
 	*Root
-	*WidgetClass
+	*ControlClass
 }
 
 func NewRootClass(r *Root) *RootClass {
 	res := &RootClass{Root: r}
-	res.WidgetClass = NewWidgetClass()
+	res.ControlClass = NewControlClass()
 	return res
 }
 
-func (r *Root) SetFocus(w *Widget, at Point) *Widget {
+func (r *Root) SetFocus(w *Control, at Point) *Control {
 	old := r.Focus
 	if r.Focus != nil && r.Focus != w {
 		MakeActionEvent(ActionBlur, r, at, image.Point{}).Dispatch(r.Focus.Class)
@@ -530,7 +513,7 @@ func (r *Root) SetFocus(w *Widget, at Point) *Widget {
 	return old
 }
 
-func (r *Root) SetHover(w *Widget, at Point) *Widget {
+func (r *Root) SetHover(w *Control, at Point) *Control {
 	old := r.Hover
 
 	if r.Hover != nil && r.Hover != w {
@@ -544,7 +527,7 @@ func (r *Root) SetHover(w *Widget, at Point) *Widget {
 	return old
 }
 
-func (r *Root) SetDrag(w *Widget, at, delta Point) *Widget {
+func (r *Root) SetDrag(w *Control, at, delta Point) *Control {
 	old := r.Drag
 
 	if r.Drag != nil && r.Drag != w {
@@ -643,7 +626,7 @@ func (r *RootClass) OnKeyText(e KeyEvent) bool {
 }
 
 func (r *RootClass) Render(_ *Root, screen *Surface) {
-	for _, p := range r.Root.Widgets {
+	for _, p := range r.Root.Controls {
 		if !p.State.Hide {
 			p.Class.Render(r.Root, screen)
 		}
@@ -663,179 +646,6 @@ func (r *Root) Draw(screen *Surface) {
 func (r *Root) Layout(availableWidth, availableHeight int) (elementWidth, elementHeight int) {
 
 	return availableWidth, availableHeight
-}
-
-func DefaultStyle() Style {
-	s := Style{}
-	s.Border = color.RGBA{50, 50, 50, 245}
-	s.Writing = color.RGBA{245, 245, 245, 245}
-	s.Shadow = color.RGBA{15, 15, 15, 191}
-	s.Fill = color.RGBA{15, 15, 150, 200}
-	s.Face = defaultFontFace
-	s.Stroke = 1
-	s.Margin = image.Pt(2, 2)
-	return s
-}
-
-func FocusStyle() Style {
-	s := DefaultStyle()
-	s.Border = color.RGBA{240, 140, 40, 245}
-	s.Writing = color.RGBA{245, 245, 245, 245}
-	s.Fill = color.RGBA{128, 128, 200, 240}
-	return s
-}
-
-func HoverStyle() Style {
-	s := DefaultStyle()
-	s.Border = color.RGBA{240, 240, 50, 250}
-	return s
-}
-
-func PressStyle() Style {
-	s := DefaultStyle()
-	s.Fill = color.RGBA{15, 45, 200, 240}
-	return s
-}
-
-func BarStyle() Style {
-	s := DefaultStyle().WithTinyFont()
-	s.Fill = color.RGBA{45, 45, 200, 250}
-	return s
-}
-
-func CheckStyle() Style {
-	s := DefaultStyle()
-	s.Fill = color.RGBA{245, 245, 245, 250}
-	return s
-}
-
-func (s Style) HoverStyle() Style {
-	s.Border = color.RGBA{200, 200, 45, 250}
-	return s
-}
-
-func (s Style) FocusStyle() Style {
-	s.Border = color.RGBA{240, 140, 40, 245}
-	s.Writing = color.RGBA{245, 245, 245, 245}
-	s.Fill = color.RGBA{128, 128, 200, 245}
-	return s
-}
-
-func (s Style) PressStyle() Style {
-	s.Fill = color.RGBA{15, 45, 200, 240}
-	return s
-}
-
-func (s Style) DragStyle() Style {
-	s.Fill = color.RGBA{15, 128, 200, 240}
-	return s
-}
-
-func (s Style) ForState(state State) Style {
-	if state.Focus {
-		return s.FocusStyle()
-	}
-	if state.Hover {
-		return s.HoverStyle()
-	}
-	if state.Drag {
-		return s.DragStyle()
-	}
-	return s
-}
-
-func (s Style) BarStyle() Style {
-	s = s.WithTinyFont()
-	s.Fill = color.RGBA{45, 45, 245, 250}
-	return s
-}
-
-func (s Style) CheckStyle() Style {
-	s.Fill = color.RGBA{245, 245, 245, 250}
-	return s
-}
-
-func (s Style) KnobStyle() Style {
-	s.Fill = color.RGBA{245, 245, 245, 250}
-	return s
-}
-
-func FillRect(Surface *Surface, r Rectangle, col color.RGBA) {
-	vector.DrawFilledRect(
-		Surface, float32(r.Min.X), float32(r.Min.Y),
-		float32(r.Dx()), float32(r.Dy()),
-		col, false,
-	)
-}
-
-func DrawRect(Surface *Surface, r Rectangle, thick int, col color.RGBA) {
-	vector.StrokeRect(
-		Surface, float32(r.Min.X), float32(r.Min.Y),
-		float32(r.Dx()), float32(r.Dy()),
-		float32(thick), col, false,
-	)
-}
-
-// DrawsLine draws a line on the diagonal of the Rectangle r.
-func DrawLine(Surface *Surface, r Rectangle, thick int, col color.RGBA) {
-	vector.StrokeLine(
-		Surface, float32(r.Min.X), float32(r.Min.Y),
-		float32(r.Max.X), float32(r.Max.Y),
-		float32(thick), col, false,
-	)
-}
-
-func (s Style) DrawRect(Surface *Surface, r Rectangle) {
-	DrawRect(Surface, r, int(s.Stroke), s.Border)
-}
-
-func (s Style) DrawBox(Surface *Surface, r Rectangle) {
-	if s.Shadow.A != 0 {
-		shadow := s.Shadow
-		shadow.A = (shadow.A / 2) + 1 // make half transparent
-		right := image.Rect(r.Max.X+1, r.Min.Y+1, r.Max.X+1, r.Max.Y+1)
-		DrawLine(Surface, right, 1, shadow)
-		bottom := image.Rect(r.Min.X+1, r.Max.Y+1, r.Max.X+1, r.Max.Y+1)
-		DrawLine(Surface, bottom, 1, shadow)
-	}
-
-	vector.DrawFilledRect(
-		Surface, float32(r.Min.X), float32(r.Min.Y),
-		float32(r.Dx()), float32(r.Dy()), s.Fill, false,
-	)
-
-	if s.Stroke > 0 {
-		vector.StrokeRect(
-			Surface, float32(r.Min.X), float32(r.Min.Y),
-			float32(r.Dx()), float32(r.Dy()),
-			float32(s.Stroke), s.Border, false,
-		)
-	}
-}
-
-func (s Style) DrawCircleInBox(Surface *Surface, box Rectangle) {
-	r := box.Dx()
-	if box.Dy() < r {
-		r = box.Dy()
-	}
-	r = r / 2
-	c := image.Pt((box.Min.X+box.Max.X)/2, (box.Min.Y+box.Max.Y)/2)
-	s.DrawCircle(Surface, c, r)
-}
-
-func (s Style) DrawCircle(Surface *Surface, c Point, r int) {
-	if r < 0 {
-		r = 1
-	}
-	vector.DrawFilledCircle(Surface, float32(c.X), float32(c.Y),
-		float32(r), s.Fill, false)
-
-	if s.Stroke > 0 {
-		vector.StrokeCircle(
-			Surface, float32(c.X), float32(c.Y),
-			float32(r), float32(s.Stroke), s.Border, false,
-		)
-	}
 }
 
 func dprintln(msg string, vars ...any) {
