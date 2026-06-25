@@ -1,7 +1,8 @@
 // Package xgal is a wrapper around the low level ebitengine game library
 // and its supporting libraries, as well as the image and image/color library.
 // While ebitengine works well, it is a bit of a hassle to import everything
-// separately.
+// separately. Also ebitengine uses very long names, and this package shortens
+// them to one word or at the most two word names.
 // All types used from other packages are aliased so this package is standalone.
 package xgal
 
@@ -29,5 +30,3 @@ type Surface = ebiten.Image
 
 // DrawOptions specifies options for drawing a Surface onto another Surface.
 type DrawOptions = ebiten.DrawImageOptions
-
-
