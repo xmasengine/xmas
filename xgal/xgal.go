@@ -1,4 +1,5 @@
-// Package xgal is a wrapper around the low level ebitengine game library
+// Package xgal, short for Xmasengine GAme Library,
+// is a wrapper around the low level ebitengine game library
 // and its supporting libraries, as well as the image and image/color library.
 // While ebitengine works well, it is a bit of a hassle to import everything
 // separately. Also ebitengine uses very long names, and this package shortens
