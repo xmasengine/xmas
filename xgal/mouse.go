@@ -17,6 +17,8 @@ const (
 	MouseButtonRight MouseButton = ebiten.MouseButtonRight
 	// MouseButtonMiddle is the middle mouse button.
 	MouseButtonMiddle MouseButton = ebiten.MouseButtonMiddle
+	// MouseButtonMiddle is the last mouse buuton.
+	MouseButtonMax = ebiten.MouseButtonMax
 )
 
 // Mouse returns the current mouse cursor position.

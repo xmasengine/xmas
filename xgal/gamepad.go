@@ -98,3 +98,8 @@ func Axis(pad PadID, axis AxisID) float64 {
 func Axes(pad PadID) int {
 	return ebiten.GamepadAxisCount(pad)
 }
+
+// Moniker returns the name of the game pad with the given id
+func Moniker(pad PadID) string {
+	return ebiten.GamepadName(pad)
+}
