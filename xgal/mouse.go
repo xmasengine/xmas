@@ -39,3 +39,9 @@ func Grip(button MouseButton) bool {
 func Loose(button MouseButton) bool {
 	return inpututil.IsMouseButtonJustReleased(button)
 }
+
+// Wheel returns the scroll wheel movement since the last frame.
+// Positive Y scrolls toward the user (down), positive X scrolls right.
+func Wheel() (xoff, yoff float64) {
+	return ebiten.Wheel()
+}

@@ -14,7 +14,7 @@ import (
 // Face is a font face.
 type Face = text.Face
 
-// BuiltinFace is the built-in 7x14 pixel bitmap font face.
+// BuiltinFace is the built-in 7×14 pixel monochrome bitmap font face.
 var BuiltinFace Face = text.NewGoXFace(bitmapfont.Face)
 
 // Typeface loads a font file from fsys as a [Face].

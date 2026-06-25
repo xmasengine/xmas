@@ -13,7 +13,9 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/audio"
 )
 
-// Video is a playable MPEG video.
+// Video is a playable MPEG video stream loaded with [Stream].
+// Methods: [Video.Draw], [Video.Play], [Video.Stop], [Video.IsPlaying],
+// [Video.Frame], [Video.Bounds], [Video.HasEnded], [Video.Close].
 type Video struct {
 	mpg   *mpeg.MPEG
 	frame *Surface

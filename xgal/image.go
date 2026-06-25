@@ -42,12 +42,12 @@ func Pixels(fsys fs.FS, name string) (image.Image, error) {
 	return img, nil
 }
 
-// Bake converts an [image.Image] to a [Surface] by baking its pixels onto the GPU.
+// Bake converts an [image.Image] to a [Surface].
 func Bake(img image.Image) *Surface {
 	return ebiten.NewImageFromImage(img)
 }
 
-// Scoop converts a [Surface] to an [image.Image] by scooping its pixels from the GPU.
+// Scoop converts a [Surface] to an [image.Image].
 func Scoop(surf *Surface) image.Image {
 	w, h := surf.Size()
 	pixels := make([]byte, w*h*4)

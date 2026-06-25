@@ -43,7 +43,8 @@ func decodeAudio(name string, reader io.Reader) (io.ReadSeeker, error) {
 	}
 }
 
-// Clip is a playable audio clip that plays once.
+// Clip is a short sound effect loaded with [Sample].
+// It plays once. Methods: [Clip.Play], [Clip.Stop], [Clip.IsPlaying], [Clip.Volume].
 type Clip struct {
 	player *audio.Player
 }
@@ -91,7 +92,8 @@ func (c *Clip) Volume(v float64) {
 	c.player.SetVolume(v)
 }
 
-// Song is a playable music track that loops indefinitely.
+// Song is a looping music track loaded with [Track].
+// It loops forever. Methods: [Song.Play], [Song.Stop], [Song.IsPlaying], [Song.Volume].
 type Song struct {
 	player *audio.Player
 }

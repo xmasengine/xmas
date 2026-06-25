@@ -17,6 +17,22 @@ const (
 	Rot270               // Rotate 270 degrees clockwise.
 )
 
+// Filter controls how pixel colors are sampled when drawing a [Surface]
+// at a non-1:1 scale.
+type Filter = ebiten.Filter
+
+const (
+	// Nearest uses the color of the nearest pixel. Produces crisp edges for
+	// pixel art at integer scales, but may look jagged at non-integer scales.
+	Nearest Filter = ebiten.FilterNearest
+	// Linear interpolates between neighbouring pixels. Produces smooth,
+	// slightly blurred edges — good for natural images.
+	Linear Filter = ebiten.FilterLinear
+	// Pixelated is like [Nearest] but stays crisp even at non-integer scales.
+	// Best for pixel art games where the window can be any size.
+	Pixelated Filter = ebiten.FilterPixelated
+)
+
 // BlendMode is a blend mode for [Blend].
 type BlendMode = ebiten.Blend
 
