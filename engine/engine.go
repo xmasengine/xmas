@@ -178,8 +178,6 @@ func (g *Engine) Update() error {
 			mdelta.X = -1
 		case xgal.KeyEnd:
 			mdelta.X = 1
-		case xgal.KeyF:
-			g.Debug = !g.Debug
 		default:
 		}
 	}
@@ -195,6 +193,8 @@ func (g *Engine) Update() error {
 	switch {
 	case xgal.Tap(xgal.KeyEscape):
 		return xgal.Quit
+	case xgal.Tap(xgal.KeyF):
+		g.Debug = !g.Debug
 	default:
 	}
 

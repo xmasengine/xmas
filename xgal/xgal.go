@@ -36,6 +36,9 @@ type Point = image.Point
 // other with [Blit], [Blend], [Scale], or the vector drawing functions.
 type Surface = ebiten.Image
 
+// Image is an loaded bit map image.
+type Image = image.Image
+
 // DrawOptions specifies how one [Surface] is drawn onto another.
 // Key fields:
 //

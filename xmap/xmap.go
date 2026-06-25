@@ -4,39 +4,33 @@ package xmap
 
 import "encoding/xml"
 import "io"
-import "image"
-import "image/color"
 import "log/slog"
 
 import (
-	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/text/v2"
-)
-
-import (
+	"github.com/xmasengine/xmas/xgal"
 	"github.com/xmasengine/xmas/xres"
 )
 
 // Rectangle is used for sizes and positions.
-type Rectangle = image.Rectangle
+type Rectangle = xgal.Rectangle
 
 // Point is used for position and offsets.
-type Point = image.Point
+type Point = xgal.Point
 
-// Color is a color.
-type Color = color.Color
+// Color is a xgal.
+type Color = xgal.Color
 
-// Image is an image.Image
-type Image = image.Image
+// Image is an xgal.Image
+type Image = xgal.Image
 
-// Surface is an ebiten.Image
-type Surface = ebiten.Image
+// Surface is an xgal.Image
+type Surface = xgal.Surface
 
-// RGBA is an RGBA color.
-type RGBA = color.RGBA
+// RGBA is an RGBA xgal.
+type RGBA = xgal.RGBA
 
 // Face is a font face
-type Face = text.Face
+type Face = xgal.Face
 
 // Direction is a direction a player or mobile may be facing.
 type Direction int
@@ -93,7 +87,7 @@ type Row struct {
 
 type SrcAtlas struct {
 	Src   string        `xml:"src,attr"`
-	Atlas *ebiten.Image `xml:"-"`
+	Atlas *xgal.Surface `xml:"-"`
 }
 
 type Layer struct {
@@ -164,7 +158,7 @@ func (p *Player) Update() {
 	p.Animation.Update()
 }
 
-func (p Player) RenderPose(screen *ebiten.Image, camera Rectangle, pos Pose) bool {
+func (p Player) RenderPose(screen *xgal.Surface, camera Rectangle, pos Pose) bool {
 	if p.Atlas == nil {
 		slog.Warn("Trying to render a player without an Atlas")
 		return false
@@ -178,20 +172,13 @@ func (p Player) RenderPose(screen *ebiten.Image, camera Rectangle, pos Pose) boo
 	if pos.Phase > 0 {
 		fx += pos.Phase * pos.W
 	}
-	from := image.Rect(fx, fy, fx+pos.W, fy+pos.H)
-	sub := p.Atlas.SubImage(from).(*Surface)
-	opts := ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(
-		float64(int(p.At.X)-camera.Min.X),
-		float64(int(p.At.Y)-camera.Min.Y),
-	)
-	if sub != nil {
-		screen.DrawImage(sub, &opts)
-	}
+	from := xgal.Rect(fx, fy, fx+pos.W, fy+pos.H)
+	to := xgal.Rect(p.At.X, p.At.Y, p.At.X+pos.W, p.At.Y+pos.H)
+	xgal.Blit(screen, p.Atlas, to, from)
 	return true
 }
 
-func (p Player) Render(screen *ebiten.Image, camera Rectangle) {
+func (p Player) Render(screen *xgal.Surface, camera Rectangle) {
 	if p.Atlas == nil {
 		slog.Warn("Trying to render a player without an Atlas")
 		return
@@ -207,16 +194,9 @@ func (p Player) Render(screen *ebiten.Image, camera Rectangle) {
 	idy := id / ab.Dx()
 	fx := idx * p.Tw
 	fy := idy * p.Th
-	from := image.Rect(fx, fy, fx+p.Tw, fy+p.Th)
-	sub := p.Atlas.SubImage(from).(*Surface)
-	opts := ebiten.DrawImageOptions{}
-	opts.GeoM.Translate(
-		float64(int(p.At.X)-camera.Min.X),
-		float64(int(p.At.Y)-camera.Min.Y),
-	)
-	if sub != nil {
-		screen.DrawImage(sub, &opts)
-	}
+	from := xgal.Rect(fx, fy, fx+p.Tw, fy+p.Th)
+	to := xgal.Rect(p.At.X, p.At.Y, p.At.X+p.W, p.At.Y+p.H).Sub(camera.Min)
+	xgal.Blit(screen, p.Atlas, to, from)
 }
 
 func (p Player) BestPose(dir Direction, act Action) Pose {
@@ -312,7 +292,7 @@ func (l *Layer) FillIndex(r Rectangle, idx int) {
 	}
 }
 
-func (l *Layer) Render(screen *ebiten.Image, camera Rectangle) {
+func (l *Layer) Render(screen *xgal.Surface, camera Rectangle) {
 	if l.Atlas == nil {
 		slog.Warn("Trying to render a layer without an Atlas")
 		return
@@ -339,17 +319,13 @@ func (l *Layer) Render(screen *ebiten.Image, camera Rectangle) {
 			fx := idx * l.Tw
 			fy := idy * l.Th
 
-			from := image.Rect(fx, fy, fx+l.Tw, fy+l.Th)
-			sub := l.Atlas.SubImage(from).(*Surface)
+			xx := tx * l.Tw
+			yy := ty * l.Th
 
-			opts := ebiten.DrawImageOptions{}
-			opts.GeoM.Translate(
-				float64(int(tx)*l.Tw-camera.Min.X),
-				float64(int(ty)*l.Th-camera.Min.Y),
-			)
-			if sub != nil {
-				screen.DrawImage(sub, &opts)
-			}
+			from := xgal.Rect(fx, fy, fx+l.Tw, fy+l.Th)
+			to := xgal.Rect(xx, yy, xx+l.Tw, yy+l.Th) // .Sub(camera.Min)
+			xgal.Blit(screen, l.Atlas, to, from)
+
 		}
 	}
 }
@@ -361,7 +337,7 @@ func (z *Zone) AddLayer(l Layer) *Zone {
 
 func NewZone(name string, w, h int) *Zone {
 	l := MakeLayer(w, h)
-	cam := image.Rect(0, 0, 16*32, 16*32)
+	cam := xgal.Rect(0, 0, 16*32, 16*32)
 	z := &Zone{W: w, H: h, Name: name, Camera: cam}
 	return z.AddLayer(l)
 }
