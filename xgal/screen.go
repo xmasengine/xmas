@@ -120,8 +120,8 @@ func Stretch(on bool) {
 	}
 }
 
-// Retain controls whether the screen is preserved between frames.
-func Retain(on bool) {
+// Keep controls whether the screen is kept between frames.
+func Keep(on bool) {
 	ebiten.SetScreenClearedEveryFrame(!on)
 }
 

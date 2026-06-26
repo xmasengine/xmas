@@ -44,7 +44,7 @@ func decodeAudio(name string, reader io.Reader) (io.ReadSeeker, error) {
 }
 
 // Clip is a short sound effect loaded with [Sample].
-// It plays once. Methods: [Clip.Play], [Clip.Stop], [Clip.IsPlaying], [Clip.Volume].
+// It plays once. Methods: [Clip.Play], [Clip.Stop], [Clip.Playing], [Clip.Volume].
 type Clip struct {
 	player *audio.Player
 }
@@ -82,8 +82,8 @@ func (c *Clip) Stop() {
 	c.player.Pause()
 }
 
-// IsPlaying reports whether the clip is currently playing.
-func (c *Clip) IsPlaying() bool {
+// Playing reports whether the clip is currently playing.
+func (c *Clip) Playing() bool {
 	return c.player.IsPlaying()
 }
 
@@ -93,7 +93,7 @@ func (c *Clip) Volume(v float64) {
 }
 
 // Song is a looping music track loaded with [Track].
-// It loops forever. Methods: [Song.Play], [Song.Stop], [Song.IsPlaying], [Song.Volume].
+// It loops forever. Methods: [Song.Play], [Song.Stop], [Song.Playing], [Song.Volume].
 type Song struct {
 	player *audio.Player
 }
@@ -139,8 +139,8 @@ func (s *Song) Stop() {
 	s.player.Pause()
 }
 
-// IsPlaying reports whether the song is currently playing.
-func (s *Song) IsPlaying() bool {
+// Playing reports whether the song is currently playing.
+func (s *Song) Playing() bool {
 	return s.player.IsPlaying()
 }
 

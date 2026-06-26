@@ -17,11 +17,11 @@ type Face = text.Face
 // BuiltinFace is the built-in 7×14 pixel monochrome bitmap font face.
 var BuiltinFace Face = text.NewGoXFace(bitmapfont.Face)
 
-// Typeface loads a font file from fsys as a [Face].
+// Font loads a font file from fsys as a [Face].
 // Supported formats: BDF (.bdf), TrueType (.ttf), OpenType (.otf).
 // A point size may be provided for TTF/OTF fonts by passing it as an optional
 // argument; the default is 12. BDF fonts ignore the size.
-func Typeface(fsys fs.FS, name string, size ...float64) (Face, error) {
+func Font(fsys fs.FS, name string, size ...float64) (Face, error) {
 	pt := 12.0
 	if len(size) > 0 {
 		pt = size[0]

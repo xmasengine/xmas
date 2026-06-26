@@ -14,8 +14,8 @@ import (
 )
 
 // Video is a playable MPEG video stream loaded with [Stream].
-// Methods: [Video.Draw], [Video.Play], [Video.Stop], [Video.IsPlaying],
-// [Video.Frame], [Video.Bounds], [Video.HasEnded], [Video.Close].
+// Methods: [Video.Draw], [Video.Play], [Video.Stop], [Video.Playing],
+// [Video.Frame], [Video.Bounds], [Video.Ended], [Video.Close].
 type Video struct {
 	mpg   *mpeg.MPEG
 	frame *Surface
@@ -144,8 +144,8 @@ func (v *Video) Stop() {
 	v.refTime = time.Time{}
 }
 
-// IsPlaying reports whether the video is currently playing.
-func (v *Video) IsPlaying() bool {
+// Playing reports whether the video is currently playing.
+func (v *Video) Playing() bool {
 	if v.audioPlayer != nil {
 		return v.audioPlayer.IsPlaying()
 	}
@@ -179,8 +179,8 @@ func (v *Video) Bounds() (int, int) {
 	return v.mpg.Width(), v.mpg.Height()
 }
 
-// HasEnded reports whether the video has finished playing.
-func (v *Video) HasEnded() bool {
+// Ended reports whether the video has finished playing.
+func (v *Video) Ended() bool {
 	return v.mpg.HasEnded()
 }
 
