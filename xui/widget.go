@@ -1,10 +1,11 @@
 // package xui implements simple layer based UI
 package xui
 
-import "image"
-import "slices"
-import "fmt"
-import "github.com/xmasengine/xmas/xgal"
+import (
+	"slices"
+
+	"github.com/xmasengine/xmas/xgal"
+)
 
 type Reply int
 
@@ -16,16 +17,29 @@ const (
 	Finish
 )
 
+// Axis is the layout axis for child widgets in a container.
+type Axis int
+
+const (
+	Vertical Axis = iota
+	Horizontal
+)
+
 // A Widget is an element of an UI.
 type Widget interface {
 	Poll() Reply
 	Render(screen *xgal.Surface)
-	Place(w, h int) (myw, myh int)
+	Place(bounds xgal.Rectangle) xgal.Rectangle
 }
 
-// Layer is a layer in the UI.
-// Layers may have child layers.
-// It simply implements the Widget interface
+// Mover is an optional interface for widgets that can be repositioned
+// without re-laying out their contents (e.g., scrolling or dragging).
+type Mover interface {
+	Widget
+	MoveBy(delta xgal.Point)
+}
+
+// Layer is a container in the UI.
 type Layer struct {
 	Kids   []Widget
 	Bounds xgal.Rectangle
@@ -34,12 +48,13 @@ type Layer struct {
 	Done bool
 	Lock bool
 	Drag bool
+	Axis Axis // layout direction for child widgets
 }
 
 var _ Widget = &Layer{}
 
 func MakeLayer(bounds xgal.Rectangle) Layer {
-	return Layer{Bounds: bounds, Style: DefaultStyle()}
+	return Layer{Bounds: bounds, Style: DefaultStyle(), Axis: Vertical}
 }
 
 func (m *Layer) Poll() Reply {
@@ -69,7 +84,7 @@ func (m *Layer) PollKids() Reply {
 		if res == Finish {
 			m.Kids = slices.Delete(m.Kids, i, i+1)
 		} else if res == Accept {
-			break // handled by toplevel
+			break
 		} else if res == Raise {
 			if i < len(m.Kids)-1 {
 				m.Kids[i], m.Kids[i+1] = m.Kids[i+1], m.Kids[i]
@@ -94,74 +109,52 @@ func (m *Layer) RenderKids(s *xgal.Surface) {
 	}
 }
 
-func (m *Layer) Place(w, h int) (rw, rh int) {
-	m.Bounds.Max = m.Bounds.Min.Add(image.Pt(w, h))
-	return m.Bounds.Dx(), m.Bounds.Dy()
+// MoveBy moves all children relative to current position.
+func (m *Layer) MoveBy(delta xgal.Point) {
+	m.Bounds = m.Bounds.Add(delta)
+	for _, kid := range m.Kids {
+		if mv, ok := kid.(Mover); ok {
+			mv.MoveBy(delta)
+		}
+	}
 }
 
-var _ Widget = &Layer{}
+// Place lays out children depth-first. For Vertical (default), children stack
+// downward; for Horizontal, they stack rightward. Margin is used as inner
+// padding around children.
+func (m *Layer) Place(bounds xgal.Rectangle) xgal.Rectangle {
+	target := m.Style.Inset(bounds)
+	pad := m.Style.Margin
 
-type Asker struct {
-	Layer
-	Prompt string
-	Buf    []rune
-	On     func(string)
-	Cursor int
-}
+	total := xgal.Pt(0, 0)
 
-func Ask(bounds xgal.Rectangle, prompt, def string, on func(res string)) *Asker {
-	return &Asker{Layer: MakeLayer(bounds), Prompt: prompt, On: on, Buf: []rune(def)}
-}
-
-func (a *Asker) Poll() Reply {
-	var keys []xgal.KeyCode
-	keys = xgal.Taps(keys)
-	for _, key := range keys {
-		switch key {
-		case xgal.KeyEnter:
-			a.On(string(a.Buf))
-			return Finish
-		case xgal.KeyEscape:
-			println("esc in ", a.Prompt)
-			return Finish
-		case xgal.KeyBackspace:
-			if len(a.Buf) > 0 {
-				a.Buf = slices.Delete(a.Buf, len(a.Buf)-1, len(a.Buf))
+	if m.Axis == Horizontal {
+		for i := len(m.Kids) - 1; i >= 0; i-- {
+			r := m.Kids[i].Place(target)
+			kw, kh := r.Dx(), r.Dy()
+			delta := xgal.Pt(kw, 0)
+			target.Min = target.Min.Add(delta)
+			total.X += kw
+			if kh > total.Y {
+				total.Y = kh
+			}
+		}
+	} else {
+		for i := len(m.Kids) - 1; i >= 0; i-- {
+			r := m.Kids[i].Place(target)
+			kw, kh := r.Dx(), r.Dy()
+			delta := xgal.Pt(0, kh)
+			target.Min = target.Min.Add(delta)
+			total.Y += kh
+			if kw > total.X {
+				total.X = kw
 			}
 		}
 	}
+	total = total.Add(pad.Mul(2))
 
-	var chars []rune
-	chars = xgal.Chars(chars)
-	if len(chars) > 0 {
-		a.Buf = append(a.Buf, chars...)
-
-	}
-	return Accept
+	m.Bounds = xgal.Rect(bounds.Min.X, bounds.Min.Y, bounds.Min.X+total.X, bounds.Min.Y+total.Y)
+	return m.Bounds
 }
 
-func (a Asker) Draw(s *xgal.Surface) {
-	a.Layer.Render(s)
-	xgal.Ink(s, a.Style.Face, a.Style.Fore,
-		a.Bounds.Min.X, a.Bounds.Min.Y,
-		fmt.Sprintf("%s>%s|", a.Prompt, string(a.Buf)))
-}
-
-func Bounds(x, y, w, h int) xgal.Rectangle {
-	return image.Rect(x, y, x+w, y+h)
-}
-
-func (m *Layer) Ask(x, y, w, h int, prompt, def string, on func(res string)) *Asker {
-	ask := Ask(Bounds(x, y, w, h), prompt, def, on)
-	m.Add(ask)
-	return ask
-}
-
-func (m *Layer) YesNo(x, y, w, h int, prompt, def string, on func(res bool)) *Asker {
-	wrap := func(sres string) {
-		on(sres == def)
-	}
-	ask := Ask(Bounds(x, y, w, h), prompt, def, wrap)
-	m.Add(ask)
-	return ask
-}
+var _ Widget = &Layer{}
