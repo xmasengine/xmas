@@ -90,6 +90,16 @@ func (s Style) Ink(dst *xgal.Surface, bounds xgal.Rectangle, text string) {
 	xgal.Ink(dst, s.Face, s.Fore, bounds.Min.X+s.Margin.X, bounds.Min.Y+s.Margin.Y, text)
 }
 
+// Inset shrinks the given rectangle by the style's margins and returns it.
+func (s Style) Inset(bounds xgal.Rectangle) xgal.Rectangle {
+	margin := s.Margin
+	xmin := bounds.Min.X + margin.X
+	ymin := bounds.Min.Y + margin.Y
+	xmax := bounds.Max.X - margin.X
+	ymax := bounds.Max.Y - margin.Y
+	return xgal.Rect(xmin, ymin, xmax, ymax)
+}
+
 func FocusStyle() Style {
 	s := DefaultStyle()
 	s.Border = xgal.Wash(240, 140, 40, 245)
