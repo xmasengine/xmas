@@ -38,7 +38,7 @@ func (e Editor) Draw(screen *xgal.Surface) {
 }
 
 func (e Editor) Layout(w, h int) (rw, th int) {
-	e.Midget.Place(w, h)
+	e.Midget.Place(xgal.Rect(0, 0, w, h))
 	return e.Camera.Dx() / e.Scale, e.Camera.Dy() / e.Scale
 }
 

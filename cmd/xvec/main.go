@@ -54,10 +54,6 @@ func genesisColors() [64]xvec.Color {
 	return cols
 }
 
-func xc(c xvec.Color) xgal.RGBA {
-	return xgal.Wash(c.R, c.G, c.B, c.A)
-}
-
 // helpLines are the lines shown on the F1 overlay.
 var helpLines = []struct {
 	text string
@@ -147,7 +143,7 @@ func main() {
 	a.color = a.palColors[63]
 	a.palSel = 63
 
-	a.list = xui.List(xgal.Rect(0, 0, 160, 370))
+	a.list = xui.List(a.listBounds())
 	a.list.Selected = -1
 
 	// Toolbar toggles
@@ -170,7 +166,6 @@ func main() {
 		t.Active = i == 0
 		a.toggles = append(a.toggles, t)
 	}
-	a.toolSel = 0
 
 	// Path sub-toolbar toggles
 	segNames := []string{"Move", "Line", "Close", "Done"}
@@ -218,11 +213,11 @@ func main() {
 	xgal.Play(a)
 }
 
-func (a *App) Toolbar() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, 28) }
-func (a *App) Canvas() xgal.Rectangle  { return xgal.Rect(0, 28, windowHeight, 396) }
-func (a *App) List() xgal.Rectangle    { return xgal.Rect(482, 30, 638, 394) }
-func (a *App) Palette() xgal.Rectangle { return xgal.Rect(0, 396, windowWidth, 460) }
-func (a *App) Status() xgal.Rectangle  { return xgal.Rect(0, 460, windowWidth, windowHeight) }
+func (a *App) toolbarBounds() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, 28) }
+func (a *App) canvasBounds() xgal.Rectangle  { return xgal.Rect(0, 28, windowHeight, 396) }
+func (a *App) listBounds() xgal.Rectangle    { return xgal.Rect(482, 30, 638, 394) }
+func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, 396, windowWidth, 460) }
+func (a *App) statusBounds() xgal.Rectangle  { return xgal.Rect(0, 460, windowWidth, windowHeight) }
 
 func ctrlHeld() bool {
 	for _, k := range xgal.Keys() {
@@ -354,7 +349,7 @@ func (a *App) Update() error {
 }
 
 func (a *App) canvasDocXY() (float32, float32) {
-	cv := a.Canvas()
+	cv := a.canvasBounds()
 	mx, my := xgal.Mouse().X, xgal.Mouse().Y
 	docW := float32(a.doc.Size.W)
 	docH := float32(a.doc.Size.H)
@@ -369,7 +364,7 @@ func (a *App) pollCanvas() {
 	if !xgal.Click(xgal.MouseButtonLeft) {
 		return
 	}
-	cv := a.Canvas()
+	cv := a.canvasBounds()
 	mx, my := xgal.Mouse().X, xgal.Mouse().Y
 	if mx < cv.Min.X || mx >= cv.Max.X || my < cv.Min.Y || my >= cv.Max.Y {
 		return
@@ -463,7 +458,7 @@ func (a *App) pollPalette() {
 	if !xgal.Click(xgal.MouseButtonLeft) {
 		return
 	}
-	pb := a.Palette()
+	pb := a.paletteBounds()
 	mx, my := xgal.Mouse().X, xgal.Mouse().Y
 	if mx < pb.Min.X || mx >= pb.Max.X || my < pb.Min.Y || my >= pb.Max.Y {
 		return
@@ -483,7 +478,6 @@ func (a *App) pollPalette() {
 }
 
 func (a *App) pollList() {
-	a.list.Bounds = a.List()
 	res := a.list.Poll()
 	if res == xui.Accept && a.list.Selected >= 0 && a.list.Selected < len(a.doc.Instructions) {
 		a.selInst = a.list.Selected
@@ -576,7 +570,7 @@ func (a *App) Draw(screen *xgal.Surface) {
 }
 
 func (a *App) drawToolbar(screen *xgal.Surface) {
-	tb := a.Toolbar()
+	tb := a.toolbarBounds()
 	xgal.Box(screen, tb, xgal.Wash(25, 25, 45, 255))
 	for _, t := range a.toggles {
 		t.Render(screen)
@@ -584,7 +578,7 @@ func (a *App) drawToolbar(screen *xgal.Surface) {
 }
 
 func (a *App) drawCanvas(screen *xgal.Surface) {
-	cv := a.Canvas()
+	cv := a.canvasBounds()
 	xgal.Box(screen, cv, xgal.Wash(20, 20, 35, 255))
 	xgal.Outline(screen, cv, 1, xgal.Wash(80, 80, 110, 255))
 
@@ -745,8 +739,7 @@ func (a *App) renderDoc() {
 }
 
 func (a *App) drawList(screen *xgal.Surface) {
-	lb := a.List()
-	a.list.Bounds = lb
+	lb := a.list.Bounds
 	xgal.Box(screen, lb, xgal.Wash(30, 30, 50, 255))
 	xgal.Outline(screen, lb, 1, xgal.Wash(60, 60, 80, 255))
 	a.list.Render(screen)
@@ -765,7 +758,7 @@ func (a *App) drawStrokeSlider(screen *xgal.Surface) {
 }
 
 func (a *App) drawPalette(screen *xgal.Surface) {
-	pb := a.Palette()
+	pb := a.paletteBounds()
 	xgal.Box(screen, pb, xgal.Wash(25, 25, 45, 255))
 	xgal.Outline(screen, pb, 1, xgal.Wash(60, 60, 80, 255))
 
@@ -778,7 +771,7 @@ func (a *App) drawPalette(screen *xgal.Surface) {
 		r := i / cols
 		c := i % cols
 		swatch := xgal.Rect(pb.Min.X+c*cw, pb.Min.Y+r*ch, pb.Min.X+(c+1)*cw, pb.Min.Y+(r+1)*ch)
-		xgal.Box(screen, swatch.Inset(1), xc(col))
+		xgal.Box(screen, swatch.Inset(1), col)
 
 		if i == a.palSel {
 			xgal.Outline(screen, swatch.Inset(1), 2, xgal.Wash(255, 255, 255, 255))
@@ -787,7 +780,7 @@ func (a *App) drawPalette(screen *xgal.Surface) {
 }
 
 func (a *App) drawStatus(screen *xgal.Surface) {
-	sb := a.Status()
+	sb := a.statusBounds()
 	xgal.Box(screen, sb, xgal.Wash(25, 25, 45, 255))
 	xgal.Outline(screen, sb, 1, xgal.Wash(60, 60, 80, 255))
 
