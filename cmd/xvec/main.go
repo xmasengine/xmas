@@ -169,6 +169,8 @@ func main() {
 
 	// Path sub-toolbar toggles
 	segNames := []string{"Move", "Line", "Close", "Done"}
+	btnW = windowWidth / len(segNames)
+
 	segFuncs := []func(bool){
 		func(active bool) {},
 		func(active bool) {},
@@ -199,6 +201,13 @@ func main() {
 
 	a.swSlider = xui.Slider(xgal.Rect(490, 358, 630, 380), func(pos int) {
 		a.defSW = float32(pos)
+		println("slider", pos, a.selInst)
+		if a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
+			inst := a.doc.Instructions[a.selInst]
+			if adj, ok := inst.(xvec.Adjuster); ok {
+				adj.Adjust(xvec.Length(pos))
+			}
+		}
 	})
 	a.swSlider.Low = 1
 	a.swSlider.High = 20
@@ -513,7 +522,7 @@ func (a *App) pathClose() {
 	if a.tool == ToolStroke {
 		a.doc.Instructions = append(a.doc.Instructions,
 			&xvec.StrokeInstruction{
-				Color: a.color, Width: xvec.Length(a.defSW),
+				Color: a.color, Stroke: xvec.Length(a.defSW),
 				Steps: a.pathSteps, Antialias: true,
 			})
 	} else {
@@ -542,7 +551,7 @@ func (a *App) instLabel(i int, inst xvec.Instruction) string {
 	case *xvec.FillInstruction:
 		return fmt.Sprintf("%3d Fill    %d steps", i, len(v.Steps))
 	case *xvec.StrokeInstruction:
-		return fmt.Sprintf("%3d Stroke  %d steps w=%.0f", i, len(v.Steps), float32(v.Width))
+		return fmt.Sprintf("%3d Stroke  %d steps w=%.0f", i, len(v.Steps), float32(v.Stroke))
 	default:
 		return fmt.Sprintf("%3d ?", i)
 	}

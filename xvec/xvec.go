@@ -96,6 +96,16 @@ type Stepper interface {
 	encoding.TextMarshaler
 }
 
+// Adjuster is an instruction that has a stroke size that can be adjusted.
+type Adjuster interface {
+	Adjust(stroke Length)
+}
+
+// Painter is an instruction that has a color that can be painted to change it.
+type Painter interface {
+	Paint(color Color)
+}
+
 // CircleInstruction strokes a circle outline.
 type CircleInstruction struct {
 	C         Vertex
@@ -103,6 +113,14 @@ type CircleInstruction struct {
 	Color     Color
 	Stroke    Length
 	Antialias bool
+}
+
+func (c *CircleInstruction) Paint(color Color) {
+	c.Color = color
+}
+
+func (c *CircleInstruction) Adjust(stroke Length) {
+	c.Stroke = stroke
 }
 
 func (x *XVEC) Circle(cx, cy, r, stroke float32, col Color) *CircleInstruction {
@@ -131,6 +149,10 @@ type DiskInstruction struct {
 	Antialias bool
 }
 
+func (c *DiskInstruction) Paint(color Color) {
+	c.Color = color
+}
+
 func (x *XVEC) Disk(cx, cy, r float32, col Color) *DiskInstruction {
 	d := &DiskInstruction{
 		C: Vertex{cx, cy}, R: Length(r),
@@ -157,6 +179,14 @@ type RectInstruction struct {
 	Antialias  bool
 }
 
+func (r *RectInstruction) Paint(color Color) {
+	r.Color = color
+}
+
+func (r *RectInstruction) Adjust(stroke Length) {
+	r.Stroke = stroke
+}
+
 func (x *XVEC) Rect(rx, ry, w, h, stroke float32, col Color) *RectInstruction {
 	r := &RectInstruction{
 		X: rx, Y: ry, W: w, H: h,
@@ -180,6 +210,10 @@ type SlabInstruction struct {
 	X, Y, W, H float32
 	Color      Color
 	Antialias  bool
+}
+
+func (s *SlabInstruction) Paint(color Color) {
+	s.Color = color
 }
 
 func (x *XVEC) Slab(rx, ry, w, h float32, col Color) *SlabInstruction {
@@ -208,6 +242,14 @@ type LineInstruction struct {
 	Antialias      bool
 }
 
+func (l *LineInstruction) Adjust(stroke Length) {
+	l.Stroke = stroke
+}
+
+func (l *LineInstruction) Paint(color Color) {
+	l.Color = color
+}
+
 func (x *XVEC) Line(x1, y1, x2, y2, stroke float32, col Color) *LineInstruction {
 	l := &LineInstruction{
 		X1: x1, Y1: y1, X2: x2, Y2: y2,
@@ -233,6 +275,10 @@ type FillInstruction struct {
 	DrawOpts  DrawPathOptions
 	Steps     []Stepper
 	Antialias bool
+}
+
+func (f *FillInstruction) Paint(color Color) {
+	f.Color = color
 }
 
 func (x *XVEC) Fill(col Color, steps ...Stepper) *FillInstruction {
@@ -274,20 +320,29 @@ func (f *FillInstruction) MarshalText() ([]byte, error) {
 // StrokeInstruction strokes a path built from steps.
 type StrokeInstruction struct {
 	Color      Color
-	Width      Length
+	Stroke     Length
 	StrokeOpts StrokeOptions
 	DrawOpts   DrawPathOptions
 	Steps      []Stepper
 	Antialias  bool
 }
 
-func (x *XVEC) Stroke(width float32, col Color, steps ...Stepper) *StrokeInstruction {
+func (s *StrokeInstruction) Paint(color Color) {
+	s.Color = color
+}
+
+func (s *StrokeInstruction) Adjust(stroke Length) {
+	s.Stroke = stroke
+	s.StrokeOpts.Width = float32(s.Stroke)
+}
+
+func (x *XVEC) Stroke(stroke float32, col Color, steps ...Stepper) *StrokeInstruction {
 	s := &StrokeInstruction{
-		Color: col, Width: Length(width), Steps: steps, Antialias: x.Antialias,
+		Color: col, Stroke: Length(stroke), Steps: steps, Antialias: x.Antialias,
 	}
 	s.DrawOpts.AntiAlias = x.Antialias
 	s.DrawOpts.ColorScale.Reset()
-	s.StrokeOpts.Width = float32(s.Width)
+	s.StrokeOpts.Width = float32(s.Stroke)
 	x.Instructions = append(x.Instructions, s)
 	return s
 }
@@ -298,7 +353,7 @@ func (s *StrokeInstruction) Draw(dst *Surface) {
 		step.Step(&path)
 	}
 	so := s.StrokeOpts
-	so.Width = float32(s.Width)
+	so.Width = float32(s.Stroke)
 
 	opts := s.DrawOpts
 	opts.ColorScale.ScaleWithColor(s.Color)
@@ -308,7 +363,7 @@ func (s *StrokeInstruction) Draw(dst *Surface) {
 
 func (s *StrokeInstruction) MarshalText() ([]byte, error) {
 	var b strings.Builder
-	fmt.Fprintf(&b, "stroke %s %s\n", ftos(float32(s.Width)), coltos(s.Color))
+	fmt.Fprintf(&b, "stroke %s %s\n", ftos(float32(s.Stroke)), coltos(s.Color))
 	for _, step := range s.Steps {
 		txt, err := step.MarshalText()
 		if err != nil {
@@ -579,7 +634,7 @@ func (x *XVEC) Decode(r io.Reader) error {
 
 		case "stroke":
 			w := p.float()
-			curStroke = &StrokeInstruction{Color: p.color(), Width: Length(w), Steps: nil, Antialias: x.Antialias}
+			curStroke = &StrokeInstruction{Color: p.color(), Stroke: Length(w), Steps: nil, Antialias: x.Antialias}
 			if x.Antialias {
 				curStroke.DrawOpts.AntiAlias = true
 			}

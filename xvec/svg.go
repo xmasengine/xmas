@@ -76,6 +76,7 @@ func ParseSVG(r io.Reader, width, height float32) (*XVEC, error) {
 				}
 
 			case "g":
+				// group — nothing to emit, children handled at deeper level
 
 			case "rect":
 				var rx, ry, rw, rh float32
@@ -285,6 +286,7 @@ func ParseSVG(r io.Reader, width, height float32) (*XVEC, error) {
 	return x, nil
 }
 
+// svgCTX is the  SVG context
 type svgCtx struct {
 	fill, stroke, strokeWidth string
 	tr                        affine
@@ -571,7 +573,7 @@ func scaleAll(x *XVEC, sx, sy float32) {
 		case *FillInstruction:
 			v.Steps = transformSteps(v.Steps, tr)
 		case *StrokeInstruction:
-			v.Width = Length(float32(v.Width) * (sx + sy) / 2)
+			v.Stroke = Length(float32(v.Stroke) * (sx + sy) / 2)
 			v.Steps = transformSteps(v.Steps, tr)
 		}
 	}
@@ -606,6 +608,8 @@ func translateAll(x *XVEC, dx, dy float32) {
 	}
 }
 
+// ── 2D affine transform ──
+
 type affine struct {
 	a, b, c, d, e, f float32
 }
@@ -629,28 +633,30 @@ func (tr affine) chain(other affine) affine {
 	}
 }
 
+// ── Colour parsing ──
+
 var namedColours = map[string]Color{
-	"black":        {R: 0, G: 0, B: 0, A: 255},
-	"white":        {R: 255, G: 255, B: 255, A: 255},
-	"red":          {R: 255, G: 0, B: 0, A: 255},
-	"green":        {R: 0, G: 128, B: 0, A: 255},
-	"blue":         {R: 0, G: 0, B: 255, A: 255},
-	"yellow":       {R: 255, G: 255, B: 0, A: 255},
-	"cyan":         {R: 0, G: 255, B: 255, A: 255},
-	"magenta":      {R: 255, G: 0, B: 255, A: 255},
-	"orange":       {R: 255, G: 165, B: 0, A: 255},
-	"purple":       {R: 128, G: 0, B: 128, A: 255},
-	"gray":         {R: 128, G: 128, B: 128, A: 255},
-	"grey":         {R: 128, G: 128, B: 128, A: 255},
-	"silver":       {R: 192, G: 192, B: 192, A: 255},
-	"maroon":       {R: 128, G: 0, B: 0, A: 255},
-	"navy":         {R: 0, G: 0, B: 128, A: 255},
-	"olive":        {R: 128, G: 128, B: 0, A: 255},
-	"teal":         {R: 0, G: 128, B: 128, A: 255},
-	"aqua":         {R: 0, G: 255, B: 255, A: 255},
-	"fuchsia":      {R: 255, G: 0, B: 255, A: 255},
-	"lime":         {R: 0, G: 255, B: 0, A: 255},
-	"transparent":  {R: 0, G: 0, B: 0, A: 0},
+	"black":       {R: 0, G: 0, B: 0, A: 255},
+	"white":       {R: 255, G: 255, B: 255, A: 255},
+	"red":         {R: 255, G: 0, B: 0, A: 255},
+	"green":       {R: 0, G: 128, B: 0, A: 255},
+	"blue":        {R: 0, G: 0, B: 255, A: 255},
+	"yellow":      {R: 255, G: 255, B: 0, A: 255},
+	"cyan":        {R: 0, G: 255, B: 255, A: 255},
+	"magenta":     {R: 255, G: 0, B: 255, A: 255},
+	"orange":      {R: 255, G: 165, B: 0, A: 255},
+	"purple":      {R: 128, G: 0, B: 128, A: 255},
+	"gray":        {R: 128, G: 128, B: 128, A: 255},
+	"grey":        {R: 128, G: 128, B: 128, A: 255},
+	"silver":      {R: 192, G: 192, B: 192, A: 255},
+	"maroon":      {R: 128, G: 0, B: 0, A: 255},
+	"navy":        {R: 0, G: 0, B: 128, A: 255},
+	"olive":       {R: 128, G: 128, B: 0, A: 255},
+	"teal":        {R: 0, G: 128, B: 128, A: 255},
+	"aqua":        {R: 0, G: 255, B: 255, A: 255},
+	"fuchsia":     {R: 255, G: 0, B: 255, A: 255},
+	"lime":        {R: 0, G: 255, B: 0, A: 255},
+	"transparent": {R: 0, G: 0, B: 0, A: 0},
 }
 
 func parseColor(s string) Color {
@@ -685,6 +691,8 @@ func parseColor(s string) Color {
 	}
 	return Color{R: 0, G: 0, B: 0, A: 255}
 }
+
+// ── Transform parsing ──
 
 func parseTransform(s string) affine {
 	if s == "" {
@@ -774,10 +782,12 @@ func parseTransform(s string) affine {
 	return tr
 }
 
+// ── SVG path data parser ──
+
 func parsePathData(d string) ([]Stepper, error) {
 	p := pathParser{data: d}
 	var steps []Stepper
-	var cx, cy float32  // current point
+	var cx, cy float32   // current point
 	var pcx, pcy float32 // previous control point (for S/s, T/t)
 	relative := false
 
@@ -1111,6 +1121,8 @@ func reflectControl(cx, cy, pcx, pcy float32) (float32, float32) {
 	return cx + (cx - pcx), cy + (cy - pcy)
 }
 
+// ── Points attribute parser ──
+
 func parsePoints(s string) []float32 {
 	return parseNumbers(s)
 }
@@ -1155,6 +1167,8 @@ func parseNumbers(s string) []float32 {
 	}
 	return out
 }
+
+// ── Length parsing ──
 
 func parseLength(s string) float32 {
 	s = strings.TrimSpace(s)
