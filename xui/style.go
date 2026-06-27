@@ -162,6 +162,12 @@ func (s Style) CheckStyle() Style {
 	return s
 }
 
+func (s Style) ActiveStyle() Style {
+	s.Fill = xgal.Wash(60, 60, 140, 255)
+	s.Border = xgal.Wash(120, 120, 220, 255)
+	return s
+}
+
 func (s Style) KnobStyle() Style {
 	s.Fill = xgal.Wash(245, 245, 245, 250)
 	return s
