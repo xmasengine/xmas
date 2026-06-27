@@ -1,0 +1,23 @@
+size 32 32
+antialias true
+fill #8b4513ff
+  move 4 14
+  line 28 14
+  line 28 28
+  line 4 28
+  close
+end
+fill #a0522dff
+  move 4 14
+  line 28 14
+  line 24 8
+  line 8 8
+  close
+end
+fill #ffd700ff
+  move 14 20
+  line 18 20
+  line 18 28
+  line 14 28
+  close
+end

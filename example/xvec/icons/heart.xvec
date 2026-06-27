@@ -1,0 +1,10 @@
+size 32 32
+antialias true
+disk 11 11 6 #e02020ff
+disk 21 11 6 #e02020ff
+fill #e02020ff
+  move 5 13
+  line 27 13
+  line 16 28
+  close
+end

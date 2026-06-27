@@ -1,0 +1,10 @@
+size 32 32
+antialias true
+stroke 3 #8b4513ff
+  move 4 4
+  quad 16 16 4 28
+  close
+end
+line 16 16 26 6 1 #c0c0c0ff
+line 24 8 26 6 1 #c0c0c0ff
+line 22 10 26 6 1 #c0c0c0ff

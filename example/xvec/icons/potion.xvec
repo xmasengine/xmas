@@ -1,0 +1,21 @@
+size 32 32
+antialias true
+fill #40c040ff
+  move 12 4
+  line 20 4
+  line 20 8
+  line 24 12
+  line 24 28
+  line 8 28
+  line 8 12
+  line 12 8
+  close
+end
+fill #20a020ff
+  move 12 4
+  line 14 4
+  line 14 8
+  line 12 8
+  close
+end
+disk 16 22 3 #80ff80ff

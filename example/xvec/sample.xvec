@@ -1,0 +1,36 @@
+xvec 1
+size 160 120
+antialias true
+
+slab 0 0 160 120 #1e1e32ff
+
+// Outlined circle
+circle 80 60 50 2 #ffffffff
+
+// Filled circle
+disk 80 60 20 #ff0000ff
+
+// Stroked rectangle
+rect 10 10 60 40 1 #00ff00ff
+
+// Line segment
+line 0 0 160 120 1 #0000ffff
+
+// Filled path with two sub‑paths
+fill #00c8c864
+  move 80 20
+  line 140 60
+  line 80 100
+  close
+  move 20 60
+  line 60 60
+  line 40 80
+  close
+end
+
+/* A stroked cubic Bézier */
+stroke 1 #ffff00ff
+  move 40 30
+  cubic 120 10 120 110 40 90
+  close
+end

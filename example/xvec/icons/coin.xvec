@@ -1,0 +1,17 @@
+size 32 32
+antialias true
+disk 16 16 13 #ffd700ff
+disk 16 16 10 #daa520ff
+fill #ffd700ff
+  move 16 8
+  line 19 13
+  line 24 13
+  line 20 17
+  line 22 22
+  line 16 19
+  line 10 22
+  line 12 17
+  line 8 13
+  line 13 13
+  close
+end

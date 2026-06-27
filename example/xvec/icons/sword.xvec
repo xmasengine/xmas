@@ -1,0 +1,13 @@
+size 32 32
+antialias true
+fill #d0d0d0ff
+  move 16 2
+  line 19 6
+  line 19 18
+  line 13 18
+  line 13 6
+  close
+end
+slab 6 18 20 4 #8b4513ff
+slab 4 15 24 2 #d0d0d0ff
+slab 14 24 4 4 #8b4513ff

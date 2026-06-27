@@ -1,0 +1,15 @@
+size 32 32
+antialias true
+fill #ffd700ff
+  move 16 2
+  line 20 12
+  line 30 12
+  line 22 18
+  line 26 28
+  line 16 22
+  line 6 28
+  line 10 18
+  line 2 12
+  line 12 12
+  close
+end
