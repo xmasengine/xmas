@@ -726,7 +726,6 @@ func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
 
 	// Segment path toggles, including the fill and close buttons .
 	for _, t := range a.pathToggles {
-		println("drawPathSubToolbar", t.Bounds.Min.X, t.Bounds.Min.Y)
 		t.Render(screen)
 	}
 
