@@ -229,17 +229,16 @@ func (l *LineInstruction) MarshalText() ([]byte, error) {
 // FillInstruction fills a path built from steps.
 type FillInstruction struct {
 	Color     Color
-	FillOpts  *FillOptions
-	DrawOpts  *DrawPathOptions
+	FillOpts  FillOptions
+	DrawOpts  DrawPathOptions
 	Steps     []Stepper
 	Antialias bool
 }
 
 func (x *XVEC) Fill(col Color, steps ...Stepper) *FillInstruction {
 	f := &FillInstruction{Color: col, Steps: steps, Antialias: x.Antialias}
-	if x.Antialias {
-		f.DrawOpts = &DrawPathOptions{AntiAlias: true}
-	}
+	f.DrawOpts.AntiAlias = x.Antialias
+	f.DrawOpts.ColorScale.Reset()
 	x.Instructions = append(x.Instructions, f)
 	return f
 }
@@ -249,7 +248,11 @@ func (f *FillInstruction) Draw(s *Surface) {
 	for _, step := range f.Steps {
 		step.Step(&path)
 	}
-	vector.FillPath(s, &path, f.FillOpts, f.DrawOpts)
+	fill := f.FillOpts
+	opts := f.DrawOpts
+	opts.ColorScale.ScaleWithColor(f.Color)
+
+	vector.FillPath(s, &path, &fill, &opts)
 }
 
 func (f *FillInstruction) MarshalText() ([]byte, error) {
@@ -272,8 +275,8 @@ func (f *FillInstruction) MarshalText() ([]byte, error) {
 type StrokeInstruction struct {
 	Color      Color
 	Width      Length
-	StrokeOpts *StrokeOptions
-	DrawOpts   *DrawPathOptions
+	StrokeOpts StrokeOptions
+	DrawOpts   DrawPathOptions
 	Steps      []Stepper
 	Antialias  bool
 }
@@ -282,9 +285,9 @@ func (x *XVEC) Stroke(width float32, col Color, steps ...Stepper) *StrokeInstruc
 	s := &StrokeInstruction{
 		Color: col, Width: Length(width), Steps: steps, Antialias: x.Antialias,
 	}
-	if x.Antialias {
-		s.DrawOpts = &DrawPathOptions{AntiAlias: true}
-	}
+	s.DrawOpts.AntiAlias = x.Antialias
+	s.DrawOpts.ColorScale.Reset()
+	s.StrokeOpts.Width = float32(s.Width)
 	x.Instructions = append(x.Instructions, s)
 	return s
 }
@@ -295,10 +298,12 @@ func (s *StrokeInstruction) Draw(dst *Surface) {
 		step.Step(&path)
 	}
 	so := s.StrokeOpts
-	if so == nil {
-		so = &StrokeOptions{Width: float32(s.Width)}
-	}
-	vector.StrokePath(dst, &path, so, s.DrawOpts)
+	so.Width = float32(s.Width)
+
+	opts := s.DrawOpts
+	opts.ColorScale.ScaleWithColor(s.Color)
+
+	vector.StrokePath(dst, &path, &so, &opts)
 }
 
 func (s *StrokeInstruction) MarshalText() ([]byte, error) {
@@ -526,14 +531,14 @@ func (x *XVEC) Decode(r io.Reader) error {
 		case "fill":
 			curFill = &FillInstruction{Color: p.color(), Steps: nil, Antialias: x.Antialias}
 			if x.Antialias {
-				curFill.DrawOpts = &DrawPathOptions{AntiAlias: true}
+				curFill.DrawOpts.AntiAlias = true
 			}
 
 		case "stroke":
 			w := p.float()
 			curStroke = &StrokeInstruction{Color: p.color(), Width: Length(w), Steps: nil, Antialias: x.Antialias}
 			if x.Antialias {
-				curStroke.DrawOpts = &DrawPathOptions{AntiAlias: true}
+				curStroke.DrawOpts.AntiAlias = true
 			}
 
 		case "end":
@@ -706,5 +711,3 @@ func (p *scannerParser) readHex() Color {
 func isHex(b byte) bool {
 	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
 }
-
-
