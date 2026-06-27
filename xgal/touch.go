@@ -56,8 +56,8 @@ func Touch(id TouchID) Point {
 	return image.Pt(x, y)
 }
 
-// TouchPrev returns the previous frame position of the touch.
-func TouchPrev(id TouchID) Point {
+// LastTouch returns the previous frame position of the touch.
+func LastTouch(id TouchID) Point {
 	x, y := inpututil.TouchPositionInPreviousTick(id)
 	return image.Pt(x, y)
 }

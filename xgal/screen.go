@@ -125,8 +125,8 @@ func Keep(on bool) {
 	ebiten.SetScreenClearedEveryFrame(!on)
 }
 
-// Focused reports whether the window has focus.
-func Focused() bool {
+// Focus reports whether the window has focus.
+func Focus() bool {
 	return ebiten.IsFocused()
 }
 
