@@ -12,7 +12,7 @@ type ToggleLayer struct {
 	Active  bool
 	Group   *int // shared selection index, nil for independent toggle
 	Idx     int  // this toggle is active when Group != nil && *Group == Idx
-	OnToggle func(active bool)
+	Toggled func(active bool)
 
 	pressed bool
 	hover   bool
@@ -20,11 +20,12 @@ type ToggleLayer struct {
 }
 
 // Toggle returns a new [ToggleLayer].
-func Toggle(bounds xgal.Rectangle, text string) *ToggleLayer {
+func Toggle(bounds xgal.Rectangle, text string, toggled func(active bool)) *ToggleLayer {
 	return &ToggleLayer{
-		Bounds: bounds,
-		Style:  DefaultStyle(),
-		Text:   text,
+		Bounds:  bounds,
+		Style:   DefaultStyle(),
+		Text:    text,
+		Toggled: toggled,
 	}
 }
 
@@ -52,8 +53,8 @@ func (t *ToggleLayer) Poll() Reply {
 				} else {
 					t.Active = !t.Active
 				}
-				if t.OnToggle != nil && t.Active != t.lastAct {
-					t.OnToggle(t.Active)
+				if t.Toggled != nil && t.Active != t.lastAct {
+					t.Toggled(t.Active)
 				}
 				t.lastAct = t.Active
 			}
@@ -104,8 +105,8 @@ func (t *ToggleLayer) MoveBy(delta xgal.Point) {
 }
 
 // AddToggle is a helper to add a [ToggleLayer] to a [Layer].
-func (m *Layer) AddToggle(bounds xgal.Rectangle, text string) *ToggleLayer {
-	t := Toggle(bounds, text)
+func (m *Layer) AddToggle(bounds xgal.Rectangle, text string, toggled func(active bool)) *ToggleLayer {
+	t := Toggle(bounds, text, toggled)
 	m.Add(t)
 	return t
 }
