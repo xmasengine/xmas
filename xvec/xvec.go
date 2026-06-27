@@ -504,6 +504,49 @@ func (x *XVEC) Decode(r io.Reader) error {
 		case "antialias":
 			x.Antialias = p.ident() == "true"
 
+		case "rule":
+			if curFill == nil {
+				return fmt.Errorf("rule only allowed inside a fill")
+			}
+			switch p.ident() {
+			case "evenodd":
+				curFill.FillOpts.FillRule = vector.FillRuleEvenOdd
+			case "nonzero":
+				curFill.FillOpts.FillRule = vector.FillRuleNonZero
+			default:
+				return fmt.Errorf("unknown fill rule")
+			}
+
+		case "cap":
+			if curStroke == nil {
+				return fmt.Errorf("cap only allowed inside a stroke")
+			}
+			switch p.ident() {
+			case "butt":
+				curStroke.StrokeOpts.LineCap = vector.LineCapButt
+			case "round":
+				curStroke.StrokeOpts.LineCap = vector.LineCapRound
+			case "square":
+				curStroke.StrokeOpts.LineCap = vector.LineCapSquare
+			default:
+				return fmt.Errorf("unknown cap type")
+			}
+
+		case "join":
+			if curStroke == nil {
+				return fmt.Errorf("join only allowed inside a stroke")
+			}
+			switch p.ident() {
+			case "miter":
+				curStroke.StrokeOpts.LineJoin = vector.LineJoinMiter
+			case "round":
+				curStroke.StrokeOpts.LineJoin = vector.LineJoinRound
+			case "bevel":
+				curStroke.StrokeOpts.LineJoin = vector.LineJoinBevel
+			default:
+				return fmt.Errorf("unknown cap type")
+			}
+
 		case "circle":
 			c := &CircleInstruction{C: V(p.float(), p.float()), R: Length(p.float()), Stroke: Length(p.float()), Color: p.color(), Antialias: x.Antialias}
 			x.Instructions = append(x.Instructions, c)

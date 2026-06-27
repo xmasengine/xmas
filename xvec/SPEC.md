@@ -4,9 +4,9 @@
 
 ### 1.1. Purpose
 
-XVEC is a plain‑text vector graphics format designed for low‑resolution and pixel‑art
-rendering via the Ebitengine `ebiten/v2/vector` package.  It stores a fixed‑size canvas,
-a set of drawing instructions, and an anti‑aliasing flag.
+XVEC is a plain‑text vector graphics format designed for low‑resolution
+and pixel‑art. It stores a fixed‑size canvas, a set of drawing instructions,
+and an anti‑aliasing flag.
 
 ### 1.2. Terminology
 
@@ -23,7 +23,9 @@ tokens, where each token is one of:
 
 - A **keyword** — an alphabetic identifier (`xvec`, `size`, `circle`, `disk`,
   `rect`, `slab`, `line`, `fill`, `stroke`, `end`, `move`, `quad`, `cubic`,
-  `arc`, `arcto`, `close`, `antialias`, `true`, `false`, `C`, `CC`).
+  `arc`, `arcto`, `close`, `antialias`, `true`, `false`, `C`, `CC`,
+  `join`, `miter`, `bevel`, `round`, `cap`, `butt`, `square`, `rule`,
+  `evenodd`, `nonzero`).
 - A **number** — an integer (`42`) or floating‑point (`3.14`, `.5`, `1e2`)
   literal.
 - A **colour** — a `#` character followed by exactly eight hexadecimal digits
@@ -197,9 +199,9 @@ Strokes a vector path built from the enclosed `<path‑step>` lines with stroke
 width `<width>`.  If the path block contains at least one step, the final step
 MUST be `close`.  An empty path block is allowed.
 
-## 5. Path Steps
+## 5. Path Steps And Options
 
-The following steps are recognised only inside `fill` ... `end` or
+The following steps and options are recognised only inside `fill` ... `end` or
 `stroke` ... `end` blocks.
 
 ### 5.1. MoveTo
@@ -264,6 +266,36 @@ close
 
 Closes the current sub‑path by drawing a straight line back to the most recent
 `move` point.
+
+
+### 5.8. Rule
+
+```
+rule [evenodd|nonzero]
+```
+
+Rule option sets the fill rule of the fill block it is in to even/odd filling
+or nonzero filling. It may not be used in a stroke block.
+
+### 5.9. Cap
+
+```
+cap [butt|round|square]
+```
+
+Cap option sets the line caps of the stroke block it is in to
+butt, round, or square. It may not be used in a stroke block.
+
+### 5.6. Join
+
+
+```
+join [miter|round|bevel]
+```
+
+Join option sets the line joints of the stroke block it is in to
+miter, round, or bevel. It may not be used in a stroke block.
+
 
 ## 6. Sub‑Paths
 
