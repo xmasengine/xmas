@@ -12,6 +12,11 @@ import (
 	"github.com/xmasengine/xmas/xvec"
 )
 
+const (
+	windowWidth  = 640
+	windowHeight = 480
+)
+
 type Tool int
 
 const (
@@ -20,13 +25,14 @@ const (
 	ToolRect
 	ToolSlab
 	ToolLine
-	ToolPath
+	ToolStroke
+	ToolFill
 	toolCount
 )
 
-var toolNames = []string{"Circle", "Disk", "Rect", "Slab", "Line", "Path"}
-var toolFKeys = []xgal.KeyCode{xgal.KeyF2, xgal.KeyF3, xgal.KeyF4, xgal.KeyF5, xgal.KeyF6, xgal.KeyF7}
-var toolDigits = []xgal.KeyCode{xgal.KeyDigit1, xgal.KeyDigit2, xgal.KeyDigit3, xgal.KeyDigit4, xgal.KeyDigit5, xgal.KeyDigit6}
+var toolNames = []string{"Circle", "Disk", "Rect", "Slab", "Line", "Stroke", "Fill"}
+var toolFKeys = []xgal.KeyCode{xgal.KeyF2, xgal.KeyF3, xgal.KeyF4, xgal.KeyF5, xgal.KeyF6, xgal.KeyF7, xgal.KeyF8}
+var toolDigits = []xgal.KeyCode{xgal.KeyDigit1, xgal.KeyDigit2, xgal.KeyDigit3, xgal.KeyDigit4, xgal.KeyDigit5, xgal.KeyDigit6, xgal.KeyDigit7}
 
 func gencol(r, g, b int) xvec.Color {
 	return xvec.Color{
@@ -57,20 +63,21 @@ var helpLines = []struct {
 	text string
 	bold bool
 }{
-	{"xvec Editor — Help", true},
+	{"xvec Editor Help", true},
 	{"", false},
-	{"F1          Toggle this help", false},
-	{"F2–F7 / 1–6 Select tool", false},
+	{"F1            Toggle this help", false},
+	{"F2–F7 / 1–6   Select tool", false},
 	{"", false},
 	{"Shapes:       First = start, second = size", false},
-	{"Line:        Start → end point", false},
-	{"Circle/Disk: Center → radius point", false},
-	{"Rect/Slab:   Corner → opposite corner", false},
-	{"Path:        Click to add vertices, Close to finish", false},
+	{"Line:         Start → end point", false},
+	{"Circle/Disk:  Center → radius point", false},
+	{"Rect/Slab:    Corner → opposite corner", false},
+	{"Stroke:       Click to add vertices, Close to finish", false},
+	{"Fill:         Click to add vertices, Close to finish", false},
 	{"", false},
-	{"Palette:       Click to pick colour", false},
-	{"Instr. list:   Click to select", false},
-	{"Del/Backspace  Delete selected shape", false},
+	{"Palette:      Click to pick colour", false},
+	{"Instr. list:  Click to select", false},
+	{"Del/Backspace Delete selected shape", false},
 	{"X             Clear all shapes", false},
 	{"Ctrl+S        Save", false},
 	{"Esc           Close help", false},
@@ -96,13 +103,13 @@ type App struct {
 
 	list     *xui.ListLayer
 	toolSel  int
-	toggles  [toolCount]*xui.ToggleLayer
+	toggles  []*xui.ToggleLayer
 	swSlider *xui.SliderLayer
 
 	// Path editing
 	pathSteps   []xvec.Stepper
 	pathSegSel  int // 0=Move, 1=Line
-	pathToggles [2]*xui.ToggleLayer
+	pathToggles []*xui.ToggleLayer
 
 	msg      string
 	msgTimer int
@@ -144,35 +151,54 @@ func main() {
 	a.list.Selected = -1
 
 	// Toolbar toggles
-	btnW := 640 / int(toolCount)
+	btnW := windowWidth / int(toolCount)
 	for i := range int(toolCount) {
-		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, 28), toolNames[i])
+		var t *xui.ToggleLayer
+		toggled := func(active bool) {
+			if active {
+				if Tool(t.Idx) != a.tool {
+					a.pathSteps = nil
+					a.tool = Tool(t.Idx)
+					a.pend = nil
+				}
+			}
+		}
+		t = xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, 28), toolNames[i], toggled)
 		t.Style = xui.DefaultStyle()
 		t.Group = &a.toolSel
 		t.Idx = i
-		t.OnToggle = func(active bool) {
-			if active {
-				if a.tool == ToolPath && Tool(t.Idx) != ToolPath && len(a.pathSteps) > 0 {
-					a.pathSteps = nil
-				}
-				a.tool = Tool(t.Idx)
-				a.pend = nil
-			}
-		}
 		t.Active = i == 0
-		a.toggles[i] = t
+		a.toggles = append(a.toggles, t)
 	}
 	a.toolSel = 0
 
 	// Path sub-toolbar toggles
-	segNames := []string{"Move", "Line"}
+	segNames := []string{"Move", "Line", "Close", "Done"}
+	segFuncs := []func(bool){
+		func(active bool) {},
+		func(active bool) {},
+		func(active bool) {
+			if active {
+				a.pathClose()
+			}
+		},
+		func(active bool) {
+			if active {
+				a.toolSel = 0
+				a.tool = Tool(a.toolSel)
+				a.pend = nil
+				a.pathSteps = nil
+			}
+		},
+	}
 	for i, name := range segNames {
-		t := xui.Toggle(xgal.Rect(0, 28, 80, 52), name)
+		// Draw over the normal toggles.
+		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, 28), name, segFuncs[i])
 		t.Style = xui.DefaultStyle()
 		t.Group = &a.pathSegSel
 		t.Idx = i
 		t.Active = i == 1 // Line selected by default
-		a.pathToggles[i] = t
+		a.pathToggles = append(a.pathToggles, t)
 	}
 	a.pathSegSel = 1
 
@@ -188,15 +214,15 @@ func main() {
 		title += " — " + a.filename
 	}
 	xgal.Cursor(true, xgal.Crosshair)
-	xgal.Screen(640, 480, title)
+	xgal.Screen(windowWidth, windowHeight, title)
 	xgal.Play(a)
 }
 
-func (a *App) Toolbar() xgal.Rectangle { return xgal.Rect(0, 0, 640, 28) }
-func (a *App) Canvas() xgal.Rectangle  { return xgal.Rect(0, 28, 480, 396) }
+func (a *App) Toolbar() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, 28) }
+func (a *App) Canvas() xgal.Rectangle  { return xgal.Rect(0, 28, windowHeight, 396) }
 func (a *App) List() xgal.Rectangle    { return xgal.Rect(482, 30, 638, 394) }
-func (a *App) Palette() xgal.Rectangle { return xgal.Rect(0, 396, 640, 460) }
-func (a *App) Status() xgal.Rectangle  { return xgal.Rect(0, 460, 640, 480) }
+func (a *App) Palette() xgal.Rectangle { return xgal.Rect(0, 396, windowWidth, 460) }
+func (a *App) Status() xgal.Rectangle  { return xgal.Rect(0, 460, windowWidth, windowHeight) }
 
 func ctrlHeld() bool {
 	for _, k := range xgal.Keys() {
@@ -259,12 +285,12 @@ func (a *App) Update() error {
 	// Tool hotkeys: 1–6 and F2–F7
 	for i := range int(toolCount) {
 		if xgal.Tap(toolDigits[i]) || xgal.Tap(toolFKeys[i]) {
-			if a.tool == ToolPath && Tool(i) != ToolPath && len(a.pathSteps) > 0 {
+			if a.tool != Tool(i) {
 				a.pathSteps = nil
+				a.toolSel = i
+				a.tool = Tool(i)
+				a.pend = nil
 			}
-			a.toolSel = i
-			a.tool = Tool(i)
-			a.pend = nil
 		}
 	}
 
@@ -302,17 +328,16 @@ func (a *App) Update() error {
 		return nil
 	}
 
-	// Poll toolbar toggles
-	for _, t := range a.toggles {
-		t.Poll()
-	}
-
 	// Poll path tools when path mode active
-	if a.tool == ToolPath {
+	if a.tool == ToolStroke || a.tool == ToolFill {
 		for _, t := range a.pathToggles {
 			t.Poll()
 		}
-		a.pollPathButtons()
+	} else {
+		// Poll toolbar toggles
+		for _, t := range a.toggles {
+			t.Poll()
+		}
 	}
 
 	a.pollCanvas()
@@ -326,21 +351,6 @@ func (a *App) Update() error {
 	}
 
 	return nil
-}
-
-func (a *App) pollPathButtons() {
-	if !xgal.Click(xgal.MouseButtonLeft) {
-		return
-	}
-	mp := xgal.Mouse()
-	// Close+Stroke button
-	if mp.In(xgal.Rect(200, 30, 310, 52)) {
-		a.pathClose(true)
-	}
-	// Close+Fill button
-	if mp.In(xgal.Rect(320, 30, 430, 52)) {
-		a.pathClose(false)
-	}
 }
 
 func (a *App) canvasDocXY() (float32, float32) {
@@ -373,7 +383,7 @@ func (a *App) pollCanvas() {
 	dx := (float32(mx-cv.Min.X) / cvW) * docW
 	dy := (float32(my-cv.Min.Y) / cvH) * docH
 
-	if a.tool == ToolPath {
+	if a.tool == ToolStroke || a.tool == ToolFill {
 		a.pollCanvasPath(dx, dy)
 		return
 	}
@@ -501,23 +511,21 @@ func (a *App) pollCanvasPath(dx, dy float32) {
 	}
 }
 
-func (a *App) pathClose(asStroke bool) {
+func (a *App) pathClose() {
 	if len(a.pathSteps) == 0 {
 		return
 	}
-	steps := make([]xvec.Stepper, len(a.pathSteps)+1)
-	copy(steps, a.pathSteps)
-	steps[len(steps)-1] = xvec.Close()
-	if asStroke {
+	a.pathSteps = append(a.pathSteps, xvec.Close())
+	if a.tool == ToolStroke {
 		a.doc.Instructions = append(a.doc.Instructions,
 			&xvec.StrokeInstruction{
 				Color: a.color, Width: xvec.Length(a.defSW),
-				Steps: steps, Antialias: true,
+				Steps: a.pathSteps, Antialias: true,
 			})
 	} else {
 		a.doc.Instructions = append(a.doc.Instructions,
 			&xvec.FillInstruction{
-				Color: a.color, Steps: steps, Antialias: true,
+				Color: a.color, Steps: a.pathSteps, Antialias: true,
 			})
 	}
 	a.pathSteps = nil
@@ -547,12 +555,13 @@ func (a *App) instLabel(i int, inst xvec.Instruction) string {
 }
 
 func (a *App) Draw(screen *xgal.Surface) {
-	xgal.Box(screen, xgal.Rect(0, 0, 640, 480), xgal.Wash(40, 40, 60, 255))
+	xgal.Box(screen, xgal.Rect(0, 0, windowWidth, windowHeight), xgal.Wash(40, 40, 60, 255))
 
 	a.drawToolbar(screen)
-	if a.tool == ToolPath {
+	if a.tool == ToolStroke || a.tool == ToolFill {
 		a.drawPathSubToolbar(screen)
 	}
+
 	a.drawCanvas(screen)
 	a.drawList(screen)
 	a.drawStrokeSlider(screen)
@@ -611,7 +620,7 @@ func (a *App) drawCanvas(screen *xgal.Surface) {
 	}
 
 	// Path preview
-	if a.tool == ToolPath && len(a.pathSteps) > 0 {
+	if a.tool == ToolStroke || a.tool == ToolFill {
 		a.drawPathPreview(screen, cv, offX, offY, outW, outH, docW, docH)
 	}
 }
@@ -710,35 +719,15 @@ func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xg
 }
 
 func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
-	sb := xgal.Rect(0, 28, 640, 54)
+
+	sb := xgal.Rect(0, 28, windowWidth, 54)
 	xgal.Box(screen, sb, xgal.Wash(25, 25, 45, 255))
 	xgal.Outline(screen, sb, 1, xgal.Wash(60, 60, 80, 255))
 
-	// Segment type toggles
+	// Segment path toggles, including the fill and close buttons .
 	for _, t := range a.pathToggles {
+		println("drawPathSubToolbar", t.Bounds.Min.X, t.Bounds.Min.Y)
 		t.Render(screen)
-	}
-
-	// Close+Stroke and Close+Fill buttons
-	sx := 200
-	for i, label := range []string{"Close+Stroke", "Close+Fill"} {
-		bounds := xgal.Rect(sx, 30, sx+110, 52)
-		mp := xgal.Mouse()
-		hover := mp.In(bounds)
-		style := xui.DefaultStyle()
-		if hover {
-			style = style.HoverStyle()
-		}
-		style.DrawBox(screen, bounds)
-		col := xgal.Wash(200, 200, 220, 255)
-		if i == 0 {
-			col = xgal.Wash(255, 200, 100, 255)
-		} else {
-			col = xgal.Wash(100, 200, 255, 255)
-		}
-		xgal.Ink(screen, xgal.BuiltinFace, col, bounds.Min.X+4, bounds.Min.Y+4, label)
-		// Allocate a group of toggles for each button (not shown) - handled in Update()
-		sx += 120
 	}
 
 	// Show vertex count in path
@@ -819,7 +808,7 @@ func (a *App) drawStatus(screen *xgal.Surface) {
 
 func (a *App) drawMessage(screen *xgal.Surface) {
 	// Semi-transparent overlay across the status area
-	msgBounds := xgal.Rect(160, 440, 480, 476)
+	msgBounds := xgal.Rect(160, 440, windowHeight, 476)
 	xgal.Box(screen, msgBounds, xgal.Wash(0, 0, 0, 200))
 	xgal.Outline(screen, msgBounds, 1, xgal.Wash(100, 100, 200, 255))
 	xgal.Ink(screen, xgal.BuiltinFace, xgal.Wash(255, 255, 255, 255),
@@ -828,7 +817,7 @@ func (a *App) drawMessage(screen *xgal.Surface) {
 
 func (a *App) drawHelpOverlay(screen *xgal.Surface) {
 	// Dim the background
-	xgal.Box(screen, xgal.Rect(0, 0, 640, 480), xgal.Wash(0, 0, 0, 200))
+	xgal.Box(screen, xgal.Rect(0, 0, windowWidth, windowHeight), xgal.Wash(0, 0, 0, 200))
 
 	// Panel
 	panel := xgal.Rect(140, 50, 500, 430)
@@ -847,5 +836,5 @@ func (a *App) drawHelpOverlay(screen *xgal.Surface) {
 }
 
 func (a *App) Layout(w, h int) (int, int) {
-	return 640, 480
+	return windowWidth, windowHeight
 }
