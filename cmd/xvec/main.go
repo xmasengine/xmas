@@ -399,12 +399,14 @@ func (a *App) deselectInst() {
 }
 
 func (a *App) save() {
-	if a.filename == "" {
-		a.msg = "No filename set (run with -f <file>)"
+	fn := a.filename
+	if fn == "" {
+		a.msg = "No filename set, using drawing.xvec"
 		a.msgTimer = 180
-		return
+		fn = "drawing.xvec"
 	}
-	f, err := os.Create(a.filename)
+
+	f, err := os.Create(fn)
 	if err != nil {
 		a.msg = fmt.Sprintf("Error saving: %v", err)
 		a.msgTimer = 180
@@ -417,7 +419,7 @@ func (a *App) save() {
 		return
 	}
 	f.Close()
-	a.msg = fmt.Sprintf("Saved %s", a.filename)
+	a.msg = fmt.Sprintf("Saved %s", fn)
 	a.msgTimer = 180
 	a.dirty = false
 }
