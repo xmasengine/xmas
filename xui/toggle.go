@@ -32,12 +32,12 @@ func Toggle(bounds xgal.Rectangle, text string, toggled func(active bool)) *Togg
 var _ Widget = &ToggleLayer{}
 
 func (t *ToggleLayer) Poll() Reply {
-
 	t.hover = xgal.Mouse().In(t.Bounds)
+	if t.Group != nil {
+		t.Active = (*t.Group == t.Idx)
+		t.lastAct = t.Active
+	}
 	if !t.hover {
-		if t.Group != nil {
-			t.Active = (*t.Group == t.Idx)
-		}
 		return Ignore
 	}
 
@@ -97,6 +97,52 @@ func (t *ToggleLayer) Place(bounds xgal.Rectangle) xgal.Rectangle {
 
 func (t *ToggleLayer) MoveBy(delta xgal.Point) {
 	t.Bounds = t.Bounds.Add(delta)
+}
+
+// ToggleGroupLayer manages a set of mutually exclusive ToggleLayers.
+// Exactly one toggle in the group is active at a time.
+type ToggleGroupLayer struct {
+	Toggles []*ToggleLayer
+	Active  int
+}
+
+var _ Widget = &ToggleGroupLayer{}
+
+// NewToggleGroup creates a ToggleGroupLayer from a list of ToggleLayers.
+// Each toggle's Group and Idx fields are set automatically so they all
+// share the group's Active index.
+func NewToggleGroup(toggles ...*ToggleLayer) *ToggleGroupLayer {
+	tg := &ToggleGroupLayer{
+		Toggles: toggles,
+	}
+	for i, t := range toggles {
+		t.Group = &tg.Active
+		t.Idx = i
+	}
+	if len(toggles) > 0 {
+		toggles[0].Active = true
+	}
+	return tg
+}
+
+func (tg *ToggleGroupLayer) Poll() Reply {
+	for _, t := range tg.Toggles {
+		t.Poll()
+	}
+	return Ignore
+}
+
+func (tg *ToggleGroupLayer) Render(s *xgal.Surface) {
+	for _, t := range tg.Toggles {
+		t.Render(s)
+	}
+}
+
+func (tg *ToggleGroupLayer) Place(bounds xgal.Rectangle) xgal.Rectangle {
+	for _, t := range tg.Toggles {
+		bounds = t.Place(bounds)
+	}
+	return bounds
 }
 
 // AddToggle is a helper to add a [ToggleLayer] to a [Layer].

@@ -165,15 +165,13 @@ type App struct {
 
 	pend *struct{ x, y float32 }
 
-	list     *xui.ListLayer
-	toolSel  int
-	toggles  []*xui.ToggleLayer
-	swSlider *xui.SliderLayer
+	list      *xui.ListLayer
+	toolGroup *xui.ToggleGroupLayer
+	swSlider  *xui.SliderLayer
 
 	// Path editing
-	pathSteps   []xvec.Stepper
-	pathSegSel  int // 0=Move, 1=Line
-	pathToggles []*xui.ToggleLayer
+	pathSteps []xvec.Stepper
+	pathGroup *xui.ToggleGroupLayer
 
 	msg      string
 	msgTimer int
@@ -219,51 +217,49 @@ func main() {
 
 	// Toolbar toggles
 	btnW := windowWidth / int(toolCount)
+	toggles := make([]*xui.ToggleLayer, toolCount)
 	for i := range int(toolCount) {
-		var t *xui.ToggleLayer
-		toggled := func(active bool) {
+		idx := i
+		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), toolNames[i], func(active bool) {
 			if active {
-				a.setTool(Tool(t.Idx))
+				a.setTool(Tool(idx))
 			}
-		}
-		t = xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), toolNames[i], toggled)
+		})
 		t.Style = xui.DefaultStyle()
-		t.Group = &a.toolSel
-		t.Idx = i
-		t.Active = i == 0
-		a.toggles = append(a.toggles, t)
+		toggles[i] = t
 	}
+	a.toolGroup = xui.NewToggleGroup(toggles...)
 
 	// Path sub-toolbar toggles
 	segNames := []string{"Move", "Line", "Close", "Done"}
-	btnW = windowWidth / len(segNames)
-
-	segFuncs := []func(bool){
-		func(active bool) {},
-		func(active bool) {},
-		func(active bool) {
-			if active && len(a.pathSteps) > 0 {
-				a.pathSteps = append(a.pathSteps, xvec.Close())
-				a.pathSegSel = 1
+	{
+		btnW := windowWidth / len(segNames)
+		segToggles := make([]*xui.ToggleLayer, len(segNames))
+		for i, name := range segNames {
+			idx := i
+			switch name {
+			case "Close":
+				segToggles[idx] = xui.Toggle(xgal.Rect(idx*btnW, 0, (idx+1)*btnW, toolbarHeight), name, func(active bool) {
+					if active && len(a.pathSteps) > 0 {
+						a.pathSteps = append(a.pathSteps, xvec.Close())
+						a.pathGroup.Active = 1
+					}
+				})
+			case "Done":
+				segToggles[idx] = xui.Toggle(xgal.Rect(idx*btnW, 0, (idx+1)*btnW, toolbarHeight), name, func(active bool) {
+					if active {
+						a.pathFinish()
+						a.setTool(ToolPick)
+					}
+				})
+			default:
+				segToggles[idx] = xui.Toggle(xgal.Rect(idx*btnW, 0, (idx+1)*btnW, toolbarHeight), name, func(active bool) {})
 			}
-		},
-		func(active bool) {
-			if active {
-				a.pathFinish()
-				a.setTool(ToolPick)
-			}
-		},
+			segToggles[idx].Style = xui.DefaultStyle()
+		}
+		a.pathGroup = xui.NewToggleGroup(segToggles...)
+		a.pathGroup.Active = 1
 	}
-	for i, name := range segNames {
-		// Draw over the normal toggles.
-		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), name, segFuncs[i])
-		t.Style = xui.DefaultStyle()
-		t.Group = &a.pathSegSel
-		t.Idx = i
-		t.Active = i == 1 // Line selected by default
-		a.pathToggles = append(a.pathToggles, t)
-	}
-	a.pathSegSel = 1
 
 	a.swSlider = xui.Slider(a.sliderBounds(), func(pos int) {
 		a.defSW = float32(pos)
@@ -313,8 +309,8 @@ func (a *App) setTool(t Tool) {
 		return
 	}
 	a.pathSteps = nil
-	a.pathSegSel = 1
-	a.toolSel = int(t)
+	a.pathGroup.Active = 1
+	a.toolGroup.Active = int(t)
 	a.tool = t
 	a.pend = nil
 }
@@ -462,14 +458,9 @@ func (a *App) Update() error {
 
 	// Poll path tools when path mode active
 	if a.tool == ToolStroke || a.tool == ToolFill {
-		for _, t := range a.pathToggles {
-			t.Poll()
-		}
+		a.pathGroup.Poll()
 	} else {
-		// Poll toolbar toggles
-		for _, t := range a.toggles {
-			t.Poll()
-		}
+		a.toolGroup.Poll()
 	}
 
 	a.pollCanvas()
@@ -698,7 +689,7 @@ func (a *App) pollCanvasPath(dx, dy float32) {
 		a.pathSteps = append(a.pathSteps, xvec.MoveTo(dx, dy))
 		return
 	}
-	switch a.pathSegSel {
+	switch a.pathGroup.Active {
 	case 0:
 		a.pathSteps = append(a.pathSteps, xvec.MoveTo(dx, dy))
 	default:
@@ -727,7 +718,7 @@ func (a *App) pathFinish() {
 			})
 	}
 	a.pathSteps = nil
-	a.pathSegSel = 1
+	a.pathGroup.Active = 1
 	a.pend = nil
 	a.dirty = true
 	a.syncList()
@@ -778,9 +769,7 @@ func (a *App) Draw(screen *xgal.Surface) {
 func (a *App) drawToolbar(screen *xgal.Surface) {
 	tb := a.toolbarBounds()
 	xgal.Box(screen, tb, colBG)
-	for _, t := range a.toggles {
-		t.Render(screen)
-	}
+	a.toolGroup.Render(screen)
 }
 
 func (a *App) drawCanvas(screen *xgal.Surface) {
@@ -1037,9 +1026,7 @@ func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
 	xgal.Outline(screen, sb, 1, colOutline)
 
 	// Segment path toggles, including the fill and close buttons .
-	for _, t := range a.pathToggles {
-		t.Render(screen)
-	}
+	a.pathGroup.Render(screen)
 
 	// Show vertex count in path
 	n := len(a.pathSteps)
