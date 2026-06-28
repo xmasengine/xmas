@@ -233,7 +233,7 @@ func main() {
 	a.toolGroup = xui.NewToggleGroup(toggles...)
 
 	// Path sub-toolbar toggles
-	segNames := []string{"Move", "Line", "Quad", "Cubic", "Close", "Done"}
+	segNames := []string{"Move", "Line", "Quad", "Cubic", "Arc", "Close", "Done"}
 	{
 		btnW := windowWidth / len(segNames)
 		segToggles := make([]*xui.ToggleLayer, len(segNames))
@@ -312,12 +312,67 @@ func (a *App) setTool(t Tool) {
 	if a.tool == t {
 		return
 	}
+	if (t == ToolFill || t == ToolStroke) && a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
+		if converted := a.convertInst(a.doc.Instructions[a.selInst], t); converted != nil {
+			a.doc.Instructions = append(a.doc.Instructions, converted)
+			a.dirty = true
+			a.syncList()
+			a.pathSteps = nil
+			a.pathGroup.Active = 1
+			a.toolGroup.Active = int(ToolPick)
+			a.tool = ToolPick
+			a.pend = nil
+			a.pendCP = nil
+			return
+		}
+	}
 	a.pathSteps = nil
 	a.pathGroup.Active = 1
 	a.toolGroup.Active = int(t)
 	a.tool = t
 	a.pend = nil
 	a.pendCP = nil
+}
+
+func (a *App) convertInst(inst xvec.Instruction, target Tool) xvec.Instruction {
+	switch target {
+	case ToolFill:
+		switch v := inst.(type) {
+		case *xvec.StrokeInstruction:
+			f := &xvec.FillInstruction{
+				Color: v.Color, Steps: v.Steps, Antialias: v.Antialias,
+			}
+			f.DrawOpts.AntiAlias = v.Antialias
+			f.DrawOpts.ColorScale.Reset()
+			return f
+		case *xvec.CircleInstruction:
+			return &xvec.DiskInstruction{C: v.C, R: v.R, Color: v.Color, Antialias: v.Antialias}
+		case *xvec.RectInstruction:
+			return &xvec.SlabInstruction{X: v.X, Y: v.Y, W: v.W, H: v.H, Color: v.Color, Antialias: v.Antialias}
+		}
+	case ToolStroke:
+		sw := xvec.Length(a.defSW)
+		switch v := inst.(type) {
+		case *xvec.FillInstruction:
+			s := &xvec.StrokeInstruction{
+				Color: v.Color, Stroke: sw, Steps: v.Steps, Antialias: v.Antialias,
+			}
+			s.DrawOpts.AntiAlias = v.Antialias
+			s.DrawOpts.ColorScale.Reset()
+			s.StrokeOpts.Width = float32(sw)
+			return s
+		case *xvec.DiskInstruction:
+			return &xvec.CircleInstruction{
+				C: v.C, R: v.R, Stroke: sw, Color: v.Color, Antialias: v.Antialias,
+			}
+		case *xvec.SlabInstruction:
+			return &xvec.RectInstruction{
+				X: v.X, Y: v.Y, W: v.W, H: v.H,
+				Stroke: sw, Color: v.Color, Antialias: v.Antialias,
+			}
+		}
+	}
+	return nil
 }
 
 func (a *App) selectInst(i int) {
@@ -719,6 +774,22 @@ func (a *App) pollCanvasPath(dx, dy float32) {
 		a.pathSteps = append(a.pathSteps, xvec.CubicTo(a.pendCP.x, a.pendCP.y, dx, dy, a.pend.x, a.pend.y))
 		a.pend = nil
 		a.pendCP = nil
+	case 4: // Arc — click 1 sets radius, click 2 turning point, click 3 endpoint
+		if a.pendCP == nil {
+			a.pendCP = &struct{ x, y float32 }{dx, dy}
+			return
+		}
+		if a.pend == nil {
+			a.pend = &struct{ x, y float32 }{dx, dy}
+			return
+		}
+		lx, ly := lastDocPt(a.pathSteps)
+		rdx := float64(a.pendCP.x - lx)
+		rdy := float64(a.pendCP.y - ly)
+		r := float32(math.Sqrt(rdx*rdx + rdy*rdy))
+		a.pathSteps = append(a.pathSteps, xvec.ArcTo(a.pend.x, a.pend.y, dx, dy, r))
+		a.pend = nil
+		a.pendCP = nil
 	default:
 		a.pathSteps = append(a.pathSteps, xvec.LineTo(dx, dy))
 	}
@@ -1018,6 +1089,8 @@ func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, off
 				path.QuadTo(sxf(v.X1), syf(v.Y1), sxf(v.X2), syf(v.Y2))
 			case *xvec.CubicStep:
 				path.CubicTo(sxf(v.X1), syf(v.Y1), sxf(v.X2), syf(v.Y2), sxf(v.X3), syf(v.Y3))
+			case *xvec.ArcToStep:
+				path.ArcTo(sxf(v.X1), syf(v.Y1), sxf(v.X2), syf(v.Y2), v.R)
 			case *xvec.CloseStep:
 				path.Close()
 			}
@@ -1040,37 +1113,76 @@ func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, off
 	bounds := xgal.Rect(cv.Min.X, cv.Min.Y, cv.Min.X+int(outW), cv.Min.Y+int(outH))
 	seg := a.pathGroup.Active
 
-	// Bezier preview when endpoint placed, waiting for control point(s)
-	if a.pend != nil && len(a.pathSteps) > 0 && mp.In(bounds) && (seg == 2 || seg == 3) {
-		px := int(a.pend.x/docW*outW + offX)
-		py := int(a.pend.y/docH*outH + offY)
+	// Preview during multi-click sequences
+	if len(a.pathSteps) > 0 && mp.In(bounds) {
 		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
 		if last == nil {
 			return
 		}
-		if seg == 2 { // Quad — pend is endpoint, mouse is control point
-			xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
-			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
-		} else if a.pendCP == nil { // Cubic — pend is endpoint, waiting for CP1
-			xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
-			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
-		} else { // Cubic — pendCP is CP1, mouse is CP2
-			cpx := int(a.pendCP.x/docW*outW + offX)
-			cpy := int(a.pendCP.y/docH*outH + offY)
-			xgal.Cubic(prev, last.X, last.Y, cpx, cpy, mp.X, mp.Y, px, py, 1, colPathMouse)
-			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
-			xgal.Box(prev, xgal.Rect(cpx-3, cpy-3, cpx+4, cpy+4), colCtrlPt)
-		}
-		return
-	}
 
-	// Straight preview line from last vertex to mouse (only when not waiting for bezier input)
-	if len(a.pathSteps) > 0 && mp.In(bounds) {
-		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
-		if last != nil {
+		if seg == 4 && a.pendCP != nil && a.pend == nil { // Arc — radius anchor placed, waiting for turning point
+			rpx := int(a.pendCP.x/docW*outW + offX)
+			rpy := int(a.pendCP.y/docH*outH + offY)
+			xgal.Line(prev, last.X, last.Y, rpx, rpy, 1, colCtrlLine)
+			xgal.Box(prev, xgal.Rect(rpx-3, rpy-3, rpx+4, rpy+4), colCtrlPt)
 			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
+			return
 		}
+
+		if a.pend != nil {
+			px := int(a.pend.x/docW*outW + offX)
+			py := int(a.pend.y/docH*outH + offY)
+
+			switch seg {
+			case 2: // Quad — pend is endpoint, mouse is control point
+				xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
+				xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+			case 3:
+				if a.pendCP == nil { // Cubic — pend is endpoint, waiting for CP1
+					xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
+					xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+				} else { // Cubic — pendCP is CP1, mouse is CP2
+					cpx := int(a.pendCP.x/docW*outW + offX)
+					cpy := int(a.pendCP.y/docH*outH + offY)
+					xgal.Cubic(prev, last.X, last.Y, cpx, cpy, mp.X, mp.Y, px, py, 1, colPathMouse)
+					xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+					xgal.Box(prev, xgal.Rect(cpx-3, cpy-3, cpx+4, cpy+4), colCtrlPt)
+				}
+			case 4: // Arc — pend is turning point, mouse is endpoint
+				lx, ly := lastDocPt(a.pathSteps)
+				rdx := float64(a.pendCP.x - lx)
+				rdy := float64(a.pendCP.y - ly)
+				r := float32(math.Sqrt(rdx*rdx + rdy*rdy))
+				xgal.Arc(prev, last.X, last.Y, px, py, mp.X, mp.Y, r, 1, colPathMouse)
+				xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+			}
+			return
+		}
+
+		// Straight preview line from last vertex to mouse
+		xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
 	}
+}
+
+// lastDocPt returns the endpoint of the last path step in document coordinates.
+func lastDocPt(steps []xvec.Stepper) (float32, float32) {
+	if len(steps) == 0 {
+		return 0, 0
+	}
+	s := steps[len(steps)-1]
+	switch v := s.(type) {
+	case *xvec.MoveStep:
+		return v.X, v.Y
+	case *xvec.LineStep:
+		return v.X, v.Y
+	case *xvec.QuadStep:
+		return v.X2, v.Y2
+	case *xvec.CubicStep:
+		return v.X3, v.Y3
+	case *xvec.ArcToStep:
+		return v.X2, v.Y2
+	}
+	return 0, 0
 }
 
 func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xgal.Point {
@@ -1085,6 +1197,8 @@ func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xg
 		x, y = v.X2, v.Y2
 	case *xvec.CubicStep:
 		x, y = v.X3, v.Y3
+	case *xvec.ArcToStep:
+		x, y = v.X2, v.Y2
 	default:
 		return nil
 	}

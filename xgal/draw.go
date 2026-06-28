@@ -91,6 +91,19 @@ func Cubic(dst *Surface, x0, y0, x1, y1, x2, y2, x3, y3, strokeWidth int, col RG
 	vector.StrokePath(dst, &p, &so, &opts)
 }
 
+// Arc draws a circular arc from (x0,y0) to (x2,y2) with turning point (x1,y1)
+// and the given radius.
+func Arc(dst *Surface, x0, y0, x1, y1, x2, y2 int, r float32, strokeWidth int, col RGBA) {
+	var p vector.Path
+	p.MoveTo(float32(x0), float32(y0))
+	p.ArcTo(float32(x1), float32(y1), float32(x2), float32(y2), r)
+	var so vector.StrokeOptions
+	so.Width = float32(strokeWidth)
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.StrokePath(dst, &p, &so, &opts)
+}
+
 // Andrew draws St Andrews cross, or an X shape.
 func Andreas(surface *Surface, r Rectangle, thick int, col RGBA) {
 	Line(surface, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y, thick, col)
