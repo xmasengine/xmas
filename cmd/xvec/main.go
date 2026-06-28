@@ -93,6 +93,8 @@ var (
 	colPathVert   = xgal.Wash(100, 200, 255, 220)
 	colPathFirst  = xgal.Wash(100, 255, 100, 220)
 	colPathMouse  = xgal.Wash(100, 200, 255, 100)
+	colCtrlPt     = xgal.Wash(255, 200, 100, 220)
+	colCtrlLine   = xgal.Wash(255, 200, 100, 120)
 	colOverlay    = xgal.Wash(0, 0, 0, 200)
 	colSelect     = xgal.Wash(255, 230, 100, 220)
 	colSelectFill = xgal.Wash(255, 230, 100, 60)
@@ -163,7 +165,8 @@ type App struct {
 
 	defSW float32
 
-	pend *struct{ x, y float32 }
+	pend   *struct{ x, y float32 }
+	pendCP *struct{ x, y float32 }
 
 	list      *xui.ListLayer
 	toolGroup *xui.ToggleGroupLayer
@@ -231,7 +234,7 @@ func main() {
 	a.toolGroup = xui.NewToggleGroup(toggles...)
 
 	// Path sub-toolbar toggles
-	segNames := []string{"Move", "Line", "Close", "Done"}
+	segNames := []string{"Move", "Line", "Quad", "Cubic", "Close", "Done"}
 	{
 		btnW := windowWidth / len(segNames)
 		segToggles := make([]*xui.ToggleLayer, len(segNames))
@@ -243,6 +246,8 @@ func main() {
 					if active && len(a.pathSteps) > 0 {
 						a.pathSteps = append(a.pathSteps, xvec.Close())
 						a.pathGroup.Active = 1
+						a.pend = nil
+						a.pendCP = nil
 					}
 				})
 			case "Done":
@@ -313,6 +318,7 @@ func (a *App) setTool(t Tool) {
 	a.toolGroup.Active = int(t)
 	a.tool = t
 	a.pend = nil
+	a.pendCP = nil
 }
 
 func (a *App) selectInst(i int) {
@@ -692,6 +698,27 @@ func (a *App) pollCanvasPath(dx, dy float32) {
 	switch a.pathGroup.Active {
 	case 0:
 		a.pathSteps = append(a.pathSteps, xvec.MoveTo(dx, dy))
+	case 1:
+		a.pathSteps = append(a.pathSteps, xvec.LineTo(dx, dy))
+	case 2: // Quad — first click records endpoint, second click is control point
+		if a.pend == nil {
+			a.pend = &struct{ x, y float32 }{dx, dy}
+			return
+		}
+		a.pathSteps = append(a.pathSteps, xvec.QuadTo(dx, dy, a.pend.x, a.pend.y))
+		a.pend = nil
+	case 3: // Cubic — endpoint, CP1, then CP2
+		if a.pend == nil {
+			a.pend = &struct{ x, y float32 }{dx, dy}
+			return
+		}
+		if a.pendCP == nil {
+			a.pendCP = &struct{ x, y float32 }{dx, dy}
+			return
+		}
+		a.pathSteps = append(a.pathSteps, xvec.CubicTo(a.pendCP.x, a.pendCP.y, dx, dy, a.pend.x, a.pend.y))
+		a.pend = nil
+		a.pendCP = nil
 	default:
 		a.pathSteps = append(a.pathSteps, xvec.LineTo(dx, dy))
 	}
@@ -720,6 +747,7 @@ func (a *App) pathFinish() {
 	a.pathSteps = nil
 	a.pathGroup.Active = 1
 	a.pend = nil
+	a.pendCP = nil
 	a.dirty = true
 	a.syncList()
 }
@@ -1001,6 +1029,34 @@ func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, off
 			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
 		}
 	}
+
+	// Bezier control point preview
+	seg := a.pathGroup.Active
+	if a.pend != nil && len(a.pathSteps) > 0 && (seg == 2 || seg == 3) {
+		px := int(a.pend.x/docW*outW + offX)
+		py := int(a.pend.y/docH*outH + offY)
+		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
+		bounds := xgal.Rect(cv.Min.X, cv.Min.Y, cv.Min.X+int(outW), cv.Min.Y+int(outH))
+		if last == nil || !mp.In(bounds) {
+			return
+		}
+		if seg == 2 { // Quad — pend is endpoint, next click is control point
+			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colCtrlLine)
+			xgal.Line(prev, mp.X, mp.Y, px, py, 1, colCtrlLine)
+			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+		} else if a.pendCP == nil { // Cubic — pend is endpoint, waiting for CP1
+			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colCtrlLine)
+			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+		} else { // Cubic — pendCP is CP1, next click is CP2
+			cpx := int(a.pendCP.x/docW*outW + offX)
+			cpy := int(a.pendCP.y/docH*outH + offY)
+			xgal.Line(prev, last.X, last.Y, cpx, cpy, 1, colCtrlLine)
+			xgal.Line(prev, cpx, cpy, mp.X, mp.Y, 1, colCtrlLine)
+			xgal.Line(prev, cpx, cpy, px, py, 1, colCtrlLine)
+			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
+			xgal.Box(prev, xgal.Rect(cpx-3, cpy-3, cpx+4, cpy+4), colCtrlPt)
+		}
+	}
 }
 
 func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xgal.Point {
@@ -1011,6 +1067,10 @@ func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xg
 		x, y = v.X, v.Y
 	case *xvec.LineStep:
 		x, y = v.X, v.Y
+	case *xvec.QuadStep:
+		x, y = v.X2, v.Y2
+	case *xvec.CubicStep:
+		x, y = v.X3, v.Y3
 	default:
 		return nil
 	}
