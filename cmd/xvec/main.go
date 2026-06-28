@@ -57,9 +57,6 @@ const (
 	messageY0 = windowHeight - messageH - 4
 	messageY1 = windowHeight - 4
 
-	pathVertsLabelX = 460
-	pathVertsLabelY = toolbarHeight + 6
-
 	f1HintX = windowWidth - 60
 )
 
@@ -1002,14 +999,29 @@ func (a *App) drawPreviews(screen *xgal.Surface, cv xgal.Rectangle) {
 func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, offY, outW, outH, docW, docH float32) {
 	prev := screen
 	mp := xgal.Mouse()
-	// Draw lines connecting path vertices
-	for i := 1; i < len(a.pathSteps); i++ {
-		p0 := a.pathPoint(i-1, offX, offY, outW, outH, docW, docH)
-		p1 := a.pathPoint(i, offX, offY, outW, outH, docW, docH)
-		if p0 != nil && p1 != nil {
-			xgal.Line(prev, p0.X, p0.Y, p1.X, p1.Y, 1, colPathLine)
+
+	// Stroke the path using proper curve segments
+	if len(a.pathSteps) > 0 {
+		sxf := func(x float32) float32 { return x/docW*outW + offX }
+		syf := func(y float32) float32 { return y/docH*outH + offY }
+		var path xgal.Path
+		for _, s := range a.pathSteps {
+			switch v := s.(type) {
+			case *xvec.MoveStep:
+				path.MoveTo(sxf(v.X), syf(v.Y))
+			case *xvec.LineStep:
+				path.LineTo(sxf(v.X), syf(v.Y))
+			case *xvec.QuadStep:
+				path.QuadTo(sxf(v.X1), syf(v.Y1), sxf(v.X2), syf(v.Y2))
+			case *xvec.CubicStep:
+				path.CubicTo(sxf(v.X1), syf(v.Y1), sxf(v.X2), syf(v.Y2), sxf(v.X3), syf(v.Y3))
+			case *xvec.CloseStep:
+				path.Close()
+			}
 		}
+		xgal.Trace(prev, &path, 1, colPathLine)
 	}
+
 	// Vertex dots
 	for i := range a.pathSteps {
 		p := a.pathPoint(i, offX, offY, outW, outH, docW, docH)
@@ -1021,40 +1033,39 @@ func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, off
 			xgal.Box(prev, xgal.Rect(p.X-3, p.Y-3, p.X+4, p.Y+4), col)
 		}
 	}
-	// Preview line from last vertex to mouse
-	if len(a.pathSteps) > 0 {
-		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
-		bounds := xgal.Rect(cv.Min.X, cv.Min.Y, cv.Min.X+int(outW), cv.Min.Y+int(outH))
-		if last != nil && mp.In(bounds) {
-			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
-		}
-	}
 
-	// Bezier control point preview
+	bounds := xgal.Rect(cv.Min.X, cv.Min.Y, cv.Min.X+int(outW), cv.Min.Y+int(outH))
 	seg := a.pathGroup.Active
-	if a.pend != nil && len(a.pathSteps) > 0 && (seg == 2 || seg == 3) {
+
+	// Bezier preview when endpoint placed, waiting for control point(s)
+	if a.pend != nil && len(a.pathSteps) > 0 && mp.In(bounds) && (seg == 2 || seg == 3) {
 		px := int(a.pend.x/docW*outW + offX)
 		py := int(a.pend.y/docH*outH + offY)
 		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
-		bounds := xgal.Rect(cv.Min.X, cv.Min.Y, cv.Min.X+int(outW), cv.Min.Y+int(outH))
-		if last == nil || !mp.In(bounds) {
+		if last == nil {
 			return
 		}
-		if seg == 2 { // Quad — pend is endpoint, next click is control point
-			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colCtrlLine)
-			xgal.Line(prev, mp.X, mp.Y, px, py, 1, colCtrlLine)
+		if seg == 2 { // Quad — pend is endpoint, mouse is control point
+			xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
 			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
 		} else if a.pendCP == nil { // Cubic — pend is endpoint, waiting for CP1
-			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colCtrlLine)
+			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
 			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
-		} else { // Cubic — pendCP is CP1, next click is CP2
+		} else { // Cubic — pendCP is CP1, mouse is CP2
 			cpx := int(a.pendCP.x/docW*outW + offX)
 			cpy := int(a.pendCP.y/docH*outH + offY)
-			xgal.Line(prev, last.X, last.Y, cpx, cpy, 1, colCtrlLine)
-			xgal.Line(prev, cpx, cpy, mp.X, mp.Y, 1, colCtrlLine)
-			xgal.Line(prev, cpx, cpy, px, py, 1, colCtrlLine)
+			xgal.Cubic(prev, last.X, last.Y, cpx, cpy, mp.X, mp.Y, px, py, 1, colPathMouse)
 			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
 			xgal.Box(prev, xgal.Rect(cpx-3, cpy-3, cpx+4, cpy+4), colCtrlPt)
+		}
+		return
+	}
+
+	// Straight preview line from last vertex to mouse (only when not waiting for bezier input)
+	if len(a.pathSteps) > 0 && mp.In(bounds) {
+		last := a.pathPoint(len(a.pathSteps)-1, offX, offY, outW, outH, docW, docH)
+		if last != nil {
+			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
 		}
 	}
 }
@@ -1080,18 +1091,10 @@ func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xg
 }
 
 func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
-
 	sb := xgal.Rect(0, toolbarHeight, windowWidth, toolbarHeight+26)
 	xgal.Box(screen, sb, colBG)
 	xgal.Outline(screen, sb, 1, colOutline)
-
-	// Segment path toggles, including the fill and close buttons .
 	a.pathGroup.Render(screen)
-
-	// Show vertex count in path
-	n := len(a.pathSteps)
-	status := fmt.Sprintf("Verts: %d  —  Click to add, Close to finish", n)
-	xgal.Ink(screen, xgal.BuiltinFace, colText, pathVertsLabelX, pathVertsLabelY, status)
 }
 
 func (a *App) renderDoc() {
@@ -1156,6 +1159,11 @@ func (a *App) drawStatus(screen *xgal.Surface) {
 	}
 	text := fmt.Sprintf("Tool: %s  |  #%02x%02x%02x  |  %d inst  |  %s",
 		toolNames[a.tool], c.R, c.G, c.B, len(a.doc.Instructions), fn)
+
+	if a.tool == ToolStroke || a.tool == ToolFill {
+		pathInfo := fmt.Sprintf("  |  Path: %d verts — Click to add, Close to finish", len(a.pathSteps))
+		text += pathInfo
+	}
 
 	xgal.Ink(screen, xgal.BuiltinFace, colText, sb.Min.X+6, sb.Min.Y+4, text)
 

@@ -45,6 +45,52 @@ func Clear(dst *Surface, color RGBA) {
 	dst.Fill(color)
 }
 
+// Path is a vector path that can be stroked with [StrokePath].
+// Use its MoveTo, LineTo, QuadTo, CubicTo, and Close methods to build it.
+type Path = vector.Path
+
+// Flood fills a vector path with the given color.
+func Flood(dst *Surface, path *Path, col RGBA) {
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.FillPath(dst, path, &vector.FillOptions{}, &opts)
+}
+
+// Trace strokes a vector path with the given stroke width and color.
+func Trace(dst *Surface, path *Path, width int, col RGBA) {
+	var so vector.StrokeOptions
+	so.Width = float32(width)
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.StrokePath(dst, path, &so, &opts)
+}
+
+// Quad draws a quadratic Bézier curve from (x0,y0) to (x2,y2)
+// with control point (x1,y1).
+func Quad(dst *Surface, x0, y0, x1, y1, x2, y2, strokeWidth int, col RGBA) {
+	var p vector.Path
+	p.MoveTo(float32(x0), float32(y0))
+	p.QuadTo(float32(x1), float32(y1), float32(x2), float32(y2))
+	var so vector.StrokeOptions
+	so.Width = float32(strokeWidth)
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.StrokePath(dst, &p, &so, &opts)
+}
+
+// Cubic draws a cubic Bézier curve from (x0,y0) to (x3,y3)
+// with control points (x1,y1) and (x2,y2).
+func Cubic(dst *Surface, x0, y0, x1, y1, x2, y2, x3, y3, strokeWidth int, col RGBA) {
+	var p vector.Path
+	p.MoveTo(float32(x0), float32(y0))
+	p.CubicTo(float32(x1), float32(y1), float32(x2), float32(y2), float32(x3), float32(y3))
+	var so vector.StrokeOptions
+	so.Width = float32(strokeWidth)
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.StrokePath(dst, &p, &so, &opts)
+}
+
 // Andrew draws St Andrews cross, or an X shape.
 func Andreas(surface *Surface, r Rectangle, thick int, col RGBA) {
 	Line(surface, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y, thick, col)
