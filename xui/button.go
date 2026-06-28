@@ -27,23 +27,23 @@ var _ Widget = &ButtonLayer{}
 
 func (b *ButtonLayer) Poll() Reply {
 	b.hover = xgal.Mouse().In(b.Bounds)
+	if !b.hover {
+		if xgal.Loose(xgal.MouseButtonLeft) {
+			b.pressed = false
+		}
+		return Ignore
+	}
 
-	if b.hover && xgal.Click(xgal.MouseButtonLeft) {
+	if xgal.Click(xgal.MouseButtonLeft) {
 		b.pressed = true
 		return Accept
 	}
 
-	if b.pressed {
-		if xgal.Loose(xgal.MouseButtonLeft) {
-			b.pressed = false
-			if b.hover && b.Clicked != nil {
-				b.Clicked()
-			}
+	if xgal.Loose(xgal.MouseButtonLeft) {
+		b.pressed = false
+		if b.Clicked != nil {
+			b.Clicked()
 		}
-		return Accept
-	}
-
-	if b.hover {
 		return Accept
 	}
 

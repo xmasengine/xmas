@@ -163,8 +163,8 @@ func TestStrokePath(t *testing.T) {
 	if !ok {
 		t.Fatalf("got %T, want *StrokeInstruction", x2.Instructions[0])
 	}
-	if float32(s.Width) != 3 {
-		t.Fatalf("width: got %v, want 3", s.Width)
+	if float32(s.Stroke) != 3 {
+		t.Fatalf("stroke: got %v, want 3", s.Stroke)
 	}
 	if len(s.Steps) != 4 {
 		t.Fatalf("steps: got %d, want 4", len(s.Steps))

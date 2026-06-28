@@ -40,29 +40,24 @@ func (t *ToggleLayer) Poll() Reply {
 
 	if t.hover && xgal.Click(xgal.MouseButtonLeft) {
 		t.pressed = true
-		return Accept
 	}
 
-	if t.pressed {
-		if xgal.Loose(xgal.MouseButtonLeft) {
-			t.pressed = false
-			if t.hover {
-				if t.Group != nil {
-					*t.Group = t.Idx
-					t.Active = true
-				} else {
-					t.Active = !t.Active
-				}
-				if t.Toggled != nil && t.Active != t.lastAct {
-					t.Toggled(t.Active)
-				}
-				t.lastAct = t.Active
-			}
+	if t.pressed && xgal.Loose(xgal.MouseButtonLeft) {
+		t.pressed = false
+		if t.Group != nil {
+			*t.Group = t.Idx
+			t.Active = true
+		} else {
+			t.Active = !t.Active
 		}
+		if t.Toggled != nil && t.Active != t.lastAct {
+			t.Toggled(t.Active)
+		}
+		t.lastAct = t.Active
 		return Accept
 	}
 
-	if t.hover {
+	if t.hover || t.pressed {
 		return Accept
 	}
 
