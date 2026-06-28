@@ -22,43 +22,45 @@ const (
 	paletteHeight = 64
 	statusHeight  = 20
 
-	rightPanelX0  = windowWidth*3/4 + 2       // 482
-	rightPanelX1  = windowWidth - 2             // 638
-	listPanelY0   = toolbarHeight + 2           // 30
-	listPanelY1   = windowHeight - paletteHeight - statusHeight - 46  // 350
-	sliderPanelY0 = listPanelY1                 // 350
-	sliderPanelY1 = sliderPanelY0 + 44          // 394
-	sliderX0      = rightPanelX0 + 8            // 490
-	sliderX1      = windowWidth - 10            // 630
+	sliderY0 = toolbarHeight + 2
+	sliderY1 = sliderY0 + 10
+	sliderX0 = rightPanelX0 + 8
+	sliderX1 = windowWidth - 10
 
-	paletteY0  = windowHeight - paletteHeight - statusHeight  // 396
-	paletteY1  = windowHeight - statusHeight                  // 460
-	statusY0   = paletteY1                                    // 460
+	rightPanelX0 = windowWidth*3/4 + 2
+	rightPanelX1 = windowWidth - 2
+	listPanelY0  = sliderY1 + 16
+	listPanelY1  = windowHeight - paletteHeight - statusHeight - 46
 
-	canvasX1 = rightPanelX0 - 2  // 480
-	canvasY1 = paletteY0         // 396
+	paletteY0    = windowHeight - paletteHeight - statusHeight
+	paletteY1    = windowHeight - statusHeight
+	paletteWidth = windowWidth * 3 / 4
+	statusY0     = paletteY1
+
+	canvasX1 = rightPanelX0 - 2
+	canvasY1 = paletteY0
 
 	helpPanelW   = 360
 	helpPanelH   = 380
-	helpPanelX0  = (windowWidth - helpPanelW) / 2   // 140
-	helpPanelX1  = helpPanelX0 + helpPanelW          // 500
-	helpPanelY0  = (windowHeight - helpPanelH) / 2   // 50
-	helpPanelY1  = helpPanelY0 + helpPanelH          // 430
-	helpTextX    = helpPanelX0 + 20                  // 160
-	helpLineY0   = helpPanelY0 + 20                  // 70
+	helpPanelX0  = (windowWidth - helpPanelW) / 2
+	helpPanelX1  = helpPanelX0 + helpPanelW
+	helpPanelY0  = (windowHeight - helpPanelH) / 2
+	helpPanelY1  = helpPanelY0 + helpPanelH
+	helpTextX    = helpPanelX0 + 20
+	helpLineY0   = helpPanelY0 + 20
 	helpLineStep = 18
 
 	messageW  = 320
 	messageH  = 36
-	messageX0 = (windowWidth - messageW) / 2   // 160
-	messageX1 = messageX0 + messageW            // 480
-	messageY0 = windowHeight - messageH - 4     // 440
-	messageY1 = windowHeight - 4                // 476
+	messageX0 = (windowWidth - messageW) / 2
+	messageX1 = messageX0 + messageW
+	messageY0 = windowHeight - messageH - 4
+	messageY1 = windowHeight - 4
 
 	pathVertsLabelX = 460
-	pathVertsLabelY = toolbarHeight + 6  // 34
+	pathVertsLabelY = toolbarHeight + 6
 
-	f1HintX = windowWidth - 60  // 580
+	f1HintX = windowWidth - 60
 )
 
 type Tool int
@@ -221,12 +223,7 @@ func main() {
 		var t *xui.ToggleLayer
 		toggled := func(active bool) {
 			if active {
-				if Tool(t.Idx) != a.tool {
-					a.pathSteps = nil
-					a.pathSegSel = 1
-					a.tool = Tool(t.Idx)
-					a.pend = nil
-				}
+				a.setTool(Tool(t.Idx))
 			}
 		}
 		t = xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), toolNames[i], toggled)
@@ -253,8 +250,7 @@ func main() {
 		func(active bool) {
 			if active {
 				a.pathFinish()
-				a.toolSel = 0
-				a.tool = Tool(a.toolSel)
+				a.setTool(ToolPick)
 			}
 		},
 	}
@@ -294,10 +290,14 @@ func main() {
 
 func (a *App) toolbarBounds() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, toolbarHeight) }
 func (a *App) canvasBounds() xgal.Rectangle  { return xgal.Rect(0, toolbarHeight, canvasX1, canvasY1) }
-func (a *App) listBounds() xgal.Rectangle    { return xgal.Rect(rightPanelX0, listPanelY0, rightPanelX1, listPanelY1) }
-func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, paletteY0, windowWidth, paletteY1) }
+func (a *App) listBounds() xgal.Rectangle {
+	return xgal.Rect(rightPanelX0, listPanelY0, rightPanelX1, listPanelY1)
+}
+func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, paletteY0, paletteWidth, paletteY1) }
 func (a *App) statusBounds() xgal.Rectangle  { return xgal.Rect(0, statusY0, windowWidth, windowHeight) }
-func (a *App) sliderBounds() xgal.Rectangle  { return xgal.Rect(sliderX0, sliderPanelY0, sliderX1, sliderPanelY1) }
+func (a *App) sliderBounds() xgal.Rectangle {
+	return xgal.Rect(sliderX0, sliderY0, sliderX1, sliderY1)
+}
 
 func ctrlHeld() bool {
 	for _, k := range xgal.Keys() {
@@ -306,6 +306,40 @@ func ctrlHeld() bool {
 		}
 	}
 	return false
+}
+
+func (a *App) setTool(t Tool) {
+	if a.tool == t {
+		return
+	}
+	a.pathSteps = nil
+	a.pathSegSel = 1
+	a.toolSel = int(t)
+	a.tool = t
+	a.pend = nil
+}
+
+func (a *App) selectInst(i int) {
+	if i < 0 || i >= len(a.doc.Instructions) {
+		return
+	}
+	inst := a.doc.Instructions[i]
+	a.selInst = i
+	a.list.Selected = i
+	a.syncList()
+	if sw := xvec.StrokeWidth(inst); sw > 0 {
+		a.defSW = sw
+		a.swSlider.Pos = int(sw)
+	}
+	c := xvec.StrokeColor(inst)
+	a.color = c
+	a.palSel = palIndex(c)
+}
+
+func (a *App) deselectInst() {
+	a.selInst = -1
+	a.list.Selected = -1
+	a.syncList()
 }
 
 func (a *App) save() {
@@ -360,30 +394,22 @@ func (a *App) Update() error {
 	// Tool hotkeys: 1–6 and F2–F7
 	for i := range int(toolCount) {
 		if xgal.Tap(toolDigits[i]) || xgal.Tap(toolFKeys[i]) {
-			if a.tool != Tool(i) {
-				a.pathSteps = nil
-				a.pathSegSel = 1
-				a.toolSel = i
-				a.tool = Tool(i)
-				a.pend = nil
-			}
+			a.setTool(Tool(i))
 		}
 	}
 
 	// Delete selected instruction
 	if (xgal.Tap(xgal.KeyDelete) || xgal.Tap(xgal.KeyBackspace)) && a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
 		a.doc.Instructions = slices.Delete(a.doc.Instructions, a.selInst, a.selInst+1)
-		a.selInst = -1
+		a.deselectInst()
 		a.dirty = true
-		a.syncList()
 	}
 
 	// Clear all: X
 	if xgal.Tap(xgal.KeyX) && len(a.doc.Instructions) > 0 {
 		a.doc.Instructions = nil
-		a.selInst = -1
+		a.deselectInst()
 		a.dirty = true
-		a.syncList()
 	}
 
 	// Rearrange selected instruction
@@ -526,23 +552,12 @@ func (a *App) pollCanvas() {
 						a.dragLast = xvec.V(dx, dy)
 						return
 					}
-					a.selInst = i
-					a.list.Selected = i
-					a.syncList()
-					if sw := xvec.StrokeWidth(inst); sw > 0 {
-						a.defSW = sw
-						a.swSlider.Pos = int(sw)
-					}
-					c := xvec.StrokeColor(inst)
-					a.color = c
-					a.palSel = palIndex(c)
+					a.selectInst(i)
 					break
 				}
 			}
 		} else {
-			a.selInst = -1
-			a.list.Selected = -1
-			a.syncList()
+			a.deselectInst()
 		}
 		return // skip dirty + syncList below
 
@@ -654,7 +669,7 @@ func (a *App) pollList() {
 	}
 	res := a.list.Poll()
 	if res == xui.Accept && a.list.Selected >= 0 && a.list.Selected < len(a.doc.Instructions) {
-		a.selInst = a.list.Selected
+		a.selectInst(a.list.Selected)
 	}
 }
 
@@ -1052,12 +1067,12 @@ func (a *App) drawList(screen *xgal.Surface) {
 
 func (a *App) drawStrokeSlider(screen *xgal.Surface) {
 	// Background panel matching list style
-	panel := xgal.Rect(rightPanelX0, sliderPanelY0, rightPanelX1, sliderPanelY1)
+	panel := xgal.Rect(rightPanelX0, sliderY0, rightPanelX1, sliderY1)
 	xgal.Box(screen, panel, colBG)
 	xgal.Outline(screen, panel, 1, colOutline)
 
 	label := fmt.Sprintf("Stroke: %.0f", a.defSW)
-	xgal.Ink(screen, xgal.BuiltinFace, colText, sliderX0, sliderPanelY0+6, label)
+	xgal.Ink(screen, xgal.BuiltinFace, colText, sliderX0, sliderY1+2, label)
 
 	a.swSlider.Render(screen)
 }
