@@ -15,6 +15,50 @@ import (
 const (
 	windowWidth  = 640
 	windowHeight = 480
+
+	// Layout constants — everything is derived from these so all regions
+	// scale together when windowWidth / windowHeight change.
+	toolbarHeight = 28
+	paletteHeight = 64
+	statusHeight  = 20
+
+	rightPanelX0  = windowWidth*3/4 + 2       // 482
+	rightPanelX1  = windowWidth - 2             // 638
+	listPanelY0   = toolbarHeight + 2           // 30
+	listPanelY1   = windowHeight - paletteHeight - statusHeight - 46  // 350
+	sliderPanelY0 = listPanelY1                 // 350
+	sliderPanelY1 = sliderPanelY0 + 44          // 394
+	sliderX0      = rightPanelX0 + 8            // 490
+	sliderX1      = windowWidth - 10            // 630
+
+	paletteY0  = windowHeight - paletteHeight - statusHeight  // 396
+	paletteY1  = windowHeight - statusHeight                  // 460
+	statusY0   = paletteY1                                    // 460
+
+	canvasX1 = rightPanelX0 - 2  // 480
+	canvasY1 = paletteY0         // 396
+
+	helpPanelW   = 360
+	helpPanelH   = 380
+	helpPanelX0  = (windowWidth - helpPanelW) / 2   // 140
+	helpPanelX1  = helpPanelX0 + helpPanelW          // 500
+	helpPanelY0  = (windowHeight - helpPanelH) / 2   // 50
+	helpPanelY1  = helpPanelY0 + helpPanelH          // 430
+	helpTextX    = helpPanelX0 + 20                  // 160
+	helpLineY0   = helpPanelY0 + 20                  // 70
+	helpLineStep = 18
+
+	messageW  = 320
+	messageH  = 36
+	messageX0 = (windowWidth - messageW) / 2   // 160
+	messageX1 = messageX0 + messageW            // 480
+	messageY0 = windowHeight - messageH - 4     // 440
+	messageY1 = windowHeight - 4                // 476
+
+	pathVertsLabelX = 460
+	pathVertsLabelY = toolbarHeight + 6  // 34
+
+	f1HintX = windowWidth - 60  // 580
 )
 
 type Tool int
@@ -48,6 +92,8 @@ var (
 	colPathFirst  = xgal.Wash(100, 255, 100, 220)
 	colPathMouse  = xgal.Wash(100, 200, 255, 100)
 	colOverlay    = xgal.Wash(0, 0, 0, 200)
+	colSelect     = xgal.Wash(255, 230, 100, 220)
+	colSelectFill = xgal.Wash(255, 230, 100, 60)
 )
 
 var toolNames = []string{"Pick", "Circle", "Disk", "Rect", "Slab", "Line", "Stroke", "Fill"}
@@ -129,6 +175,9 @@ type App struct {
 
 	msg      string
 	msgTimer int
+
+	dragging bool
+	dragLast xvec.Vertex
 }
 
 func main() {
@@ -180,7 +229,7 @@ func main() {
 				}
 			}
 		}
-		t = xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, 28), toolNames[i], toggled)
+		t = xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), toolNames[i], toggled)
 		t.Style = xui.DefaultStyle()
 		t.Group = &a.toolSel
 		t.Idx = i
@@ -211,7 +260,7 @@ func main() {
 	}
 	for i, name := range segNames {
 		// Draw over the normal toggles.
-		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, 28), name, segFuncs[i])
+		t := xui.Toggle(xgal.Rect(i*btnW, 0, (i+1)*btnW, toolbarHeight), name, segFuncs[i])
 		t.Style = xui.DefaultStyle()
 		t.Group = &a.pathSegSel
 		t.Idx = i
@@ -227,7 +276,6 @@ func main() {
 			if adj, ok := inst.(xvec.Adjuster); ok {
 				adj.Adjust(xvec.Length(pos))
 				a.dirty = true
-				println("adjust", a.selInst, pos)
 			}
 		}
 	})
@@ -244,12 +292,12 @@ func main() {
 	xgal.Play(a)
 }
 
-func (a *App) toolbarBounds() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, 28) }
-func (a *App) canvasBounds() xgal.Rectangle  { return xgal.Rect(0, 28, windowHeight, 396) }
-func (a *App) listBounds() xgal.Rectangle    { return xgal.Rect(482, 30, 638, 394) }
-func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, 396, windowWidth, 460) }
-func (a *App) statusBounds() xgal.Rectangle  { return xgal.Rect(0, 460, windowWidth, windowHeight) }
-func (a *App) sliderBounds() xgal.Rectangle  { return xgal.Rect(490, 358, windowWidth-10, 380) }
+func (a *App) toolbarBounds() xgal.Rectangle { return xgal.Rect(0, 0, windowWidth, toolbarHeight) }
+func (a *App) canvasBounds() xgal.Rectangle  { return xgal.Rect(0, toolbarHeight, canvasX1, canvasY1) }
+func (a *App) listBounds() xgal.Rectangle    { return xgal.Rect(rightPanelX0, listPanelY0, rightPanelX1, listPanelY1) }
+func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, paletteY0, windowWidth, paletteY1) }
+func (a *App) statusBounds() xgal.Rectangle  { return xgal.Rect(0, statusY0, windowWidth, windowHeight) }
+func (a *App) sliderBounds() xgal.Rectangle  { return xgal.Rect(sliderX0, sliderPanelY0, sliderX1, sliderPanelY1) }
 
 func ctrlHeld() bool {
 	for _, k := range xgal.Keys() {
@@ -338,6 +386,38 @@ func (a *App) Update() error {
 		a.syncList()
 	}
 
+	// Rearrange selected instruction
+	if a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
+		if xgal.Tap(xgal.KeyPageUp) && a.selInst > 0 {
+			a.doc.MoveUp(a.selInst)
+			a.selInst--
+			a.list.Selected = a.selInst
+			a.syncList()
+			a.dirty = true
+		}
+		if xgal.Tap(xgal.KeyPageDown) && a.selInst < len(a.doc.Instructions)-1 {
+			a.doc.MoveDown(a.selInst)
+			a.selInst++
+			a.list.Selected = a.selInst
+			a.syncList()
+			a.dirty = true
+		}
+		if xgal.Tap(xgal.KeyHome) && a.selInst > 0 {
+			a.doc.MoveToFront(a.selInst)
+			a.selInst = 0
+			a.list.Selected = 0
+			a.syncList()
+			a.dirty = true
+		}
+		if xgal.Tap(xgal.KeyEnd) && a.selInst < len(a.doc.Instructions)-1 {
+			a.doc.MoveToBack(a.selInst)
+			a.selInst = len(a.doc.Instructions) - 1
+			a.list.Selected = a.selInst
+			a.syncList()
+			a.dirty = true
+		}
+	}
+
 	// Save: Ctrl+S
 	if xgal.Tap(xgal.KeyS) && ctrlHeld() {
 		a.save()
@@ -369,6 +449,7 @@ func (a *App) Update() error {
 	}
 
 	a.pollCanvas()
+	a.pollDrag()
 	a.pollPalette()
 	a.pollList()
 	a.swSlider.Poll()
@@ -391,6 +472,24 @@ func (a *App) canvasDocXY() (float32, float32) {
 	dx := (float32(mx-cv.Min.X) / cvW) * docW
 	dy := (float32(my-cv.Min.Y) / cvH) * docH
 	return dx, dy
+}
+
+func (a *App) pollDrag() {
+	if a.tool != ToolPick || !a.dragging || a.selInst < 0 || a.selInst >= len(a.doc.Instructions) {
+		a.dragging = false
+		return
+	}
+	if xgal.Grip(xgal.MouseButtonLeft) {
+		dx, dy := a.canvasDocXY()
+		if dx != a.dragLast.X || dy != a.dragLast.Y {
+			xvec.Move(a.doc.Instructions[a.selInst], dx-a.dragLast.X, dy-a.dragLast.Y)
+			a.dragLast = xvec.V(dx, dy)
+			a.dirty = true
+		}
+	} else {
+		a.dragging = false
+		a.syncList()
+	}
 }
 
 func (a *App) pollCanvas() {
@@ -418,7 +517,34 @@ func (a *App) pollCanvas() {
 
 	switch a.tool {
 	case ToolPick:
-		// TODO
+		inst := xvec.Pick(a.doc, dx, dy)
+		if inst != nil {
+			for i, v := range a.doc.Instructions {
+				if v == inst {
+					if i == a.selInst {
+						a.dragging = true
+						a.dragLast = xvec.V(dx, dy)
+						return
+					}
+					a.selInst = i
+					a.list.Selected = i
+					a.syncList()
+					if sw := xvec.StrokeWidth(inst); sw > 0 {
+						a.defSW = sw
+						a.swSlider.Pos = int(sw)
+					}
+					c := xvec.StrokeColor(inst)
+					a.color = c
+					a.palSel = palIndex(c)
+					break
+				}
+			}
+		} else {
+			a.selInst = -1
+			a.list.Selected = -1
+			a.syncList()
+		}
+		return // skip dirty + syncList below
 
 	case ToolLine:
 		if a.pend == nil {
@@ -509,15 +635,41 @@ func (a *App) pollPalette() {
 		if idx < 64 {
 			a.color = a.palColors[idx]
 			a.palSel = idx
+			if a.tool == ToolPick && a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
+				if painter, ok := a.doc.Instructions[a.selInst].(xvec.Painter); ok {
+					painter.Paint(a.color)
+					a.dirty = true
+					a.syncList()
+				}
+			}
 		}
 	}
 }
 
 func (a *App) pollList() {
+	// Clicking on the slider must not also select a list item — the slider
+	// area sits entirely inside the list bounds.
+	if xgal.Click(xgal.MouseButtonLeft) && xgal.Mouse().In(a.sliderBounds()) {
+		return
+	}
 	res := a.list.Poll()
 	if res == xui.Accept && a.list.Selected >= 0 && a.list.Selected < len(a.doc.Instructions) {
 		a.selInst = a.list.Selected
 	}
+}
+
+func palIndex(c xvec.Color) int {
+	q := func(v uint8) int {
+		idx := (int(v) + 42) / 85
+		if idx < 0 {
+			return 0
+		}
+		if idx > 3 {
+			return 3
+		}
+		return idx
+	}
+	return q(c.R)*16 + q(c.G)*4 + q(c.B)
 }
 
 func (a *App) syncList() {
@@ -658,6 +810,117 @@ func (a *App) drawCanvas(screen *xgal.Surface) {
 	if a.tool == ToolStroke || a.tool == ToolFill {
 		a.drawPathPreview(screen, cv, offX, offY, outW, outH, docW, docH)
 	}
+
+	a.drawSelection(screen, offX, offY, outW, outH, docW, docH)
+}
+
+func (a *App) drawSelection(screen *xgal.Surface, offX, offY, outW, outH, docW, docH float32) {
+	if a.tool != ToolPick || a.selInst < 0 || a.selInst >= len(a.doc.Instructions) {
+		return
+	}
+	sx := func(x float32) int { return int(x/docW*outW + offX) }
+	sy := func(y float32) int { return int(y/docH*outH + offY) }
+
+	switch v := a.doc.Instructions[a.selInst].(type) {
+	case *xvec.CircleInstruction:
+		r := int(float32(v.R)/docW*outW + 1.5)
+		cx, cy := sx(v.C.X), sy(v.C.Y)
+		xgal.Circle(screen, xgal.Pt(cx, cy), r, 1, colSelect)
+		xgal.Box(screen, xgal.Rect(cx-1, cy-1, cx+2, cy+2), colSelect)
+
+	case *xvec.DiskInstruction:
+		r := int(float32(v.R)/docW*outW + 1.5)
+		cx, cy := sx(v.C.X), sy(v.C.Y)
+		xgal.Circle(screen, xgal.Pt(cx, cy), r, 1, colSelect)
+		xgal.Box(screen, xgal.Rect(cx-1, cy-1, cx+2, cy+2), colSelect)
+
+	case *xvec.RectInstruction:
+		x1, y1 := sx(v.X), sy(v.Y)
+		x2, y2 := sx(v.X+v.W), sy(v.Y+v.H)
+		xgal.Outline(screen, xgal.Rect(x1, y1, x2, y2), 1, colSelect)
+		a.drawHandles(screen, x1, y1, x2, y2)
+
+	case *xvec.SlabInstruction:
+		x1, y1 := sx(v.X), sy(v.Y)
+		x2, y2 := sx(v.X+v.W), sy(v.Y+v.H)
+		xgal.Outline(screen, xgal.Rect(x1, y1, x2, y2), 1, colSelect)
+		a.drawHandles(screen, x1, y1, x2, y2)
+
+	case *xvec.LineInstruction:
+		x1, y1 := sx(v.X1), sy(v.Y1)
+		x2, y2 := sx(v.X2), sy(v.Y2)
+		xgal.Line(screen, x1, y1, x2, y2, 2, colSelect)
+		xgal.Box(screen, xgal.Rect(x1-2, y1-2, x1+3, y1+3), colSelect)
+		xgal.Box(screen, xgal.Rect(x2-2, y2-2, x2+3, y2+3), colSelect)
+
+	case *xvec.FillInstruction:
+		if x1, y1, x2, y2, ok := stepsBounds(v.Steps); ok {
+			drawBounds(screen, sx(x1), sy(y1), sx(x2), sy(y2))
+		}
+
+	case *xvec.StrokeInstruction:
+		if x1, y1, x2, y2, ok := stepsBounds(v.Steps); ok {
+			drawBounds(screen, sx(x1), sy(y1), sx(x2), sy(y2))
+		}
+	}
+}
+
+func (a *App) drawHandles(screen *xgal.Surface, x1, y1, x2, y2 int) {
+	for _, p := range []xgal.Point{
+		xgal.Pt(x1, y1), xgal.Pt(x2, y1), xgal.Pt(x1, y2), xgal.Pt(x2, y2),
+	} {
+		xgal.Box(screen, xgal.Rect(p.X-2, p.Y-2, p.X+3, p.Y+3), colSelect)
+	}
+}
+
+func drawBounds(screen *xgal.Surface, x1, y1, x2, y2 int) {
+	if x2-x1 < 2 || y2-y1 < 2 {
+		return
+	}
+	xgal.Outline(screen, xgal.Rect(x1, y1, x2, y2), 1, colSelect)
+	for _, p := range []xgal.Point{
+		xgal.Pt(x1, y1), xgal.Pt(x2, y1), xgal.Pt(x1, y2), xgal.Pt(x2, y2),
+	} {
+		xgal.Box(screen, xgal.Rect(p.X-2, p.Y-2, p.X+3, p.Y+3), colSelect)
+	}
+}
+
+func stepsBounds(steps []xvec.Stepper) (xmin, ymin, xmax, ymax float32, ok bool) {
+	var pts []xvec.Vertex
+	for _, s := range steps {
+		switch v := s.(type) {
+		case *xvec.MoveStep:
+			pts = append(pts, xvec.V(v.X, v.Y))
+		case *xvec.LineStep:
+			pts = append(pts, xvec.V(v.X, v.Y))
+		case *xvec.QuadStep:
+			pts = append(pts, xvec.V(v.X1, v.Y1), xvec.V(v.X2, v.Y2))
+		case *xvec.CubicStep:
+			pts = append(pts, xvec.V(v.X1, v.Y1), xvec.V(v.X2, v.Y2), xvec.V(v.X3, v.Y3))
+		case *xvec.ArcStep:
+			pts = append(pts,
+				xvec.V(v.CX-v.R, v.CY), xvec.V(v.CX+v.R, v.CY),
+				xvec.V(v.CX, v.CY-v.R), xvec.V(v.CX, v.CY+v.R))
+		case *xvec.ArcToStep:
+			pts = append(pts, xvec.V(v.X1, v.Y1), xvec.V(v.X2, v.Y2))
+		}
+	}
+	for _, p := range pts {
+		if !ok || p.X < xmin {
+			xmin = p.X
+		}
+		if !ok || p.Y < ymin {
+			ymin = p.Y
+		}
+		if !ok || p.X > xmax {
+			xmax = p.X
+		}
+		if !ok || p.Y > ymax {
+			ymax = p.Y
+		}
+		ok = true
+	}
+	return
 }
 
 func (a *App) drawPreviews(screen *xgal.Surface, cv xgal.Rectangle) {
@@ -681,7 +944,6 @@ func (a *App) drawPreviews(screen *xgal.Surface, cv xgal.Rectangle) {
 
 	switch a.tool {
 	case ToolPick:
-		// TODO
 	case ToolLine:
 		xgal.Line(screen, sx, sy, mx, my, 1, colPreview)
 
@@ -757,7 +1019,7 @@ func (a *App) pathPoint(idx int, offX, offY, outW, outH, docW, docH float32) *xg
 
 func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
 
-	sb := xgal.Rect(0, 28, windowWidth, 54)
+	sb := xgal.Rect(0, toolbarHeight, windowWidth, toolbarHeight+26)
 	xgal.Box(screen, sb, colBG)
 	xgal.Outline(screen, sb, 1, colOutline)
 
@@ -769,7 +1031,7 @@ func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
 	// Show vertex count in path
 	n := len(a.pathSteps)
 	status := fmt.Sprintf("Verts: %d  —  Click to add, Close to finish", n)
-	xgal.Ink(screen, xgal.BuiltinFace, colText, 460, 34, status)
+	xgal.Ink(screen, xgal.BuiltinFace, colText, pathVertsLabelX, pathVertsLabelY, status)
 }
 
 func (a *App) renderDoc() {
@@ -790,12 +1052,12 @@ func (a *App) drawList(screen *xgal.Surface) {
 
 func (a *App) drawStrokeSlider(screen *xgal.Surface) {
 	// Background panel matching list style
-	panel := xgal.Rect(482, 350, 638, 394)
+	panel := xgal.Rect(rightPanelX0, sliderPanelY0, rightPanelX1, sliderPanelY1)
 	xgal.Box(screen, panel, colBG)
 	xgal.Outline(screen, panel, 1, colOutline)
 
 	label := fmt.Sprintf("Stroke: %.0f", a.defSW)
-	xgal.Ink(screen, xgal.BuiltinFace, colText, 490, 356, label)
+	xgal.Ink(screen, xgal.BuiltinFace, colText, sliderX0, sliderPanelY0+6, label)
 
 	a.swSlider.Render(screen)
 }
@@ -838,12 +1100,12 @@ func (a *App) drawStatus(screen *xgal.Surface) {
 	xgal.Ink(screen, xgal.BuiltinFace, colText, sb.Min.X+6, sb.Min.Y+4, text)
 
 	// F1 hint on the right side
-	xgal.Ink(screen, xgal.BuiltinFace, colTextDim, 580, sb.Min.Y+4, "F1 help")
+	xgal.Ink(screen, xgal.BuiltinFace, colTextDim, f1HintX, sb.Min.Y+4, "F1 help")
 }
 
 func (a *App) drawMessage(screen *xgal.Surface) {
 	// Semi-transparent overlay across the status area
-	msgBounds := xgal.Rect(160, 440, windowHeight, 476)
+	msgBounds := xgal.Rect(messageX0, messageY0, messageX1, messageY1)
 	xgal.Box(screen, msgBounds, colOverlay)
 	xgal.Outline(screen, msgBounds, 1, colOutlineMsg)
 	xgal.Ink(screen, xgal.BuiltinFace, colWhite,
@@ -855,18 +1117,18 @@ func (a *App) drawHelpOverlay(screen *xgal.Surface) {
 	xgal.Box(screen, xgal.Rect(0, 0, windowWidth, windowHeight), colOverlay)
 
 	// Panel
-	panel := xgal.Rect(140, 50, 500, 430)
+	panel := xgal.Rect(helpPanelX0, helpPanelY0, helpPanelX1, helpPanelY1)
 	xgal.Box(screen, panel, colHelpPanel)
 	xgal.Outline(screen, panel, 1, colOutlineHlp)
 
-	y := 70
+	y := helpLineY0
 	for _, ln := range helpLines {
 		col := colText
 		if ln.bold {
 			col = colWhite
 		}
-		xgal.Ink(screen, xgal.BuiltinFace, col, 160, y, ln.text)
-		y += 18
+		xgal.Ink(screen, xgal.BuiltinFace, col, helpTextX, y, ln.text)
+		y += helpLineStep
 	}
 }
 

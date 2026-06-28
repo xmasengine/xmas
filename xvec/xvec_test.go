@@ -515,3 +515,99 @@ func TestParseSVGArc(t *testing.T) {
 		t.Fatal("expected at least one CubicStep in arc conversion")
 	}
 }
+
+func TestMoveUp(t *testing.T) {
+	x := &XVEC{}
+	x.Disk(10, 10, 5, mkcol(1, 0, 0, 255))
+	x.Disk(20, 20, 5, mkcol(2, 0, 0, 255))
+	x.Disk(30, 30, 5, mkcol(3, 0, 0, 255))
+
+	x.MoveUp(1)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 2 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 1 {
+		t.Fatal("MoveUp(1): expected 2, 1, 3")
+	}
+
+	x.MoveUp(1)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 1 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 2 ||
+		x.Instructions[2].(*DiskInstruction).Color.R != 3 {
+		t.Fatal("MoveUp(1) again: expected 1, 2, 3")
+	}
+}
+
+func TestMoveDown(t *testing.T) {
+	x := &XVEC{}
+	x.Disk(10, 10, 5, mkcol(1, 0, 0, 255))
+	x.Disk(20, 20, 5, mkcol(2, 0, 0, 255))
+	x.Disk(30, 30, 5, mkcol(3, 0, 0, 255))
+
+	x.MoveDown(1)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 1 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 3 ||
+		x.Instructions[2].(*DiskInstruction).Color.R != 2 {
+		t.Fatal("MoveDown(1): expected 1, 3, 2")
+	}
+}
+
+func TestMoveToFront(t *testing.T) {
+	x := &XVEC{}
+	x.Disk(10, 10, 5, mkcol(1, 0, 0, 255))
+	x.Disk(20, 20, 5, mkcol(2, 0, 0, 255))
+	x.Disk(30, 30, 5, mkcol(3, 0, 0, 255))
+
+	x.MoveToFront(2)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 3 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 1 ||
+		x.Instructions[2].(*DiskInstruction).Color.R != 2 {
+		t.Fatal("MoveToFront(2): expected 3, 1, 2")
+	}
+
+	x.MoveToFront(1)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 1 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 3 ||
+		x.Instructions[2].(*DiskInstruction).Color.R != 2 {
+		t.Fatal("MoveToFront(1) then: expected 1, 3, 2")
+	}
+}
+
+func TestMoveToBack(t *testing.T) {
+	x := &XVEC{}
+	x.Disk(10, 10, 5, mkcol(1, 0, 0, 255))
+	x.Disk(20, 20, 5, mkcol(2, 0, 0, 255))
+	x.Disk(30, 30, 5, mkcol(3, 0, 0, 255))
+
+	x.MoveToBack(0)
+	if x.Instructions[0].(*DiskInstruction).Color.R != 2 ||
+		x.Instructions[1].(*DiskInstruction).Color.R != 3 ||
+		x.Instructions[2].(*DiskInstruction).Color.R != 1 {
+		t.Fatal("MoveToBack(0): expected 2, 3, 1")
+	}
+}
+
+func TestMoveEdgeCases(t *testing.T) {
+	x := &XVEC{} // empty
+	x.MoveUp(0)
+	x.MoveDown(0)
+	x.MoveToFront(0)
+	x.MoveToBack(0)
+	// no panic, no change
+
+	x.Disk(10, 10, 5, mkcol(1, 0, 0, 255)) // single instruction
+	x.MoveUp(0)
+	x.MoveDown(0)
+	x.MoveToFront(0)
+	x.MoveToBack(0)
+	if len(x.Instructions) != 1 {
+		t.Fatal("single instruction should remain")
+	}
+
+	// out-of-range indices
+	x.MoveUp(-1)
+	x.MoveDown(5)
+	x.MoveToFront(-1)
+	x.MoveToBack(5)
+	if len(x.Instructions) != 1 {
+		t.Fatal("out-of-range indices should be no-ops")
+	}
+}

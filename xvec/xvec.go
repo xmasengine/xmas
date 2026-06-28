@@ -704,6 +704,46 @@ func (x *XVEC) Draw(s *Surface) {
 // V is a shorthand for Vertex{X: x, Y: y}.
 func V(x, y float32) Vertex { return Vertex{X: x, Y: y} }
 
+// MoveUp swaps the instruction at index i with the one before it.
+// It is a no-op if i <= 0.
+func (x *XVEC) MoveUp(i int) {
+	if i <= 0 || i >= len(x.Instructions) {
+		return
+	}
+	x.Instructions[i], x.Instructions[i-1] = x.Instructions[i-1], x.Instructions[i]
+}
+
+// MoveDown swaps the instruction at index i with the one after it.
+// It is a no-op if i >= len(Instructions)-1.
+func (x *XVEC) MoveDown(i int) {
+	if i < 0 || i >= len(x.Instructions)-1 {
+		return
+	}
+	x.Instructions[i], x.Instructions[i+1] = x.Instructions[i+1], x.Instructions[i]
+}
+
+// MoveToFront moves the instruction at index i to index 0
+// (the bottom of the draw order). It is a no-op if i <= 0.
+func (x *XVEC) MoveToFront(i int) {
+	if i <= 0 || i >= len(x.Instructions) {
+		return
+	}
+	inst := x.Instructions[i]
+	x.Instructions = append(x.Instructions[:i], x.Instructions[i+1:]...)
+	x.Instructions = append([]Instruction{inst}, x.Instructions...)
+}
+
+// MoveToBack moves the instruction at index i to the last index
+// (the top of the draw order). It is a no-op if i >= len(Instructions)-1.
+func (x *XVEC) MoveToBack(i int) {
+	if i < 0 || i >= len(x.Instructions)-1 {
+		return
+	}
+	inst := x.Instructions[i]
+	x.Instructions = append(x.Instructions[:i], x.Instructions[i+1:]...)
+	x.Instructions = append(x.Instructions, inst)
+}
+
 func addStep(fill *FillInstruction, stroke *StrokeInstruction, step Stepper) {
 	if fill != nil {
 		fill.Steps = append(fill.Steps, step)
