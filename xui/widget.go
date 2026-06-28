@@ -15,6 +15,7 @@ const (
 	Raise
 	Lower
 	Finish
+	Proceed // continue processing
 )
 
 // Axis is the layout axis for child widgets in a container.

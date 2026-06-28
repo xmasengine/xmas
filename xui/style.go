@@ -7,6 +7,10 @@ func (s Style) MeasureText(txt string) xgal.Point {
 	return xgal.Pt(int(w), int(h))
 }
 
+func (s Style) Stride() int {
+	return xgal.Stride(s.Face)
+}
+
 func (s Style) DrawText(dst *xgal.Surface, at xgal.Point, txt string) {
 	pt := at.Add(s.Margin)
 	xgal.Ink(dst, s.Face, s.Fore, pt.X, pt.Y, txt)

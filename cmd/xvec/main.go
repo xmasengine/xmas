@@ -27,6 +27,11 @@ const (
 	sliderX0 = rightPanelX0 + 8
 	sliderX1 = windowWidth - 10
 
+	askY0 = windowHeight / 4
+	askY1 = windowHeight / 2
+	askX0 = 10
+	askX1 = windowWidth - 10
+
 	rightPanelX0 = windowWidth*3/4 + 2
 	rightPanelX1 = windowWidth - 2
 	listPanelY0  = sliderY1 + 16
@@ -168,6 +173,7 @@ type App struct {
 	list      *xui.ListLayer
 	toolGroup *xui.ToggleGroupLayer
 	swSlider  *xui.SliderLayer
+	ldAsk     *xui.AskLayer
 
 	// Path editing
 	pathSteps []xvec.Stepper
@@ -295,6 +301,7 @@ func (a *App) listBounds() xgal.Rectangle {
 }
 func (a *App) paletteBounds() xgal.Rectangle { return xgal.Rect(0, paletteY0, paletteWidth, paletteY1) }
 func (a *App) statusBounds() xgal.Rectangle  { return xgal.Rect(0, statusY0, windowWidth, windowHeight) }
+func (a *App) askBounds() xgal.Rectangle     { return xgal.Rect(askX0, askY0, askX1, askY1) }
 func (a *App) sliderBounds() xgal.Rectangle {
 	return xgal.Rect(sliderX0, sliderY0, sliderX1, sliderY1)
 }
@@ -398,14 +405,15 @@ func (a *App) deselectInst() {
 	a.syncList()
 }
 
+const DefaultDrawing = "drawing.xvec"
+
 func (a *App) save() {
 	fn := a.filename
 	if fn == "" {
-		a.msg = "No filename set, using drawing.xvec"
+		a.msg = "No filename set, using " + DefaultDrawing
 		a.msgTimer = 180
-		fn = "drawing.xvec"
+		fn = DefaultDrawing
 	}
-
 	f, err := os.Create(fn)
 	if err != nil {
 		a.msg = fmt.Sprintf("Error saving: %v", err)
@@ -504,6 +512,12 @@ func (a *App) Update() error {
 	if xgal.Tap(xgal.KeyS) && ctrlHeld() {
 		a.save()
 	}
+	// Load: Crtl+L
+	if xgal.Tap(xgal.KeyL) && ctrlHeld() {
+		a.ldAsk = xui.AskEntry(a.askBounds(), "filename?", a.filename, func(fn string) {
+			a.load(fn)
+		}, "OK", "Cancel")
+	}
 
 	// Help toggle: F1 / Esc closes
 	if xgal.Tap(xgal.KeyF1) {
@@ -523,6 +537,17 @@ func (a *App) Update() error {
 		a.pathGroup.Poll()
 	} else {
 		a.toolGroup.Poll()
+	}
+
+	// Poll asker if visible.
+	if a.ldAsk != nil {
+		res := a.ldAsk.Poll()
+		if res == xui.Accept {
+			return nil
+		} else if res == xui.Finish {
+			a.ldAsk = nil
+			return nil
+		}
 	}
 
 	a.pollCanvas()
@@ -859,6 +884,10 @@ func (a *App) Draw(screen *xgal.Surface) {
 	a.drawStrokeSlider(screen)
 	a.drawPalette(screen)
 	a.drawStatus(screen)
+
+	if a.ldAsk != nil {
+		a.ldAsk.Render(screen)
+	}
 
 	if a.showHelp {
 		a.drawHelpOverlay(screen)

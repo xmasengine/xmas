@@ -27,9 +27,18 @@ func Mouse() Point {
 	return image.Pt(x, y)
 }
 
-// Click reports whether the mouse button was just pressed.
-func Click(button MouseButton) bool {
-	return inpututil.IsMouseButtonJustPressed(button)
+// Click reports whether one of the given the mouse buttons was just pressed.
+// If buttens are not given, MouseButtonLeft is used as the default.
+func Click(buttons ...MouseButton) bool {
+	if len(buttons) == 0 {
+		return inpututil.IsMouseButtonJustPressed(MouseButtonLeft)
+	}
+	for _, button := range buttons {
+		if inpututil.IsMouseButtonJustPressed(button) {
+			return true
+		}
+	}
+	return false
 }
 
 // Grip reports whether the mouse button is currently held.

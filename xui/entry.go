@@ -14,8 +14,7 @@ type EntryLayer struct {
 	Label  string
 	Change func(string)
 	cursor int
-	focus  bool
-	hover  bool
+	hasFocus
 }
 
 // Entry returns a new [EntryLayer] with the given bounds, initial text, and
@@ -35,21 +34,43 @@ func (e *EntryLayer) Text() string {
 	return string(e.Input)
 }
 
-func (e *EntryLayer) Poll() Reply {
-	e.hover = xgal.Mouse().In(e.Bounds)
+// hasFocus is a helper subwidget to help manage focus and hovering
+type hasFocus struct {
+	hover bool
+	focus bool
+}
 
-	if xgal.Click(xgal.MouseButtonLeft) {
-		e.focus = e.hover
-		if e.focus {
+func (h *hasFocus) pollFocus(bounds xgal.Rectangle) Reply {
+	h.hover = xgal.Mouse().In(bounds)
+
+	if !h.hover {
+		if xgal.Click() {
+			h.focus = false
+		}
+		return Ignore
+	}
+
+	if !h.focus {
+		if xgal.Click() {
+			h.focus = true
 			return Accept
 		}
 	}
 
-	if !e.focus {
+	if !h.focus {
 		return Ignore
 	}
+	return Proceed
+}
 
-	for _, k := range xgal.Taps(nil) {
+func (e *EntryLayer) Poll() Reply {
+	res := e.pollFocus(e.Bounds)
+	if res != Proceed {
+		return res
+	}
+
+	taps := xgal.Taps(nil)
+	for _, k := range taps {
 		switch k {
 		case xgal.KeyArrowLeft:
 			e.cursor = max(0, e.cursor-1)
@@ -80,8 +101,10 @@ func (e *EntryLayer) Poll() Reply {
 		e.Input = slices.Insert(e.Input, e.cursor, chars...)
 		e.cursor += len(chars)
 	}
-
-	return Accept
+	if len(taps) > 0 || len(chars) > 0 {
+		return Accept
+	}
+	return Ignore
 }
 
 func (e *EntryLayer) Render(s *xgal.Surface) {
