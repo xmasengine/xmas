@@ -214,6 +214,8 @@ func main() {
 
 	a.list = xui.List(a.listBounds())
 	a.list.Selected = -1
+	lb := a.listBounds()
+	a.list.Limit = lb.Dy() / xui.ListItemHeight
 
 	// Toolbar toggles
 	btnW := windowWidth / int(toolCount)
@@ -685,6 +687,7 @@ func (a *App) syncList() {
 		a.list.Items[i] = a.instLabel(i, inst)
 	}
 	a.list.Selected = a.selInst
+	a.list.EnsureVisible()
 }
 
 func (a *App) pollCanvasPath(dx, dy float32) {

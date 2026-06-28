@@ -4,13 +4,15 @@ import "github.com/xmasengine/xmas/xgal"
 
 const ListItemHeight = 14
 
-// ListLayer is a vertical list of selectable text items.
+// ListLayer is a vertical list of selectable text items with optional scrolling.
 type ListLayer struct {
 	Layer
 	Items      []string
 	OnSelect   func(index int)
 	Selected   int // -1 for none
 	ItemHeight int
+	Limit      int // max visible items, 0 = show all
+	Offset     int // first visible item index
 	hoverIdx   int
 }
 
@@ -34,9 +36,38 @@ func (l *ListLayer) SelectItem(i int) {
 		return
 	}
 	l.Selected = i
+	l.ensureVisible()
 	if l.OnSelect != nil {
 		l.OnSelect(i)
 	}
+}
+
+// EnsureVisible scrolls the list so the selected item is in view.
+func (l *ListLayer) EnsureVisible() {
+	if l.Selected < 0 || l.Limit <= 0 || len(l.Items) <= l.Limit {
+		l.Offset = 0
+		return
+	}
+	if l.Selected < l.Offset {
+		l.Offset = l.Selected
+	}
+	if l.Selected >= l.Offset+l.Limit {
+		l.Offset = l.Selected - l.Limit + 1
+	}
+	maxOff := len(l.Items) - l.Limit
+	if l.Offset > maxOff {
+		l.Offset = maxOff
+	}
+}
+
+func (l *ListLayer) ensureVisible() { l.EnsureVisible() }
+
+func (l *ListLayer) visibleCount() int {
+	n := len(l.Items)
+	if l.Limit > 0 && n > l.Limit {
+		return l.Limit
+	}
+	return n
 }
 
 // AddList is a helper to add a [ListLayer] to a [Layer].
@@ -46,17 +77,59 @@ func (m *Layer) AddList(bounds xgal.Rectangle) *ListLayer {
 	return l
 }
 
+func (l *ListLayer) clampOffset() {
+	maxOff := len(l.Items) - l.visibleCount()
+	if maxOff < 0 {
+		maxOff = 0
+	}
+	if l.Offset < 0 {
+		l.Offset = 0
+	} else if l.Offset > maxOff {
+		l.Offset = maxOff
+	}
+}
+
 func (l *ListLayer) Poll() Reply {
 	pos := xgal.Mouse()
 	l.hoverIdx = -1
 
-	for i := range l.Items {
+	// Clamp offset in case items changed externally
+	l.clampOffset()
+
+	// Mouse wheel scrolling
+	if pos.In(l.Bounds) && l.Limit > 0 {
+		_, wy := xgal.Wheel()
+		if wy != 0 {
+			l.Offset -= int(wy)
+			l.clampOffset()
+		}
+	}
+
+	// Arrow key navigation when hovering
+	if pos.In(l.Bounds) && l.Selected >= 0 {
+		if xgal.Tap(xgal.KeyArrowDown) && l.Selected < len(l.Items)-1 {
+			l.SelectItem(l.Selected + 1)
+			return Accept
+		}
+		if xgal.Tap(xgal.KeyArrowUp) && l.Selected > 0 {
+			l.SelectItem(l.Selected - 1)
+			return Accept
+		}
+	}
+
+	// Mouse click on visible items
+	vc := l.visibleCount()
+	for i := 0; i < vc; i++ {
+		idx := l.Offset + i
+		if idx < 0 || idx >= len(l.Items) {
+			continue
+		}
 		y := l.Bounds.Min.Y + i*l.ItemHeight
 		itemBounds := xgal.Rect(l.Bounds.Min.X, y, l.Bounds.Max.X, y+l.ItemHeight)
 		if pos.In(itemBounds) {
-			l.hoverIdx = i
+			l.hoverIdx = idx
 			if xgal.Click(xgal.MouseButtonLeft) {
-				l.SelectItem(i)
+				l.SelectItem(idx)
 				return Accept
 			}
 			return Accept
@@ -68,15 +141,21 @@ func (l *ListLayer) Poll() Reply {
 func (l *ListLayer) Render(s *xgal.Surface) {
 	l.Layer.Render(s)
 
-	for i, text := range l.Items {
+	vc := l.visibleCount()
+	for i := 0; i < vc; i++ {
+		idx := l.Offset + i
+		if idx < 0 || idx >= len(l.Items) {
+			continue
+		}
+		text := l.Items[idx]
 		y := l.Bounds.Min.Y + i*l.ItemHeight
 		itemBounds := xgal.Rect(l.Bounds.Min.X, y, l.Bounds.Max.X, y+l.ItemHeight)
 
 		st := l.Style
-		if i == l.hoverIdx {
+		if idx == l.hoverIdx {
 			st = st.HoverStyle()
 		}
-		if i == l.Selected {
+		if idx == l.Selected {
 			st.Stroke = 2
 		}
 
