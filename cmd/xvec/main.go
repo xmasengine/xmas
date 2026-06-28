@@ -1049,7 +1049,7 @@ func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, off
 			xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
 			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
 		} else if a.pendCP == nil { // Cubic — pend is endpoint, waiting for CP1
-			xgal.Line(prev, last.X, last.Y, mp.X, mp.Y, 1, colPathMouse)
+			xgal.Quad(prev, last.X, last.Y, mp.X, mp.Y, px, py, 1, colPathMouse)
 			xgal.Box(prev, xgal.Rect(px-3, py-3, px+4, py+4), colCtrlPt)
 		} else { // Cubic — pendCP is CP1, mouse is CP2
 			cpx := int(a.pendCP.x/docW*outW + offX)
