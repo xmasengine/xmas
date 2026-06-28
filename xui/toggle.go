@@ -32,17 +32,21 @@ func Toggle(bounds xgal.Rectangle, text string, toggled func(active bool)) *Togg
 var _ Widget = &ToggleLayer{}
 
 func (t *ToggleLayer) Poll() Reply {
-	if t.Group != nil {
-		t.Active = *t.Group == t.Idx
-	}
 
 	t.hover = xgal.Mouse().In(t.Bounds)
-
-	if t.hover && xgal.Click(xgal.MouseButtonLeft) {
-		t.pressed = true
+	if !t.hover {
+		if t.Group != nil {
+			t.Active = (*t.Group == t.Idx)
+		}
+		return Ignore
 	}
 
-	if t.pressed && xgal.Loose(xgal.MouseButtonLeft) {
+	if xgal.Click(xgal.MouseButtonLeft) {
+		t.pressed = true
+		return Accept
+	}
+
+	if xgal.Loose(xgal.MouseButtonLeft) {
 		t.pressed = false
 		if t.Group != nil {
 			*t.Group = t.Idx
@@ -54,10 +58,6 @@ func (t *ToggleLayer) Poll() Reply {
 			t.Toggled(t.Active)
 		}
 		t.lastAct = t.Active
-		return Accept
-	}
-
-	if t.hover || t.pressed {
 		return Accept
 	}
 

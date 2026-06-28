@@ -398,13 +398,6 @@ func (a *App) Update() error {
 		}
 	}
 
-	// Delete selected instruction
-	if (xgal.Tap(xgal.KeyDelete) || xgal.Tap(xgal.KeyBackspace)) && a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
-		a.doc.Instructions = slices.Delete(a.doc.Instructions, a.selInst, a.selInst+1)
-		a.deselectInst()
-		a.dirty = true
-	}
-
 	// Clear all: X
 	if xgal.Tap(xgal.KeyX) && len(a.doc.Instructions) > 0 {
 		a.doc.Instructions = nil
@@ -412,8 +405,13 @@ func (a *App) Update() error {
 		a.dirty = true
 	}
 
-	// Rearrange selected instruction
+	// Rearrange or delete selected instruction
 	if a.selInst >= 0 && a.selInst < len(a.doc.Instructions) {
+		if xgal.Tap(xgal.KeyDelete) || xgal.Tap(xgal.KeyBackspace) {
+			a.doc.Instructions = slices.Delete(a.doc.Instructions, a.selInst, a.selInst+1)
+			a.deselectInst()
+			a.dirty = true
+		}
 		if xgal.Tap(xgal.KeyPageUp) && a.selInst > 0 {
 			a.doc.MoveUp(a.selInst)
 			a.selInst--
