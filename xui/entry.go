@@ -41,16 +41,30 @@ type hasFocus struct {
 }
 
 func (h *hasFocus) pollFocus(bounds xgal.Rectangle) Reply {
+	// focus with event bubbling is complex so here is what is happening:
+
 	h.hover = xgal.Mouse().In(bounds)
 
+	// If we are not hovered
 	if !h.hover {
+		// If there is a click it is outside this widget, so we lost the focus.
 		if xgal.Click() {
 			h.focus = false
 		}
+		// Otherwise we may be hovered but still focused.
+		// Possible if another widget set it.
+		if h.focus {
+			// Widget should proceed processing since we are focused.
+			return Proceed
+		}
+		// Not hovered and not focused, ignore any input.
 		return Ignore
 	}
 
+	// We are hovered but don't have the focus yet.
 	if !h.focus {
+		// If clicked become focused but accept to signal the
+		// mouse click was processed.
 		if xgal.Click() {
 			h.focus = true
 			return Accept
@@ -58,8 +72,10 @@ func (h *hasFocus) pollFocus(bounds xgal.Rectangle) Reply {
 	}
 
 	if !h.focus {
+		// Still not focused, ignore input.
 		return Ignore
 	}
+	// We have the focus, proceed with processing.
 	return Proceed
 }
 

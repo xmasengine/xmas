@@ -33,11 +33,21 @@ func Ask(bounds xgal.Rectangle, prompt string, buttons ...string) *AskLayer {
 // AskEntry returns a new [AskLayer] with an entry.  The caller must add it to
 // a container (e.g. via [Layer.Add]). After Poll returns Finish, read Result
 // to see which button was pressed.
+// The entry will be focused immediately.
+// Pressing enter on the entry will close the AskLayer and set the Result to 0.
+// The entry's Change() callback will be called if the first button is clicked.
 func AskEntry(bounds xgal.Rectangle, prompt string, entry string, enter func(string), buttons ...string) *AskLayer {
+	var res *AskLayer
 	ls := DefaultStyle().Stride()
 	entryBounds := xgal.Rect(bounds.Min.X, bounds.Min.Y+ls, bounds.Max.X, bounds.Min.Y+ls*2)
-	entryWidget := Entry(entryBounds, entry, enter)
-	return &AskLayer{
+	wrap := func(s string) {
+		res.Result = 0
+		enter(s)
+	}
+	entryWidget := Entry(entryBounds, entry, wrap)
+	// Focus entry by default
+	entryWidget.focus = true
+	res = &AskLayer{
 		Bounds:  bounds,
 		Style:   DefaultStyle(),
 		Prompt:  prompt,
@@ -46,22 +56,27 @@ func AskEntry(bounds xgal.Rectangle, prompt string, entry string, enter func(str
 		Result:  -1,
 		hover:   -1,
 	}
+	return res
 }
 
 var _ Widget = &AskLayer{}
 
 func (a *AskLayer) Poll() Reply {
 	a.hover = -1
-	pos := xgal.Mouse()
-	if !pos.In(a.Bounds) {
-		return Ignore
-	}
 
 	if a.Entry != nil {
 		res := a.Entry.Poll()
 		if res != Ignore {
 			return res
 		}
+		if a.Result >= 0 {
+			return Finish
+		}
+	}
+
+	pos := xgal.Mouse()
+	if !pos.In(a.Bounds) {
+		return Ignore
 	}
 
 	pad := a.Style.Margin
@@ -76,6 +91,9 @@ func (a *AskLayer) Poll() Reply {
 			a.hover = i
 			if xgal.Click(xgal.MouseButtonLeft) {
 				a.Result = i
+				if a.Entry != nil && i == 0 && a.Entry.Change != nil {
+					a.Entry.Change(string(a.Entry.Input))
+				}
 				return Finish
 			}
 			return Accept

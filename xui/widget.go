@@ -7,15 +7,19 @@ import (
 	"github.com/xmasengine/xmas/xgal"
 )
 
+// Reply is the result of Poll()
+// Since xui uses event bubbling, the components and users of this library must
+// strictly observe the meaning of Reply. Otherwise the widgets
+// and in particular widget focus may malfunction.
 type Reply int
 
 const (
-	Ignore Reply = iota
-	Accept
-	Raise
-	Lower
-	Finish
-	Proceed // continue processing
+	Ignore  Reply = iota // Ignore: the widget ignored the input, other widgets *should* process it.
+	Accept               // Accept: the widget accepted the input, other widgets *must not* process it.
+	Raise                // Raise: the widget accepted and needs to be raised higher in the layer stack.
+	Lower                // Lower: the widget accepted and needs to be lowered in the layer stack.
+	Finish               // Finish: the widget is done processing and should be considered closed.
+	Proceed              // Proceed: the widget accepted the input but other widgets should continue processing. Only for sub widgets.
 )
 
 // Axis is the layout axis for child widgets in a container.
@@ -28,8 +32,17 @@ const (
 
 // A Widget is an element of an UI.
 type Widget interface {
+	// Poll should poll the input for the widget and reply with the result.
+	// Since xui uses event bubbling, the components and users of this library must
+	// strictly observe the meaning of Reply. Otherwise the widgets
+	// and in particular widget focus may malfunction.
+	// Poll is called every frame on active widgets.
 	Poll() Reply
+	// Render should render the widget to the screen.
+	// Rendered is called every frame on active widgets.
 	Render(screen *xgal.Surface)
+	// Place is called to cause the widget to layout itself.
+	// Place is called every frame on active widgets.
 	Place(bounds xgal.Rectangle) xgal.Rectangle
 }
 
