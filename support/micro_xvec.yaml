@@ -1,0 +1,27 @@
+---
+filetype: plz
+detect:
+    filename: "\\.xvec$"
+
+rules:
+    - type: "\\b(size|miter|bevel|round|butt|square|evenodd|nonzero|C|CC)\\b"
+    - statement: "\\b(xvec|circle|disk|rect|slab|line|fill|stroke|end)\\b"
+    - special: "\\b(move|quad|cubic|arc|arcto|close|antialias|join|cap|rule)"
+    - constant.bool: '\b(true|false)\b'
+    - constant.number: '\b([0-9]+)\b'
+    - constant.number: '\b0x([0-9a-fA-F]+)\b'
+    - constant.char: '\$0x[0-9a-fA-F]+'
+    - constant.string: "\"(\\\\.|[^\"])*\"|'(\\\\.|[^'])*'"
+    - constant.string: "`(\\\\.|[^\\\\`])*`"
+    - indent-char.whitespace: "[[:space:]]+$"
+    - indent-char: "	+ +| +	+"
+    - comment:
+        start: "//"
+        end: "$"
+        rules:
+            - todo: "(TODO|XXX|FIXME):?"
+    - comment:
+        start: "/\\*"
+        end: "\\*/"
+        rules:
+            - todo: "(TODO|XXX|FIXME):?"
