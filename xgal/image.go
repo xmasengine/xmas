@@ -162,3 +162,12 @@ func Reduce(src Image, pal Palette) *Paletted {
 	draw.FloydSteinberg.Draw(img, b, src, b.Min)
 	return img
 }
+
+// Redraw redraws an Image to a Paletted image with the given palette.
+// If it already is a paletted image, the palette will be adjusted to pal.
+func Redraw(src Image, pal Palette) *Paletted {
+	b := src.Bounds()
+	img := image.NewPaletted(b, pal)
+	draw.FloydSteinberg.Draw(img, b, src, b.Min)
+	return img
+}
