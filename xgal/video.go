@@ -51,7 +51,7 @@ func Stream(fsys fs.FS, name string) (*Video, error) {
 
 	v := &Video{
 		mpg:   mpg,
-		frame: NewSurface(mpg.Width(), mpg.Height()),
+		frame: Prepare(mpg.Width(), mpg.Height()),
 		src:   f,
 	}
 

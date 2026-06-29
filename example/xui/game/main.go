@@ -25,7 +25,7 @@ var (
 )
 
 func newIcon(w, h int) *xgal.Surface {
-	return xgal.NewSurface(w, h)
+	return xgal.Prepare(w, h)
 }
 
 func init() {
@@ -153,7 +153,7 @@ func (g *guiDemo) Update() error {
 	// toggle talk window
 	if xgal.Tap(xgal.KeyX) && g.talk == nil {
 		// create a simple portrait (32×32 coloured square)
-		portrait := xgal.NewSurface(32, 32)
+		portrait := xgal.Prepare(32, 32)
 		xgal.Box(portrait, xgal.Rect(0, 0, 32, 32), xgal.Wash(120, 80, 40, 255))
 		xgal.Disk(portrait, xgal.Pt(16, 8), 6, xgal.Wash(240, 200, 160, 255))
 		xgal.Line(portrait, 8, 20, 24, 20, 2, xgal.Wash(0, 0, 0, 255))

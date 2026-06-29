@@ -18,8 +18,8 @@ func (g *game) Update() error {
 }
 
 func (g *game) Draw(screen *xgal.Surface) {
-	src := xgal.NewSurface(8, 8)
-	dst := xgal.NewSurface(8, 8)
+	src := xgal.Prepare(8, 8)
+	dst := xgal.Prepare(8, 8)
 
 	red := xgal.RGBA{R: 255, A: 255}
 
@@ -87,7 +87,7 @@ func (g *game) Draw(screen *xgal.Surface) {
 		return
 	}
 
-	txt := xgal.NewSurface(50, 30)
+	txt := xgal.Prepare(50, 30)
 	xgal.Ink(txt, xgal.BuiltinFace, red, 0, 0, "X")
 	inkOk := false
 	for y := 0; y < 30; y++ {

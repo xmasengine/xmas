@@ -63,11 +63,11 @@ func main() {
 	g := &gallery{}
 
 	// ── self-drawn 16×16 icons ──
-	iconStar := xgal.NewSurface(16, 16)
+	iconStar := xgal.Prepare(16, 16)
 	xgal.Box(iconStar, xgal.Rect(0, 0, 16, 16), xgal.Wash(0, 0, 0, 0))
 	xgal.Ink(iconStar, xgal.BuiltinFace, xgal.Wash(255, 220, 0, 255), 2, 0, "*")
 
-	iconDoc := xgal.NewSurface(16, 16)
+	iconDoc := xgal.Prepare(16, 16)
 	xgal.Box(iconDoc, xgal.Rect(0, 0, 16, 16), xgal.Wash(0, 0, 0, 0))
 	xgal.Box(iconDoc, xgal.Rect(2, 1, 14, 15), xgal.Wash(220, 220, 200, 255))
 	xgal.Outline(iconDoc, xgal.Rect(2, 1, 14, 15), 1, xgal.Wash(100, 100, 80, 255))
@@ -75,12 +75,12 @@ func main() {
 	xgal.Line(iconDoc, 5, 8, 11, 8, 1, xgal.Wash(80, 80, 60, 255))
 	xgal.Line(iconDoc, 5, 11, 9, 11, 1, xgal.Wash(80, 80, 60, 255))
 
-	iconHelp := xgal.NewSurface(16, 16)
+	iconHelp := xgal.Prepare(16, 16)
 	xgal.Box(iconHelp, xgal.Rect(0, 0, 16, 16), xgal.Wash(0, 0, 0, 0))
 	xgal.Circle(iconHelp, xgal.Pt(8, 7), 6, 1, xgal.Wash(200, 200, 100, 255))
 	xgal.Ink(iconHelp, xgal.BuiltinFace, xgal.Wash(200, 200, 100, 255), 6, 3, "?")
 
-	iconHand := xgal.NewSurface(16, 16)
+	iconHand := xgal.Prepare(16, 16)
 	xgal.Box(iconHand, xgal.Rect(0, 0, 16, 16), xgal.Wash(0, 0, 0, 0))
 	xgal.Disk(iconHand, xgal.Pt(8, 8), 6, xgal.Wash(200, 200, 220, 255))
 	xgal.Circle(iconHand, xgal.Pt(8, 8), 6, 1, xgal.Wash(100, 100, 120, 255))
@@ -146,7 +146,7 @@ func main() {
 	}
 
 	// Frame (hand-drawn image)
-	g.frameImg = xgal.NewSurface(48, 48)
+	g.frameImg = xgal.Prepare(48, 48)
 	xgal.Box(g.frameImg, xgal.Rect(0, 0, 48, 48), xgal.Wash(0, 80, 0, 255))
 	xgal.Disk(g.frameImg, xgal.Pt(24, 24), 16, xgal.Wash(255, 200, 0, 255))
 	xgal.Circle(g.frameImg, xgal.Pt(24, 24), 16, 2, xgal.Wash(200, 100, 0, 255))
@@ -155,7 +155,7 @@ func main() {
 	frameLayer.Style.Border = xgal.Wash(0, 200, 200, 200)
 
 	// Chooser (tilesheet with colored squares)
-	g.tileImg = xgal.NewSurface(64, 64)
+	g.tileImg = xgal.Prepare(64, 64)
 	colors := []xgal.RGBA{
 		xgal.Wash(255, 0, 0, 255), xgal.Wash(0, 255, 0, 255), xgal.Wash(0, 0, 255, 255),
 		xgal.Wash(255, 255, 0, 255), xgal.Wash(255, 0, 255, 255), xgal.Wash(0, 255, 255, 255),

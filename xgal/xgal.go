@@ -21,7 +21,10 @@ type RGBA = color.RGBA
 // Palette is a set of colors, typically for indexed images.
 type Palette = color.Palette
 
-// PalettedImage is an image with a palette.
+// Paletted is an image with a palette.
+type Paletted = image.Paletted
+
+// PalettedImage is an image interface with a palette.
 type PalettedImage = image.PalettedImage
 
 // Rectangle is a 2D rectangle defined by two [Point] values.
@@ -68,3 +71,14 @@ var (
 	Transparent = RGBA{}
 	Opaque      = RGBA{A: 255}
 )
+
+// Recolor converts a coler to an RGBA
+func Recolor(c Color) RGBA {
+	r16, g16, b16, a16 := c.RGBA()
+
+	r8 := uint8(r16 >> 8)
+	g8 := uint8(g16 >> 8)
+	b8 := uint8(b16 >> 8)
+	a8 := uint8(a16 >> 8)
+	return Wash(r8, g8, b8, a8)
+}

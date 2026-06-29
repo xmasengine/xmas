@@ -1248,7 +1248,7 @@ func (a *App) drawPathSubToolbar(screen *xgal.Surface) {
 func (a *App) renderDoc() {
 	w, h := int(a.doc.Size.W), int(a.doc.Size.H)
 	if a.docSurf == nil || a.docSurf.Bounds().Dx() != w || a.docSurf.Bounds().Dy() != h {
-		a.docSurf = xgal.NewSurface(w, h)
+		a.docSurf = xgal.Prepare(w, h)
 	}
 	xgal.Clear(a.docSurf, colCanvas)
 	a.doc.Draw(a.docSurf)

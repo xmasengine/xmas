@@ -97,7 +97,7 @@ func (g *game) Update() error {
 }
 
 func (g *game) Draw(screen *xgal.Surface) {
-	surf := xgal.NewSurface(int(g.x.Size.W), int(g.x.Size.H))
+	surf := xgal.Prepare(int(g.x.Size.W), int(g.x.Size.H))
 	g.x.Draw(surf)
 	xgal.Blit(screen, surf, surf.Bounds(), surf.Bounds())
 }

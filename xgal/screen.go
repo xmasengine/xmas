@@ -48,8 +48,8 @@ func Screen(w, h int, title string) {
 	ebiten.SetWindowTitle(title)
 }
 
-// NewSurface creates a new off-screen [Surface] with the given dimensions.
-func NewSurface(w, h int) *Surface {
+// Prepare creates a new off-screen [Surface] with the given dimensions.
+func Prepare(w, h int) *Surface {
 	return ebiten.NewImage(w, h)
 }
 

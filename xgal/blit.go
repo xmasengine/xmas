@@ -132,3 +132,12 @@ func Scale(dst, src *Surface, sx, sy float64) {
 	op.GeoM.Scale(sx, sy)
 	dst.DrawImage(src, op)
 }
+
+// Zoom draws src onto dst, scaled uniformely and translated
+func Zoom(dst, src *Surface, x, y, zoom float64) {
+	op := &ebiten.DrawImageOptions{}
+	op.GeoM.Scale(float64(zoom), float64(zoom))
+	op.GeoM.Translate(x, y)
+	op.Filter = ebiten.FilterNearest
+	dst.DrawImage(src, op)
+}
