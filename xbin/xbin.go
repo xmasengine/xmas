@@ -4,10 +4,19 @@ package xbin
 
 import "encoding/binary"
 import "io"
+import "bytes"
 
 const IDLength = 8
 
 type ID [IDLength]byte
+
+func (i ID) String() string {
+	idx := bytes.IndexByte(i[:], 0)
+	if idx >= 0 {
+		return string(i[:idx])
+	}
+	return string(i[:])
+}
 
 type Block struct {
 	ID     ID
@@ -15,12 +24,32 @@ type Block struct {
 	Blocks []Block
 }
 
-func try(err error) func(error) {
-	return func(check error) {
-		if check != nil {
-			err = check
-		}
+func (b Block) String() string {
+	s := "<" + b.ID.String() + ">\n"
+	s += string(b.Data)
+	for _, sub := range b.Blocks {
+		s += sub.String()
 	}
+	s += "\n</" + b.ID.String() + ">\n"
+	return s
+}
+
+func Make(id string, data []byte, blocks ...Block) Block {
+	res := Block{}
+	copy(res.ID[:], []byte(id))
+	res.Data = data
+	res.Blocks = blocks
+	return res
+}
+
+func (b *Block) Append(c Block) int {
+	b.Blocks = append(b.Blocks, c)
+	return len(b.Blocks) - 1
+}
+
+func (b *Block) Add(id string, data []byte, blocks ...Block) int {
+	block := Make(id, data, blocks...)
+	return b.Append(block)
 }
 
 type binWriter struct {
@@ -79,23 +108,32 @@ func (b *Block) Decode(rd io.Reader) (err error) {
 	bwr := binReader{rd: rd, ByteOrder: binary.BigEndian}
 
 	bwr.Read(id[:])
-	bwr.Read(size)
-	bwr.Read(count)
+	bwr.Read(&size)
+	bwr.Read(&count)
+	var data []byte
 	if size > 0 {
-		data := make([]byte, size)
+		data = make([]byte, size)
 		bwr.Read(data)
 	}
 	if bwr.Err != nil {
 		return bwr.Err
 	}
-	blocks := make([]Block, count)
+	var blocks []Block
+	if count > 0 {
 
-	for _, block := range blocks {
-		err = block.Decode(rd)
-		if err != nil {
-			return err
+		blocks = make([]Block, count)
+
+		for i, block := range blocks {
+			err = block.Decode(rd)
+			if err != nil {
+				return err
+			}
+			blocks[i] = block
 		}
 	}
+	b.ID = id
+	b.Data = data
+	b.Blocks = blocks
 
 	return nil
 }
