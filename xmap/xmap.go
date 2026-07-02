@@ -34,16 +34,18 @@ func (t *Tiles) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 		return err
 	}
 
-	println("tiles UnmarshalXML", start.Name.Local)
 	cdata, ok := tok.(xml.CharData)
 	if !ok {
 		return errors.New("expected character data")
 	}
+
+	// need to clone as per the contract of Token()
+	cdata = bytes.Trim(bytes.Clone(cdata), " ")
+
 	tok, err = d.Token()
 	if err != nil {
 		return err
 	}
-	println("cdata UnmarshalXML", string(cdata))
 
 	end, ok := tok.(xml.EndElement)
 	if !ok || end.Name != start.Name {
@@ -85,6 +87,7 @@ func (t Tiles) MarshalText() ([]byte, error) {
 	buf := &bytes.Buffer{}
 	wr := csv.NewWriter(buf)
 	wr.Comma = ' '
+
 	for _, row := range t.Rows {
 		record := make([]string, len(row))
 		for j, cell := range row {
@@ -103,11 +106,14 @@ func (t *Tiles) UnmarshalText(in []byte) error {
 	rd.Comment = '#'
 	rd.TrimLeadingSpace = true
 	rd.FieldsPerRecord = -1
+
+	t.Rows = make([]Row, LayerHeight)
 	for i := 0; i < LayerHeight; i++ {
 		record, err := rd.Read()
 		if err != nil {
 			return err
 		}
+		t.Rows[i] = make([]Tile, LayerWidth)
 		for j, field := range record {
 			v, err := strconv.Atoi(field)
 			if err != nil {
