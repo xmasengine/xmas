@@ -1,5 +1,6 @@
 // package xbin implements an efficient but somewhat flexible
-// binary formatting package based on binary encodable tress with an ID.
+// binary big endian formatting package based on binary encodable trees
+// with an ID.
 package xbin
 
 import "encoding/binary"
@@ -12,8 +13,10 @@ const IDLength = 8
 // ByteOrder for xbin is always BigEndian.
 var ByteOrder = binary.BigEndian
 
+// ID is the identfier of a Tree.
 type ID [IDLength]byte
 
+// String implements the stringer interrface for ID. NUL bytes will be truncated.
 func (i ID) String() string {
 	idx := bytes.IndexByte(i[:], 0)
 	if idx >= 0 {
@@ -22,6 +25,7 @@ func (i ID) String() string {
 	return string(i[:])
 }
 
+// MakeID makes an ID from a string. If too sort it will contain NUL bytes.
 func MakeID(s string) ID {
 	var res ID
 	copy(res[:], []byte(s))
@@ -36,6 +40,7 @@ type Tree struct {
 	Trees []Tree
 }
 
+// String implements the striger interface for tree.
 func (b Tree) String() string {
 	s := "<" + b.ID.String() + ">\n"
 	s += string(b.Data)
@@ -46,19 +51,22 @@ func (b Tree) String() string {
 	return s
 }
 
+// Make constructs a tree with the given ID, data and sub trees.
 func Make(id string, data []byte, blocks ...Tree) Tree {
 	res := Tree{}
-	copy(res.ID[:], []byte(id))
+	res.ID = MakeID(id)
 	res.Data = data
 	res.Trees = blocks
 	return res
 }
 
+// Append adds a tree to this tree. Returns the index where it is stored.
 func (b *Tree) Append(c Tree) int {
 	b.Trees = append(b.Trees, c)
 	return len(b.Trees) - 1
 }
 
+// Add makes a new tre and append it. Returns the index where it is stored.
 func (b *Tree) Add(id string, data []byte, blocks ...Tree) int {
 	block := Make(id, data, blocks...)
 	return b.Append(block)
@@ -77,6 +85,7 @@ func (b *binWriter) Write(v any) error {
 	return b.Err
 }
 
+// Encode encodes the tree to an io.Writer.
 func (b Tree) Encode(wr io.Writer) (err error) {
 	size := uint32(len(b.Data))
 	count := uint32(len(b.Trees))
@@ -113,6 +122,7 @@ func (b *binReader) Read(v any) error {
 	return b.Err
 }
 
+// Decode decodes the tree from an io.Writer.
 func (b *Tree) Decode(rd io.Reader) (err error) {
 	var size, count uint32
 	var id ID
@@ -150,12 +160,14 @@ func (b *Tree) Decode(rd io.Reader) (err error) {
 	return nil
 }
 
+// EncodeData encodes fixed size data as per binary.Append to this tree's Data.
 func (b *Tree) EncodeData(data any) error {
 	var err error
 	b.Data, err = binary.Append(b.Data, ByteOrder, data)
 	return err
 }
 
+// DecodeData decodes fixed size data as per binary.Decode to this tree's Data.
 func (b *Tree) DecodeData(data any) error {
 	var err error
 	_, err = binary.Decode(b.Data, ByteOrder, data)

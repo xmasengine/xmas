@@ -6,34 +6,27 @@ import "reflect"
 import "os"
 
 func TestRoundTrip(t *testing.T) {
-	expect := Zone{}
-	copy(expect.Name.Data[:], []rune("town"))
-	expect.Name.Size = 4
-	expect.Size = 4
+	expect := NewZone("town")
 	buf := &bytes.Buffer{}
 	err := expect.SaveTo(buf)
 	if err != nil {
 		t.Fatalf("write error %s", err)
 	}
-	t.Logf("bytes: %v", buf.Bytes()[:300])
+	t.Logf("string: %v", buf.String())
 	buf2 := bytes.NewBuffer(buf.Bytes())
 	observe, err := LoadFrom(buf2)
 	if err != nil {
 		t.Fatalf("read error: %s", err)
 	}
-	if !reflect.DeepEqual(expect.Name, observe.Name) {
-		t.Fatalf("not equal: %#v <-> %#v", expect.Name, observe.Name)
-	}
-	if expect.Size != observe.Size {
-		t.Fatalf("not equal: %d <-> %d", expect.Size, observe.Size)
+	if !reflect.DeepEqual(*expect, observe) {
+		t.Fatalf("not equal: %#v <-> %#v", expect, observe)
 	}
 }
 
 func TestSaveTo(t *testing.T) {
-	expect := Zone{}
-	copy(expect.Name.Data[:], []rune("town"))
-	expect.Name.Size = 4
-	expect.Size = 4
+	expect := NewZone("town")
+	buf := &bytes.Buffer{}
+	err := expect.SaveTo(buf)
 	out, err := os.Create("test.xmas")
 	if err != nil {
 		t.Fatalf("file error %s", err)
