@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"slices"
 	"strconv"
 )
 
@@ -40,7 +41,9 @@ func (t *Tiles) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
 	}
 
 	// need to clone as per the contract of Token()
-	cdata = bytes.Trim(bytes.Clone(cdata), " ")
+	// We also strip off surrounding spaces and a single beautifying
+	// leading newline.
+	cdata = bytes.TrimPrefix(bytes.Trim(bytes.Clone(cdata), " "), []byte{'\n'})
 
 	tok, err = d.Token()
 	if err != nil {
@@ -65,6 +68,8 @@ func (t Tiles) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if err != nil {
 		return err
 	}
+	// This newline is purely for aesthetic reasons
+	text = slices.Insert(text, 0, '\n')
 	cdata := xml.CharData(text)
 	end := xml.EndElement{Name: start.Name}
 
