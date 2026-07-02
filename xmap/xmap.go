@@ -141,12 +141,11 @@ type Layer struct {
 type Kind int16
 type Lock int16
 type Key int16
-type Talk int16
 
 type Thing struct {
 	Name    string
 	Kind    Kind
-	Talk    uint16
+	Talk    string
 	Z       uint16
 	X       uint16
 	Y       uint16
@@ -187,4 +186,64 @@ func LoadFrom(rd io.Reader) (*Zone, error) {
 	var zone Zone
 	err := dec.Decode(&zone)
 	return &zone, err
+}
+
+// Talk is a dialog
+type Talk struct {
+	Name  string    `xml:"name,attr"` // identifying name
+	Speak []Speaker `xml:"speak`
+}
+
+type Speaker interface {
+	Speak() string
+}
+
+// Say is a single speech expression or question
+type Say struct {
+	When string `xml:"expr,attr,omitempty"` // expression with condition
+	Who  string `xml:"who,attr"`            // who is speaking
+	Say  string `xml:"say`
+}
+
+func (s Say) Speak() string {
+	return s.Say
+}
+
+// Ask is a speech question with multiple answers
+type Ask struct {
+	When    string `xml:"expr,attr,omitempty"` // expression with condition
+	Who     string `xml:"name,attr"`           // who is speaking
+	Ask     string `xml:"ask`
+	Replies []Reply
+}
+
+func (a Ask) Speak() string {
+	return a.Ask
+}
+
+type Reply struct {
+	When  string `xml:"expr,attr,omitempty"` // expression with condition of reply
+	Expr  string `xml:"expr,attr,omitempty"` // expression with value of reply
+	Reply string `xml:"reply`
+}
+
+func (r Reply) Speak() string {
+	return r.Reply
+}
+
+// If can be used for simple scripting with expressions.
+type If struct {
+	Expr string `xml:"expr,attr"`
+	Then any    `xml:"expr,attr"`
+}
+
+// On can be used for simple event scripting with expressions.
+type On struct {
+	Expr string `xml:"expr,attr"`
+	Body any
+}
+
+// Expr can replace itself with its expression value.
+type Expr struct {
+	Expr string `xml:"expr,attr"`
 }

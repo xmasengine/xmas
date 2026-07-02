@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	github.com/d4l3k/messagediff v1.2.1 // indirect
 	github.com/ebitengine/gomobile v0.0.0-20260211053922-3d992dae95d1 // indirect
 	github.com/ebitengine/hideconsole v1.0.0 // indirect
 	github.com/ebitengine/oto/v3 v3.4.0 // indirect
@@ -32,6 +33,8 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/teacat/noire v1.1.0 // indirect
 	github.com/tidbyt/go-bdf v0.0.0-20200807014123-29975f932239 // indirect
+	github.com/tidwall/conv v0.1.0 // indirect
+	github.com/tidwall/expr v0.14.0 // indirect
 	github.com/wsxiaoys/terminal v0.0.0-20160513160801-0940f3fc43a0 // indirect
 	github.com/yohamta/ganim8/v3 v3.0.1 // indirect
 	golang.org/x/exp v0.0.0-20210916165020-5cb4fee858ee // indirect
