@@ -1,4 +1,6 @@
-package xmap
+// package xdat implements the engine's data structures and
+// saving and loading of these structures. It does not display or run them.
+package xdat
 
 import (
 	"bytes"
@@ -159,6 +161,7 @@ type Zone struct {
 	XMLName xml.Name `xml:"zone"`
 	Name    string   `xml:"name,attr"`
 	Layers  []Layer  `xml:"layer"`
+	Talks   []Talk   `xml:"talk"`
 }
 
 func NewZone(name string) *Zone {

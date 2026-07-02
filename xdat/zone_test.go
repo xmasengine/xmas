@@ -1,4 +1,4 @@
-package xmap
+package xdat
 
 import "testing"
 import "bytes"
