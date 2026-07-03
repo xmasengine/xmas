@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime/pprof"
 
-	"github.com/xmasengine/xmas/engine"
+	"github.com/xmasengine/xmas/xeng"
 	"github.com/xmasengine/xmas/xgal"
 )
 

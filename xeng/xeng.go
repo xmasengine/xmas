@@ -1,4 +1,4 @@
-package engine
+package xeng
 
 import (
 	"fmt"
@@ -8,9 +8,9 @@ import (
 )
 
 import (
+	"github.com/xmasengine/xmas/xdat"
 	"github.com/xmasengine/xmas/xgal"
 	"github.com/xmasengine/xmas/xlog"
-	"github.com/xmasengine/xmas/xmap"
 	// "github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
 	// "github.com/xmasengine/xmas/xzed"
@@ -32,7 +32,7 @@ type Engine struct {
 	ScreenSize image.Point
 	At         image.Rectangle
 	Root       *xui.PaneLayer
-	Zone       *xmap.Zone
+	Zone       *xdat.Zone
 	Debug      bool
 }
 
@@ -52,7 +52,7 @@ func dprintln(msg string, vars ...any) {
 }
 
 func (engine *Engine) testZone() {
-	zone := xmap.NewZone("forest", 64, 64)
+	zone := xdat.NewZone("forest", 64, 64)
 	layer := &zone.Layers[0]
 	err := layer.LoadSource("pack/image/gfx/overworld.png")
 	if err != nil {
@@ -68,8 +68,8 @@ func (engine *Engine) testZone() {
 	player.Th = 32
 	player.At = image.Pt(160, 160)
 
-	player.AddNewPoses(xmap.Stand, 0, 0, 16, 32, 1)
-	player.AddNewPoses(xmap.Walk, 16, 0, 16, 32, 3)
+	player.AddNewPoses(xdat.Stand, 0, 0, 16, 32, 1)
+	player.AddNewPoses(xdat.Walk, 16, 0, 16, 32, 3)
 	zone.Player = *player
 
 	engine.Zone = zone
@@ -133,7 +133,7 @@ func (engine *Engine) testUI() {
 	   // Add a title bar for dragging
 	   box2.AddTitleBar(10, "Box 2")
 
-	   // Add xmap Helper test.
+	   // Add xdat Helper test.
 	   // xzed.AddHelper(&engine.Root.Widget, image.Rect(220, 10, 300, 150), "Help", "Hello\nWorld\nHelp Text", nil)
 	*/
 }
@@ -155,8 +155,8 @@ func (g *Engine) Update() error {
 	g.Pressed = xgal.Keys(g.Pressed)
 	var delta image.Point
 	var mdelta image.Point
-	act := xmap.Stand
-	var dir xmap.Direction
+	act := xdat.Stand
+	var dir xdat.Direction
 	if g.Zone != nil {
 		dir = g.Zone.Player.Direction
 	}
@@ -164,20 +164,20 @@ func (g *Engine) Update() error {
 		switch k {
 		case xgal.KeyArrowUp:
 			delta.Y = -1
-			dir = xmap.North
-			act = xmap.Walk
+			dir = xdat.North
+			act = xdat.Walk
 		case xgal.KeyArrowDown:
 			delta.Y = 1
-			dir = xmap.South
-			act = xmap.Walk
+			dir = xdat.South
+			act = xdat.Walk
 		case xgal.KeyArrowLeft:
 			delta.X = -1
-			dir = xmap.West
-			act = xmap.Walk
+			dir = xdat.West
+			act = xdat.Walk
 		case xgal.KeyArrowRight:
 			delta.X = 1
-			dir = xmap.East
-			act = xmap.Walk
+			dir = xdat.East
+			act = xdat.Walk
 		case xgal.KeyPageUp:
 			mdelta.Y = -1
 		case xgal.KeyPageDown:
