@@ -17,7 +17,7 @@ type HUDLayer struct {
 	Stats  []HUDStat
 }
 
-// HUDBAR is a bar on a HUD to diplay a ratio.
+// HUDBar is a bar on a HUD to display a ratio.
 type HUDBar struct {
 	Name  string    // Name of the bar.
 	Fill  xgal.RGBA // Fill color of the bar. Outline is white.

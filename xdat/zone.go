@@ -70,7 +70,7 @@ func (t Tiles) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if err != nil {
 		return err
 	}
-	// This newline is purely for aesthetic reasons
+	// This newline is purely for aesthetic reasons.
 	text = slices.Insert(text, 0, '\n')
 	cdata := xml.CharData(text)
 	end := xml.EndElement{Name: start.Name}
@@ -112,32 +112,58 @@ func (t *Tiles) UnmarshalText(in []byte) error {
 	rd.Comma = ' '
 	rd.Comment = '#'
 	rd.TrimLeadingSpace = true
-	rd.FieldsPerRecord = -1
+	rd.FieldsPerRecord = 0 // all rows must be equally long
 
-	t.Rows = make([]Row, LayerHeight)
-	for i := 0; i < LayerHeight; i++ {
+	for {
 		record, err := rd.Read()
 		if err != nil {
+			if err == io.EOF {
+				break
+			}
 			return err
 		}
-		t.Rows[i] = make([]Tile, LayerWidth)
+
+		row := make([]Tile, len(record))
 		for j, field := range record {
 			v, err := strconv.Atoi(field)
 			if err != nil {
 				return errors.Join(errors.New("In "+string(in)), err)
 			}
-			t.Rows[i][j] = Tile(v)
+			row[j] = Tile(v)
 		}
+		t.Rows = append(t.Rows, row)
 	}
 	return nil
 }
 
 type Layer struct {
 	Z     uint16 `xml:"z,attr"`
-	W     uint16 `xml:"w,attr"`
-	H     uint16 `xml:"h,attr"`
-	Sheet uint16 `xml:"sheet,attr"`
+	W     uint16 `xml:"w,attr"`   // W is the width in tiles.
+	H     uint16 `xml:"h,attr"`   // H is the height in tiles.
+	STW   uint16 `xml:"stw,attr"` // STW is the width of the tiles expressed as 1<<STW.
+	STH   uint16 `xml:"sth,attr"` // STH is the height in tiles expressed as 1<<STH.
+	From  string `xml:"from,attr"`
 	Tiles Tiles  `xml:"tiles"`
+}
+
+// MakeLayer makes a layer with the default size and tile size.
+func MakeLayer() Layer {
+	return MakeLayerWith(LayerWidth, LayerHeight, 3, 3)
+}
+
+// MakeLayerWith makes a layer with the given parameters.
+func MakeLayerWith(w, h, stw, sth int) Layer {
+	l := Layer{}
+	l.W = uint16(w)
+	l.H = uint16(h)
+	l.STW = uint16(stw)
+	l.STH = uint16(sth)
+
+	l.Tiles.Rows = make([]Row, l.H)
+	for r := uint16(0); r < l.H; r++ {
+		l.Tiles.Rows[r] = make([]Tile, l.W)
+	}
+	return l
 }
 
 type Kind int16
@@ -168,12 +194,9 @@ func NewZone(name string) *Zone {
 	z := &Zone{}
 	z.XMLName.Local = "zone"
 	z.Name = name
-	z.Layers = make([]Layer, LayerCount)
 	for l := 0; l < LayerCount; l++ {
-		z.Layers[l].Tiles.Rows = make([]Row, LayerHeight)
-		for r := 0; r < LayerHeight; r++ {
-			z.Layers[l].Tiles.Rows[r] = make([]Tile, LayerWidth)
-		}
+		layer := MakeLayer()
+		z.Layers = append(z.Layers, layer)
 	}
 	return z
 }
