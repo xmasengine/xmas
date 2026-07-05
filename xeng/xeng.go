@@ -52,7 +52,7 @@ func dprintln(msg string, vars ...any) {
 }
 
 func (engine *Engine) testZone() {
-	zone := xdat.NewZone("forest", 64, 64)
+	zone := xdat.NewZone("forest")
 	layer := &zone.Layers[0]
 	err := layer.LoadSource("pack/image/gfx/overworld.png")
 	if err != nil {
