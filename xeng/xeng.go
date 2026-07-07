@@ -3,7 +3,9 @@ package xeng
 import (
 	"fmt"
 	"image"
+	"io/fs"
 	"log/slog"
+	"os"
 	"strings"
 )
 
@@ -32,8 +34,10 @@ type Engine struct {
 	ScreenSize image.Point
 	At         image.Rectangle
 	Root       *xui.PaneLayer
-	Zone       *xdat.Zone
+	Zone       *Zone
+	FS         fs.FS
 	Debug      bool
+	Camera     xgal.Rectangle
 }
 
 func New(sw, sh int) *Engine {
@@ -42,6 +46,8 @@ func New(sw, sh int) *Engine {
 	engine.Pressed = make([]xgal.KeyCode, 16)
 	engine.Root = xui.Pane(engine.At.Inset(20), "UI")
 	engine.Log.Hide = true
+	wd, _ := os.Getwd()
+	engine.FS = os.DirFS(wd)
 	engine.testZone()
 	engine.testUI()
 	return engine
@@ -54,25 +60,30 @@ func dprintln(msg string, vars ...any) {
 func (engine *Engine) testZone() {
 	zone := xdat.NewZone("forest")
 	layer := &zone.Layers[0]
-	err := layer.LoadSource("pack/image/gfx/overworld.png")
+	err := layer.SetSource(engine.FS, "pack/image/gfx/overworld.png")
 	if err != nil {
 		slog.Error("LoadSource", "file", "pack/image/gfx/overworld.png")
 	}
-	layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
-	player := &zone.Player
-	err = player.LoadSource("pack/image/gfx/character.png")
-	if err != nil {
-		slog.Error("LoadSource", "file", "pack/image/gfx/character.png")
-	}
-	player.Tw = 16
-	player.Th = 32
-	player.At = image.Pt(160, 160)
+	layer.Tiles.Rows[1][2] = 3
+	zone.Layers[0] = *layer
 
-	player.AddNewPoses(xdat.Stand, 0, 0, 16, 32, 1)
-	player.AddNewPoses(xdat.Walk, 16, 0, 16, 32, 3)
-	zone.Player = *player
+	// layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
+	/*
+		player := &zone.Player
+		err = player.LoadSource("pack/image/gfx/character.png")
+		if err != nil {
+			slog.Error("LoadSource", "file", "pack/image/gfx/character.png")
+		}
+		player.Tw = 16
+		player.Th = 32
+		player.At = image.Pt(160, 160)
 
-	engine.Zone = zone
+		player.AddNewPoses(xdat.Stand, 0, 0, 16, 32, 1)
+		player.AddNewPoses(xdat.Walk, 16, 0, 16, 32, 3)
+		zone.Player = *player
+	*/
+	ezone := &Zone{Zone: zone}
+	engine.Zone = ezone
 }
 
 func (engine *Engine) testUI() {
@@ -155,29 +166,29 @@ func (g *Engine) Update() error {
 	g.Pressed = xgal.Keys(g.Pressed)
 	var delta image.Point
 	var mdelta image.Point
-	act := xdat.Stand
-	var dir xdat.Direction
+	// act := xdat.Stand
+	// var dir xdat.Direction
 	if g.Zone != nil {
-		dir = g.Zone.Player.Direction
+		// dir = g.Zone.Player.Direction
 	}
 	for _, k := range g.Pressed {
 		switch k {
 		case xgal.KeyArrowUp:
 			delta.Y = -1
-			dir = xdat.North
-			act = xdat.Walk
+			// dir = xdat.North
+			// act = xdat.Walk
 		case xgal.KeyArrowDown:
 			delta.Y = 1
-			dir = xdat.South
-			act = xdat.Walk
+			// dir = xdat.South
+			// act = xdat.Walk
 		case xgal.KeyArrowLeft:
 			delta.X = -1
-			dir = xdat.West
-			act = xdat.Walk
+			// dir = xdat.West
+			// act = xdat.Walk
 		case xgal.KeyArrowRight:
 			delta.X = 1
-			dir = xdat.East
-			act = xdat.Walk
+			// dir = xdat.East
+			// act = xdat.Walk
 		case xgal.KeyPageUp:
 			mdelta.Y = -1
 		case xgal.KeyPageDown:
@@ -191,11 +202,11 @@ func (g *Engine) Update() error {
 	}
 
 	if g.Zone != nil {
-		g.Zone.Camera = g.Zone.Camera.Add(mdelta)
-		g.Zone.Player.At = g.Zone.Player.At.Add(delta)
-		pose := g.Zone.Player.BestPose(dir, act)
-		g.Zone.Player.Pose = pose
-		g.Zone.Player.Update()
+		g.Camera = g.Camera.Add(mdelta)
+		// g.Zone.Player.At = g.Zone.Player.At.Add(delta)
+		// pose := g.Zone.Player.BestPose(dir, act)
+		// g.Zone.Player.Pose = pose
+		// g.Zone.Player.Update()
 	}
 
 	switch {
@@ -217,11 +228,11 @@ const tileDebug = false
 
 func (g *Engine) Draw(screen *xgal.Surface) {
 	if g.Zone != nil {
-		g.Zone.Draw(screen)
+		g.Zone.Render(screen, g.Camera)
 		if g.Debug {
-			pose := g.Zone.Player.Pose
-			xgal.Debug(screen, fmt.Sprintf("pose: %d %d %d %d %d",
-				pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick), 0, 0)
+			// pose := g.Zone.Player.Pose
+			// xgal.Debug(screen, fmt.Sprintf("pose: %d %d %d %d %d",
+			//	pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick), 0, 0)
 		}
 	}
 

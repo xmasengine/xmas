@@ -6,15 +6,21 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
-// BlitOp specifies a flip or rotation for Blit.
-type BlitOp int
+// BlitOpts specifies the options such as flip or rotation for Blit.
+type BlitOpts struct {
+	FlipH bool
+	FlipV bool
+	Rot   Rot
+}
+
+// Rot is the stepwise rotation in 90 degree steps.
+type Rot uint8
 
 const (
-	FlipH  BlitOp = iota // Flip Horizontally
-	FlipV                // Flip Vertically
-	Rot90                // Rotate 90 degrees clockwise.
-	Rot180               // Rotate 180 degrees clockwise.
-	Rot270               // Rotate 270 degrees clockwise.
+	Rot0   Rot = iota // Do not roate.
+	Rot90             // Rotate 90 degrees clockwise.
+	Rot180            // Rotate 180 degrees clockwise.
+	Rot270            // Rotate 270 degrees clockwise.
 )
 
 // Filter controls how pixel colors are sampled when drawing a [Surface]
@@ -47,29 +53,21 @@ var (
 	BlendErase BlendMode = ebiten.BlendClear
 )
 
-func blitOpts(dr, sr Rectangle, ops []BlitOp) *ebiten.DrawImageOptions {
+func (opts BlitOpts) toDrawImageOptions(dr, sr Rectangle) *ebiten.DrawImageOptions {
 	sw, sh := float64(sr.Dx()), float64(sr.Dy())
 	dw, dh := float64(dr.Dx()), float64(dr.Dy())
 
 	op := &ebiten.DrawImageOptions{}
 
-	step := 0
 	flipX, flipY := 1.0, 1.0
 
-	for _, b := range ops {
-		switch b {
-		case FlipH:
-			flipX = -flipX
-		case FlipV:
-			flipY = -flipY
-		case Rot90:
-			step = (step + 1) % 4
-		case Rot180:
-			step = (step + 2) % 4
-		case Rot270:
-			step = (step + 3) % 4
-		}
+	if opts.FlipH {
+		flipX = -flipX
 	}
+	if opts.FlipV {
+		flipY = -flipY
+	}
+	step := int(opts.Rot) % 4
 
 	// Effective dimensions after rotation
 	w, h := sw, sh
@@ -111,17 +109,26 @@ func blitOpts(dr, sr Rectangle, ops []BlitOp) *ebiten.DrawImageOptions {
 
 // Blit copies the source rectangle sr from src onto the destination rectangle
 // dr of dst. Ops are flags: rotation is applied first, then flips.
-func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOp) {
+func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOpts) {
 	sub := src.SubImage(sr).(*ebiten.Image)
-	op := blitOpts(dr, sr, ops)
+
+	op := &ebiten.DrawImageOptions{}
+	if len(ops) >= 1 {
+		op = ops[0].toDrawImageOptions(dr, sr)
+	}
+
 	dst.DrawImage(sub, op)
 }
 
 // Blend copies sr from src onto dr of dst with the given blend mode.
 // Ops are the same rotation/flip flags as Blit.
-func Blend(dst, src *Surface, dr, sr Rectangle, mode BlendMode, ops ...BlitOp) {
+func Blend(dst, src *Surface, dr, sr Rectangle, mode BlendMode, ops ...BlitOpts) {
 	sub := src.SubImage(sr).(*ebiten.Image)
-	op := blitOpts(dr, sr, ops)
+	op := &ebiten.DrawImageOptions{}
+	if len(ops) >= 1 {
+		op = ops[0].toDrawImageOptions(dr, sr)
+	}
+
 	op.Blend = mode
 	dst.DrawImage(sub, op)
 }

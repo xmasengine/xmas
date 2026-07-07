@@ -41,7 +41,7 @@ func main() {
 
 	mon := xgal.Monitor()
 	xgal.Screen(-1, -1, "xmas: Xmas Game Engine.")
-	en := engine.New(mon.Size())
+	en := xeng.New(mon.Size())
 	logger := (&en.Log).Logger()
 	fmt.Printf("logger: %#v\n", logger)
 	slog.SetDefault(logger)

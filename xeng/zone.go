@@ -5,9 +5,13 @@ import (
 	"github.com/xmasengine/xmas/xgal"
 )
 
+type Layer struct {
+	Source *xgal.Surface
+}
+
 type Zone struct {
-	// static data of the zone
-	xdat.Zone
+	// data of the zone
+	*xdat.Zone
 }
 
 /*
@@ -54,65 +58,64 @@ func (m *Zone) RenderPresences(screen *xgal.Surface, camera xgal.Rectangle) {
 }
 */
 
-func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, idx int) {
-	ab := m.Surface.Bounds()
-	if idx < 0 || idx > len(z.Layers) {
+func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.Layer) {
+	if m.Texture == nil {
+		// Can't draw anyway, no texture
 		return
 	}
-	m := z.Layers[idx]
 
-	starty := camera.Min.Y / m.Th
+	starty := camera.Min.Y / int(m.Height)
 	if starty < 0 {
 		starty = 0
 	}
-	endy := min(camera.Max.Y/m.Th, len(m.Rows)-1)
+	endy := min(camera.Max.Y/int(m.Height), len(m.Tiles.Rows)-1)
 
 	// This draws the whole layer. Only draw visible part using a camera.
 	for ty := starty; ty < endy; ty++ {
-		row := m.Rows[ty]
+		row := m.Tiles.Rows[ty]
 
-		startx := max(camera.Min.X/m.Tw, 0)
-		endx := min(camera.Max.X/m.Tw, len(row.Cells)-1)
+		startx := max(camera.Min.X/int(m.Width), 0)
+		endx := min(camera.Max.X/int(m.Width), len(row)-1)
 		for tx := startx; tx < endx; tx++ {
-			cell := row.Cells[tx]
-			id := int(cell.Index)
-			if cell.Flag&FlagExtended != 0 {
-				id += 255
+			cell := row[tx]
+			idx := cell.X()
+			idy := cell.Y()
+			fx := int(idx) * int(m.TileWidth)
+			fy := int(idy) * int(m.TileHeight)
+
+			from := xgal.Rect(fx, fy, fx+int(m.TileWidth), fy+int(m.TileHeight))
+			sub := m.Texture.SubImage(from).(*xgal.Surface)
+			opts := xgal.BlitOpts{}
+
+			if cell.Has(xdat.FlagHorizontal) {
+				opts.FlipH = true
 			}
-			tilew := ab.Dx() / m.Tw
-			idx := id % tilew
-			idy := id / tilew
-			fx := idx * m.Tw
-			fy := idy * m.Th
-
-			from := image.Rect(fx, fy, fx+m.Tw, fy+m.Th)
-			sub := m.Surface.SubImage(from).(*Surface)
-			opts := ebiten.DrawImageOptions{}
-			if cell.Flag&FlagHorizontalFlip != 0 {
-				opts.GeoM.Scale(-1, 1)
-				opts.GeoM.Translate(float64(m.Tw), 0)
+			if cell.Has(xdat.FlagVertical) {
+				opts.FlipV = true
 			}
-			if cell.Flag&FlagVerticalFlip != 0 {
-				opts.GeoM.Scale(1, -1)
-				opts.GeoM.Translate(0, float64(m.Th))
+			if cell.Has(xdat.FlagRotate90) {
+				opts.Rot = xgal.Rot90
 			}
-
-			atx := int(tx)*m.Tw - camera.Min.X
-			aty := int(ty)*m.Th - camera.Min.Y
-
-			opts.GeoM.Translate(float64(atx), float64(aty))
-
-			if sub != nil {
-				screen.DrawImage(sub, &opts)
+			if cell.Has(xdat.FlagRotate180) {
+				opts.Rot = xgal.Rot180
+			}
+			if cell.Has(xdat.FlagRotate270) {
+				opts.Rot = xgal.Rot270
 			}
 
-			to := Bounds(atx, aty, m.Tw, m.Th)
-			if m.Flags {
-				cell.Flag.Render(screen, to)
-			}
+			atx := int(tx)*int(m.TileWidth) - camera.Min.X
+			aty := int(ty)*int(m.TileHeight) - camera.Min.Y
+			to := xgal.Rect(atx, aty, atx+int(m.TileWidth), aty+int(m.TileHeight))
+			xgal.Blit(screen, sub, to, sub.Bounds(), opts)
 		}
 	}
-	m.RenderPresences(screen, camera)
+	// m.RenderPresences(screen, camera, layer)
+}
+
+func (z *Zone) Render(screen *xgal.Surface, camera xgal.Rectangle) {
+	for _, layer := range z.Layers {
+		z.RenderLayer(screen, camera, layer)
+	}
 }
 
 /*

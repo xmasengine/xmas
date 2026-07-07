@@ -1,5 +1,6 @@
 // package xdat implements the engine's data structures and
-// saving and loading of these structures. It does not display or run them.
+// saving and loading of these structures, including resouurces such as
+// tile or sprite images. It does not display or run them.
 package xdat
 
 import (
@@ -8,8 +9,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
+	"io/fs"
 	"slices"
 	"strconv"
+)
+
+import (
+	"github.com/xmasengine/xmas/xgal"
 )
 
 const version = 1
@@ -19,7 +25,46 @@ type Header struct {
 	Version uint32
 }
 
-type Tile uint16
+type Flag uint32
+
+const (
+	FlagSolid Flag = 1 << (16 + iota)
+	FlagSpecial
+	FlagHarm
+	FlagBless
+	FlagHorizontal
+	FlagVertical
+	FlagRotate90
+	FlagRotate180
+	FlagRotate270
+)
+
+// Tile consists of upper 16 biths with the flags,
+// middle 8 bits with the tile Y coordinate in tiles in the texture
+// and low 8 bith with the x coordinate in tiles in the texture
+type Tile uint32
+
+func (t Tile) X() uint8 {
+	return uint8(t & 0xff)
+}
+
+func (t Tile) Y() uint8 {
+	return uint8((t >> 8) & 0xff)
+}
+
+func (t Tile) Has(f Flag) bool {
+	return (Flag(t) & f) == f
+}
+
+func (t *Tile) Set(f Flag) Tile {
+	(*t) = Tile(f) | *t
+	return *t
+}
+
+func (t *Tile) Toggle(f Flag) Tile {
+	(*t) = Tile(f) ^ *t
+	return *t
+}
 
 const LayerCount = 4
 const LayerWidth = 64
@@ -137,33 +182,60 @@ func (t *Tiles) UnmarshalText(in []byte) error {
 }
 
 type Layer struct {
-	Z     uint16 `xml:"z,attr"`
-	W     uint16 `xml:"w,attr"`   // W is the width in tiles.
-	H     uint16 `xml:"h,attr"`   // H is the height in tiles.
-	STW   uint16 `xml:"stw,attr"` // STW is the width of the tiles expressed as 1<<STW.
-	STH   uint16 `xml:"sth,attr"` // STH is the height in tiles expressed as 1<<STH.
-	From  string `xml:"from,attr"`
-	Tiles Tiles  `xml:"tiles"`
+	Depth      uint16        `xml:"z,attr"`   // Depth is the depth position of the layer
+	Width      uint16        `xml:"w,attr"`   // Width is the width expressed in tiles.
+	Height     uint16        `xml:"h,attr"`   // Height is the height expressed in tiles.
+	TileWidth  uint16        `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
+	TileHeight uint16        `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
+	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
+	Tiles      Tiles         `xml:"tiles"`    // Tiles
+	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this layer if loaded.
 }
 
 // MakeLayer makes a layer with the default size and tile size.
 func MakeLayer() Layer {
-	return MakeLayerWith(LayerWidth, LayerHeight, 3, 3)
+	return MakeLayerWith(LayerWidth, LayerHeight, 8, 8)
 }
 
 // MakeLayerWith makes a layer with the given parameters.
-func MakeLayerWith(w, h, stw, sth int) Layer {
+func MakeLayerWith(w, h, tw, th int) Layer {
 	l := Layer{}
-	l.W = uint16(w)
-	l.H = uint16(h)
-	l.STW = uint16(stw)
-	l.STH = uint16(sth)
+	l.Width = uint16(w)
+	l.Height = uint16(h)
+	l.TileWidth = uint16(tw)
+	l.TileHeight = uint16(th)
 
-	l.Tiles.Rows = make([]Row, l.H)
-	for r := uint16(0); r < l.H; r++ {
-		l.Tiles.Rows[r] = make([]Tile, l.W)
+	l.Tiles.Rows = make([]Row, l.Height)
+	for r := uint16(0); r < l.Height; r++ {
+		l.Tiles.Rows[r] = make([]Tile, l.Width)
 	}
 	return l
+}
+
+func (l *Layer) SetSource(fsys fs.FS, src string) error {
+	texture, err := xgal.Texture(fsys, src)
+	if err != nil {
+		return err
+	}
+	l.Texture = texture
+	l.Source = src
+	return nil
+}
+
+func (l *Layer) loadTexture(fsys fs.FS) error {
+	if l.Source == "" {
+		return nil
+	}
+
+	texture, err := xgal.Texture(fsys, l.Source)
+	if err != nil {
+		return err
+	}
+	if l.Texture != nil {
+		l.Texture.Deallocate()
+	}
+	l.Texture = texture
+	return nil
 }
 
 type Kind int16
@@ -171,16 +243,18 @@ type Lock int16
 type Key int16
 
 type Thing struct {
-	Name    string
-	Kind    Kind
-	Talk    string
-	Z       uint16
-	X       uint16
-	Y       uint16
-	W       uint16
-	H       uint16
-	Sheet   uint16
-	Sprites [ThingSprites]uint16
+	Name       string
+	Kind       Kind
+	Talk       string
+	Sprites    [ThingSprites]uint16
+	Depth      uint16        `xml:"z,attr"`   // Depth is the depth position of the layer
+	Width      uint16        `xml:"w,attr"`   // Width is the width expressed in tiles.
+	Height     uint16        `xml:"h,attr"`   // Height is the height expressed in tiles.
+	TileWidth  uint16        `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
+	TileHeight uint16        `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
+	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
+	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this Thing if loaded.
+
 }
 
 type Zone struct {
@@ -212,6 +286,33 @@ func LoadFrom(rd io.Reader) (*Zone, error) {
 	var zone Zone
 	err := dec.Decode(&zone)
 	return &zone, err
+}
+
+func (z *Zone) loadLayerTextures(fsys fs.FS) error {
+	for _, layer := range z.Layers {
+		err := layer.loadTexture(fsys)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func LoadZone(fsys fs.FS, name string) (*Zone, error) {
+	fin, err := fsys.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer fin.Close()
+	zone, err := LoadFrom(fin)
+	if err != nil {
+		return nil, err
+	}
+	err = zone.loadLayerTextures(fsys)
+	if err != nil {
+		return nil, err
+	}
+	return zone, err
 }
 
 // Talk is a dialog
