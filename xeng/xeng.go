@@ -5,6 +5,7 @@ import (
 	"image"
 	"io/fs"
 	"log/slog"
+	"math/rand/v2"
 	"os"
 	"strings"
 )
@@ -59,10 +60,19 @@ func dprintln(msg string, vars ...any) {
 func (engine *Engine) testZone() {
 	zone := xdat.NewZone("forest")
 	layer := &zone.Layers[0]
-	err := layer.SetSource(engine.FS, "pack/image/gfx/overworld.png")
+	err := layer.SetSource(engine.FS, "pack/tile/tile_0002.png")
 	if err != nil {
-		slog.Error("LoadSource", "file", "pack/image/gfx/overworld.png")
+		slog.Error("LoadSource", "file", "pack/tile/tile_0002.png")
 	}
+	for y := 0; y < int(zone.Layers[0].Height); y++ {
+		for x := 0; x < int(zone.Layers[0].Width); x++ {
+			tw := rand.IntN(8)
+			th := rand.IntN(2)
+			t := tw + th*8
+			zone.Layers[0].Tiles.Rows[y][x] = xdat.Tile(t)
+		}
+	}
+
 	zone.Layers[1].Texture = zone.Layers[0].Texture
 	zone.Layers[2].Texture = zone.Layers[0].Texture
 
