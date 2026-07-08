@@ -58,26 +58,29 @@ func (m *Zone) RenderPresences(screen *xgal.Surface, camera xgal.Rectangle) {
 }
 */
 
-func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.Layer) {
+func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.Layer, index int) {
 	if m.Texture == nil {
-		// Can't draw anyway, no texture
+		// Can't draw if there is no texture loaded.
 		return
 	}
 
-	starty := camera.Min.Y / int(m.Height)
+	starty := camera.Min.Y / int(m.TileHeight)
 	if starty < 0 {
 		starty = 0
 	}
-	endy := min(camera.Max.Y/int(m.Height), len(m.Tiles.Rows)-1)
+	endy := min(camera.Max.Y/int(m.TileHeight), len(m.Tiles.Rows)-1)
 
 	// This draws the whole layer. Only draw visible part using a camera.
 	for ty := starty; ty < endy; ty++ {
 		row := m.Tiles.Rows[ty]
 
-		startx := max(camera.Min.X/int(m.Width), 0)
-		endx := min(camera.Max.X/int(m.Width), len(row)-1)
+		startx := max(camera.Min.X/int(m.TileWidth), 0)
+		endx := min(1+camera.Max.X/int(m.TileWidth), len(row)-1)
 		for tx := startx; tx < endx; tx++ {
 			cell := row[tx]
+			if cell == 0 && index > 0 {
+				continue // 0 is empty when not level 0
+			}
 			idx := cell.X()
 			idy := cell.Y()
 			fx := int(idx) * int(m.TileWidth)
@@ -113,8 +116,8 @@ func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.L
 }
 
 func (z *Zone) Render(screen *xgal.Surface, camera xgal.Rectangle) {
-	for _, layer := range z.Layers {
-		z.RenderLayer(screen, camera, layer)
+	for i, layer := range z.Layers {
+		z.RenderLayer(screen, camera, layer, i)
 	}
 }
 

@@ -20,8 +20,8 @@ import (
 
 // const ViewWidth = 320 // 2
 
-const ViewWidth = 426  // *2
-const ViewHeight = 240 // 2
+const ViewWidth = 340  //256  // 426  // *2
+const ViewHeight = 192 // 240 // 2
 
 // const ViewHeight = 240 * 2
 
@@ -32,7 +32,6 @@ type Engine struct {
 	Script     strings.Reader
 	DebugRow   int
 	ScreenSize image.Point
-	At         image.Rectangle
 	Root       *xui.PaneLayer
 	Zone       *Zone
 	FS         fs.FS
@@ -42,9 +41,9 @@ type Engine struct {
 
 func New(sw, sh int) *Engine {
 	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
-	engine.At = image.Rect(0, 0, ViewWidth, ViewHeight)
+	engine.Camera = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]xgal.KeyCode, 16)
-	engine.Root = xui.Pane(engine.At.Inset(20), "UI")
+	engine.Root = xui.Pane(engine.Camera.Inset(20), "UI")
 	engine.Log.Hide = true
 	wd, _ := os.Getwd()
 	engine.FS = os.DirFS(wd)
@@ -64,8 +63,12 @@ func (engine *Engine) testZone() {
 	if err != nil {
 		slog.Error("LoadSource", "file", "pack/image/gfx/overworld.png")
 	}
-	layer.Tiles.Rows[1][2] = 3
-	zone.Layers[0] = *layer
+	zone.Layers[1].Texture = zone.Layers[0].Texture
+	zone.Layers[2].Texture = zone.Layers[0].Texture
+
+	zone.Layers[1].Tiles.Rows[1][2] = 3
+	zone.Layers[2].Tiles.Rows[3][4] = 4
+	// zone.Layers[0] = *layer
 
 	// layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
 	/*
@@ -216,7 +219,7 @@ func (g *Engine) Update() error {
 		g.Debug = !g.Debug
 	case xgal.Tap(xgal.KeyU):
 		if g.Root == nil {
-			g.Root = xui.Pane(g.At.Inset(20), "UI 2")
+			g.Root = xui.Pane(g.Camera.Inset(20), "UI 2")
 		}
 	default:
 	}
