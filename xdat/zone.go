@@ -10,6 +10,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"os"
 	"slices"
 	"strconv"
 )
@@ -181,12 +182,41 @@ func (t *Tiles) UnmarshalText(in []byte) error {
 	return nil
 }
 
+func (t Tiles) Contains(tx, ty int) bool {
+	if tx < 0 || ty < 0 {
+		return false
+	}
+
+	if ty >= len(t.Rows) {
+		return false
+	}
+	if tx >= len(t.Rows[ty]) {
+		return false
+	}
+	return true
+}
+
+func (t *Tiles) Set(at xgal.Point, cell Tile) bool {
+	if !t.Contains(at.X, at.Y) {
+		return false
+	}
+	t.Rows[at.Y][at.X] = cell
+	return true
+}
+
+func (t Tiles) Get(at xgal.Point) Tile {
+	if !t.Contains(at.X, at.Y) {
+		return 0
+	}
+	return t.Rows[at.Y][at.X]
+}
+
 type Layer struct {
-	Depth      uint16        `xml:"z,attr"`   // Depth is the depth position of the layer
-	Width      uint16        `xml:"w,attr"`   // Width is the width expressed in tiles.
-	Height     uint16        `xml:"h,attr"`   // Height is the height expressed in tiles.
-	TileWidth  uint16        `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
-	TileHeight uint16        `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
+	Depth      int           `xml:"z,attr"`   // Depth is the depth position of the layer
+	Width      int           `xml:"w,attr"`   // Width is the width expressed in tiles.
+	Height     int           `xml:"h,attr"`   // Height is the height expressed in tiles.
+	TileWidth  int           `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
+	TileHeight int           `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
 	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
 	Tiles      Tiles         `xml:"tiles"`    // Tiles
 	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this layer if loaded.
@@ -200,13 +230,13 @@ func MakeLayer() Layer {
 // MakeLayerWith makes a layer with the given parameters.
 func MakeLayerWith(w, h, tw, th int) Layer {
 	l := Layer{}
-	l.Width = uint16(w)
-	l.Height = uint16(h)
-	l.TileWidth = uint16(tw)
-	l.TileHeight = uint16(th)
+	l.Width = w
+	l.Height = h
+	l.TileWidth = tw
+	l.TileHeight = th
 
 	l.Tiles.Rows = make([]Row, l.Height)
-	for r := uint16(0); r < l.Height; r++ {
+	for r := 0; r < l.Height; r++ {
 		l.Tiles.Rows[r] = make([]Tile, l.Width)
 	}
 	return l
@@ -236,6 +266,48 @@ func (l *Layer) loadTexture(fsys fs.FS) error {
 	}
 	l.Texture = texture
 	return nil
+}
+
+func (l *Layer) Contains(tx, ty int) bool {
+	return l.Tiles.Contains(tx, ty)
+}
+
+func (l *Layer) Set(at xgal.Point, cell Tile) bool {
+	return l.Tiles.Set(at, cell)
+}
+
+func (l Layer) Get(at xgal.Point) Tile {
+	return l.Tiles.Get(at)
+}
+
+func (l *Layer) FloodFill(at xgal.Point, cell Tile) {
+	now := l.Get(at)
+	if now == cell {
+		return // already ok
+	}
+	if !l.Contains(at.X, at.Y) {
+		return
+	}
+
+	l.Set(at, cell)
+	// this floodfill is recursive but the maps are small so
+	// it should not cause problems.
+	for dx := -1; dx <= 1; dx++ {
+		at2 := at
+		at2.X += dx
+		now2 := l.Get(at2)
+		if now2 == now {
+			l.FloodFill(at2, cell)
+		}
+	}
+	for dy := -1; dy <= 1; dy++ {
+		at2 := at
+		at2.Y += dy
+		now2 := l.Get(at2)
+		if now2 == now {
+			l.FloodFill(at2, cell)
+		}
+	}
 }
 
 type Kind int16
@@ -279,6 +351,15 @@ func (z Zone) SaveTo(wr io.Writer) error {
 	enc := xml.NewEncoder(wr)
 	enc.Indent("", " ")
 	return enc.Encode(z)
+}
+
+func (z Zone) SaveFile(name string) error {
+	out, err := os.Create(name)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	return z.SaveTo(out)
 }
 
 func LoadFrom(rd io.Reader) (*Zone, error) {

@@ -57,6 +57,9 @@ func Pt(x, y int) Point { return image.Pt(x, y) }
 // Rect returns a [Rectangle] from (x0,y0) to (x1,y1).
 func Rect(x0, y0, x1, y1 int) Rectangle { return image.Rect(x0, y0, x1, y1) }
 
+// Bound returns a [Rectangle] from (x0,y0) to (x0+w,y0+h).
+func Bound(x0, y0, w, h int) Rectangle { return image.Rect(x0, y0, x0+w, y0+h) }
+
 // Wash returns a color with the given channel values. Prefer this to
 // RGBA{R, G, B, A} to avoid vet warnings about unkeyed fields.
 func Wash(r, g, b, a uint8) RGBA { return RGBA{r, g, b, a} }
