@@ -16,7 +16,7 @@ import (
 	"github.com/xmasengine/xmas/xlog"
 	// "github.com/xmasengine/xmas/xres"
 	"github.com/xmasengine/xmas/xui"
-	// "github.com/xmasengine/xmas/xzed"
+	"github.com/xmasengine/xmas/xzed"
 )
 
 // const ViewWidth = 320 // 2
@@ -38,6 +38,7 @@ type Engine struct {
 	FS         fs.FS
 	Debug      bool
 	Camera     xgal.Rectangle
+	Editor     *xzed.Editor
 }
 
 func New(sw, sh int) *Engine {
@@ -165,6 +166,16 @@ func (engine *Engine) testUI() {
 func (g *Engine) Update() error {
 	g.Log.Update()
 
+	if g.Editor != nil {
+		res := g.Editor.Poll()
+		if res != xui.Ignore {
+			if res == xui.Finish {
+				g.Editor = nil
+			}
+			return nil
+		}
+	}
+
 	if g.Root != nil {
 		res := g.Root.Poll()
 		if res != xui.Ignore {
@@ -210,6 +221,10 @@ func (g *Engine) Update() error {
 			mdelta.X = -1
 		case xgal.KeyEnd:
 			mdelta.X = 1
+		case xgal.KeyF10:
+			if g.Zone != nil {
+				g.Editor = xzed.NewEditor(g.Zone.Zone, "map_0001.xml", ViewWidth, ViewHeight, 1)
+			}
 		default:
 		}
 	}
@@ -247,6 +262,10 @@ func (g *Engine) Draw(screen *xgal.Surface) {
 			// xgal.Debug(screen, fmt.Sprintf("pose: %d %d %d %d %d",
 			//	pose.Direction, pose.Action, pose.Phase, pose.Frames, pose.Tick), 0, 0)
 		}
+	}
+
+	if g.Editor != nil {
+		g.Editor.Render(screen)
 	}
 
 	if g.Root != nil {

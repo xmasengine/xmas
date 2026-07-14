@@ -310,6 +310,11 @@ func (l *Layer) FloodFill(at xgal.Point, cell Tile) {
 	}
 }
 
+func (l *Layer) ToTile(at xgal.Point, camera xgal.Rectangle) xgal.Point {
+	off := at.Sub(camera.Min)
+	return xgal.Pt(off.X/l.TileWidth, off.Y/l.TileHeight)
+}
+
 type Kind int16
 type Lock int16
 type Key int16

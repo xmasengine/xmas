@@ -189,7 +189,7 @@ func Chars(buf ...[]rune) []rune {
 	return ebiten.AppendInputChars(b)
 }
 
-// Age returns how long the key has been pressed, in ticks.
-func Age(code KeyCode) int {
+// Tapped returns how long the key has been pressed, in ticks.
+func Tapped(code KeyCode) int {
 	return inpututil.KeyPressDuration(code)
 }

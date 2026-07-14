@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"image"
 	"io/fs"
-	"os"
+	//	"os"
 )
 
 import (
@@ -124,7 +124,7 @@ func (e *Editor) LoadSpriteSurface(name string) bool {
 				e.UpdateTilers()
 			}
 			e.Error = err
-			e.Midget.Error(70, 70, 270, 120, err)
+			e.Layer.Error(70, 70, 270, 120, err)
 			return e.Error == nil
 	*/
 	return true
@@ -164,7 +164,7 @@ func (e *Editor) UpdateWatcher() bool {
 			case name := <-e.SpriteWatcher.C:
 				err := e.Zone.Sprites.LoadSurface(name)
 				e.Error = err
-				e.Midget.Error(70, 70, 270, 120, err)
+				e.Layer.Error(70, 70, 270, 120, err)
 				if e.Error == nil {
 					e.ShowMessage("Auto update sprites: %s", name)
 					e.UpdateTilers()
@@ -249,115 +249,119 @@ Y: Yank hovered tile.   | G: Edit flags.
 Enter: Confirm dialogs. | Esc: Cancel dialogs.
 `
 
-func (e *Editor) Update() error {
-	var err error
+func (e *Editor) Poll() xui.Reply {
+	// var err error
 	e.Hover = xgal.Mouse()
-	e.Tile = e.Zone.ToTile(e.Hover, e.Camera)
+	layer := e.ActiveLayer()
+	if layer != nil {
+		e.Tile = layer.ToTile(e.Hover, e.Camera)
+	}
 
-	_, wheel := ebiten.Wheel()
+	_, wheel := xgal.Wheel()
 	if wheel > 0 {
-		e.Cell.Index++
+		e.Cell++
 	} else if wheel < 0 {
-		e.Cell.Index = max(0, e.Cell.Index-1)
+		e.Cell = max(0, e.Cell-1)
 	}
 
 	e.UpdateWatcher()
 
-	err = e.Midget.Update()
-	if err != nil {
-		if err == MidgetOK { // input handled by some active Midget.
-			return nil
-		}
-		return err
+	res := e.Layer.Poll()
+	if res == xui.Accept {
+		return res
 	}
 
 	switch {
-	case inpututil.IsKeyJustPressed(ebiten.KeyPause):
-		e.Midget.YesNo(50, 50, 250, 100, "Quit", "Y", e.SetDone)
-	case inpututil.IsKeyJustPressed(ebiten.KeyY):
-		e.Cell = e.Zone.Get(e.Tile)
-		e.ShowMessage("Yanked %d %d", e.Cell.Index, e.Cell.Flag)
-	case inpututil.IsKeyJustPressed(ebiten.KeyL):
-		if e.Zone != nil {
-			e.Zone.Flags = !e.Zone.Flags
-		}
-	case inpututil.IsKeyJustPressed(ebiten.KeyH):
-		e.Cell.Flag ^= FlagHorizontalFlip
-	case inpututil.IsKeyJustPressed(ebiten.KeyV):
-		e.Cell.Flag ^= FlagVerticalFlip
-	case inpututil.IsKeyJustPressed(ebiten.KeyN):
-		e.Cell.Flag ^= FlagOnTop
-	case inpututil.IsKeyJustPressed(ebiten.KeyB):
-		e.Cell.Flag ^= FlagSolid
-	case inpututil.IsKeyJustPressed(ebiten.KeyG):
-		e.Midget.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
-	case inpututil.IsKeyJustPressed(ebiten.KeyF1):
-		e.Midget.Ask(50, 0, 300, 250, HELP, "", Accept)
-	case inpututil.IsKeyJustPressed(ebiten.KeyF2):
-		e.Midget.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
-	case inpututil.IsKeyJustPressed(ebiten.KeyF4):
-		e.Midget.Ask(50, 50, 250, 100, "Load From", e.Name, e.LoadZone)
-	case inpututil.IsKeyJustPressed(ebiten.KeyU):
-		if inpututil.KeyPressDuration(ebiten.KeyShiftLeft) > 0 {
-			e.Backup.Commit(e.SaveZoneToFile)
+	case xgal.Tap(xgal.KeyPause):
+		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
+	case xgal.Tap(xgal.KeyY):
+		e.Cell = layer.Get(e.Tile)
+		e.ShowMessage("Yanked %d", e.Cell)
+	/*
+		case xgal.Tap(xgal.KeyL):
+			if e.Zone != nil {
+				e.Zone.Flags = !e.Zone.Flags
+			}
+		case xgal.Tap(xgal.KeyH):
+			e.Cell.Flag ^= FlagHorizontalFlip
+		case xgal.Tap(xgal.KeyV):
+			e.Cell.Flag ^= FlagVerticalFlip
+		case xgal.Tap(xgal.KeyN):
+			e.Cell.Flag ^= FlagOnTop
+		case xgal.Tap(xgal.KeyB):
+			e.Cell.Flag ^= FlagSolid
+		case xgal.Tap(xgal.KeyG):
+			e.Layer.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
+	*/
+	case xgal.Tap(xgal.KeyF1):
+		// e.Layer.Ask(50, 0, 300, 250, HELP, "", Accept)
+	case xgal.Tap(xgal.KeyF2):
+		// e.Layer.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
+	case xgal.Tap(xgal.KeyF4):
+		// e.Layer.Ask(50, 50, 250, 100, "Load From", e.Name, e.LoadZone)
+	case xgal.Tap(xgal.KeyU):
+		if xgal.Key(xgal.KeyShiftLeft) {
+			// e.Backup.Commit(e.SaveZoneToFile)
 		} else {
-			e.Midget.YesNo(50, 50, 250, 100, "Restore backup", "Y", e.Restore)
+			// e.Layer.YesNo(50, 50, 250, 100, "Restore backup", "Y", e.Restore)
 		}
-	case inpututil.IsKeyJustPressed(ebiten.KeyF):
-		if inpututil.KeyPressDuration(ebiten.KeyShiftLeft) > 0 {
-			e.Midget.Ask(50, 50, 250, 100, "Sprites", e.Zone.Sprites.From, e.LoadSpriteSurface)
+	case xgal.Tap(xgal.KeyF):
+		if xgal.Key(xgal.KeyShiftLeft) {
+			// e.Layer.Ask(50, 50, 250, 100, "Sprites", e.Zone.Sprites.From, e.LoadSpriteSurface)
 		} else {
-			e.Midget.Ask(50, 50, 250, 100, "From", e.Zone.From, e.LoadSurface)
+			// e.Layer.Ask(50, 50, 250, 100, "From", e.Zone.From, e.LoadSurface)
 		}
 
-	case inpututil.IsKeyJustPressed(ebiten.KeyP):
-		e.Midget.AskString(50, 50, 250, 100, "Prefix", &e.Zone.Prefix)
-	case inpututil.IsKeyJustPressed(ebiten.KeyO):
-		e.Midget.AskInt(50, 50, 250, 100, "Offset", &e.Zone.Offset)
-	case inpututil.IsKeyJustPressed(ebiten.KeyS):
-		e.Midget.AskInt(50, 50, 250, 100, "UI Scale", &e.Scale)
-	case inpututil.IsKeyJustPressed(ebiten.KeyF3):
-		if inpututil.KeyPressDuration(ebiten.KeyShiftLeft) > 0 {
-			tiler := e.Midget.Tile(200, 100, e.Zone.Sprites.Surface, e.SpriteSelected)
-			tiler.SetCaption("Sprite")
+	case xgal.Tap(xgal.KeyP):
+		// e.Layer.AskString(50, 50, 250, 100, "Prefix", &e.Zone.Prefix)
+	case xgal.Tap(xgal.KeyO):
+		// e.Layer.AskInt(50, 50, 250, 100, "Offset", &e.Zone.Offset)
+	case xgal.Tap(xgal.KeyS):
+		// e.Layer.AskInt(50, 50, 250, 100, "UI Scale", &e.Scale)
+	case xgal.Tap(xgal.KeyF3):
+		if xgal.Key(xgal.KeyShiftLeft) {
+			// choose := e.Layer.Chooser(200, 100, e.Zone.Sprites.Surface, e.SpriteSelected)
+			// choose.SetCaption("Sprite")
 		} else {
-			tiler := e.Midget.Tile(200, 100, e.Zone.Surface, e.TileSelected)
-			tiler.SetCaption("Tile")
+			// choose := e.Layer.Chooser(200, 100, e.Zone.Surface, e.TileSelected)
+			// choose.SetCaption("Tile")
 		}
-	case inpututil.IsKeyJustPressed(ebiten.KeyF5):
-		e.ExportBasic()
-	case inpututil.IsKeyJustPressed(ebiten.KeyF6):
-		e.Midget.AskCommand(10, 10, 300, 250, "Command", e.Commander)
-	case ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft):
-		if inpututil.KeyPressDuration(ebiten.KeyShiftLeft) > 0 {
-			e.Zone.PutIndex(e.Tile, e.Cell.Index)
-		} else if inpututil.KeyPressDuration(ebiten.KeyControlLeft) > 0 || e.Zone.Flags {
-			e.Zone.PutFlag(e.Tile, e.Cell.Flag)
-		} else if inpututil.KeyPressDuration(ebiten.KeyAltLeft) > 0 {
-			e.Zone.FloodFill(e.Tile, e.Cell)
+	case xgal.Tap(xgal.KeyF5):
+
+	case xgal.Tap(xgal.KeyF6):
+		// e.Layer.AskCommand(10, 10, 300, 250, "Command", e.Commander)
+	case xgal.Grip(xgal.MouseButtonLeft):
+		if xgal.Key(xgal.KeyShiftLeft) {
+			// e.Zone.PutIndex(e.Tile, e.Cell.Index)
+		} else if xgal.Key(xgal.KeyControlLeft) {
+			// e.Zone.PutFlag(e.Tile, e.Cell.Flag)
+		} else if xgal.Key(xgal.KeyAltLeft) {
+			// e.Zone.FloodFill(e.Tile, e.Cell)
 		} else {
-			e.Zone.Put(e.Tile, e.Cell)
+			// e.Zone.Put(e.Tile, e.Cell)
 		}
-	case ebiten.IsMouseButtonPressed(ebiten.MouseButtonRight):
-		if inpututil.KeyPressDuration(ebiten.KeyShiftLeft) > 0 {
-			e.Zone.PutIndex(e.Tile, 0)
-		} else if inpututil.KeyPressDuration(ebiten.KeyControlLeft) > 0 || e.Zone.Flags {
-			e.Zone.PutFlag(e.Tile, 0)
+	case xgal.Grip(xgal.MouseButtonRight):
+		if xgal.Key(xgal.KeyShiftLeft) {
+			// e.Zone.PutIndex(e.Tile, 0)
+		} else if xgal.Key(xgal.KeyControlLeft) {
+			// e.Zone.PutFlag(e.Tile, 0)
 		} else {
-			zero := Cell{}
-			e.Zone.Put(e.Tile, zero)
+			// zero := Cell{}
+			// e.Zone.Put(e.Tile, zero)
 		}
-	case ebiten.IsMouseButtonPressed(ebiten.MouseButtonMiddle):
-		e.Zone.PutPresence(e.Tile, e.Presence)
+	case xgal.Grip(xgal.MouseButtonMiddle):
+		// e.Zone.PutPresence(e.Tile, e.Presence)
 	default:
+		return xui.Ignore
 	}
 
-	if e.Midget.Done {
-		return Termination
+	if e.Layer.Done {
+		return xui.Finish
 	}
-	return nil
+	return xui.Accept
 }
 
+/*
 func (e *Editor) Wrap(t *Tila, args ...any) any {
 	if dx, err := TilaArg[int](args); err != nil {
 		return err
@@ -385,28 +389,33 @@ func (e *Editor) Roll(t *Tila, args ...any) any {
 func (e *Editor) CommandHelp(t *Tila, args ...any) any {
 	return "available commands: get, set, wrap, roll, help"
 }
+*/
 
-func NewEditor(tm *Zone, name string, w, h, scale int) *Editor {
+func NewEditor(zone *xdat.Zone, name string, w, h, scale int) *Editor {
 
-	e := &Editor{Zone: tm, Name: name, Camera: image.Rect(0, 0, w, h),
-		Scale:  scale,
-		Midget: MakeMidget(image.Rect(0, 0, 0, 0)),
+	e := &Editor{Zone: zone, Name: name, Camera: image.Rect(0, 0, w, h),
+		Scale: scale,
+		Layer: xui.MakeLayer(image.Rect(0, 0, w, h)),
 	}
-	e.Midget.Lock = true
-	if tm.From != "" {
-		e.TileWatcher = Watch(tm.From)
-	}
-	if tm.Sprites.From != "" {
-		e.SpriteWatcher = Watch(tm.Sprites.From)
-	}
-	e.Backup.Pattern = "masite*.xml"
-	e.Commander = NewTila()
-	e.Commander.Commands["get"] = (*Tila).Get
-	e.Commander.Operators["$"] = (*Tila).Get
-	e.Commander.Commands["set"] = (*Tila).Set
-	e.Commander.Commands["wrap"] = e.Wrap
-	e.Commander.Commands["roll"] = e.Roll
-	e.Commander.Commands["help"] = e.CommandHelp
+	e.Layer.Lock = true
+	/*
+		if tm.From != "" {
+			e.TileWatcher = Watch(tm.From)
+		}
+		if tm.Sprites.From != "" {
+			e.SpriteWatcher = Watch(tm.Sprites.From)
+		}
+	*/
+	/*
+		e.Backup.Pattern = "xmas*.xml"
+		e.Commander = NewTila()
+		e.Commander.Commands["get"] = (*Tila).Get
+		e.Commander.Operators["$"] = (*Tila).Get
+		e.Commander.Commands["set"] = (*Tila).Set
+		e.Commander.Commands["wrap"] = e.Wrap
+		e.Commander.Commands["roll"] = e.Roll
+		e.Commander.Commands["help"] = e.CommandHelp
+	*/
 
 	return e
 }
