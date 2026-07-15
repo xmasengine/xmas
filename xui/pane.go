@@ -46,7 +46,7 @@ func (c *Caption) Drag(p *PaneLayer) Reply {
 		if xgal.Loose(xgal.MouseButtonLeft) {
 			p.Drag = false
 		} else {
-			now := xgal.Mouse()
+			now := xgal.Cursor()
 			delta := now.Sub(p.From)
 			if delta.Eq(xgal.Point{}) {
 				return Ignore
@@ -57,14 +57,14 @@ func (c *Caption) Drag(p *PaneLayer) Reply {
 		}
 	}
 
-	if !xgal.Mouse().In(c.Bounds) || p.Lock {
+	if !xgal.Cursor().In(c.Bounds) || p.Lock {
 		p.Drag = false
 		return Ignore
 	}
 
 	if xgal.Click(xgal.MouseButtonLeft) {
 		p.Drag = true
-		p.From = xgal.Mouse()
+		p.From = xgal.Cursor()
 	}
 
 	return Ignore
@@ -72,7 +72,7 @@ func (c *Caption) Drag(p *PaneLayer) Reply {
 
 // Poll allows the caption to be interacted with.
 func (c *Caption) Poll() Reply {
-	if !xgal.Mouse().In(c.Close) {
+	if !xgal.Cursor().In(c.Close) {
 		return Ignore
 	}
 	if xgal.Click(xgal.MouseButtonLeft) {
@@ -106,7 +106,7 @@ func (p *PaneLayer) Poll() Reply {
 	}
 
 	_, wy := xgal.Wheel()
-	if wy != 0 && xgal.Mouse().In(p.Bounds) {
+	if wy != 0 && xgal.Cursor().In(p.Bounds) {
 		p.scroll(int(wy) * ScrollSpeed)
 		return Accept
 	}

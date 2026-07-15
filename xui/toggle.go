@@ -32,7 +32,7 @@ func Toggle(bounds xgal.Rectangle, text string, toggled func(active bool)) *Togg
 var _ Widget = &ToggleLayer{}
 
 func (t *ToggleLayer) Poll() Reply {
-	t.hover = xgal.Mouse().In(t.Bounds)
+	t.hover = xgal.Cursor().In(t.Bounds)
 	if t.Group != nil {
 		t.Active = (*t.Group == t.Idx)
 		t.lastAct = t.Active

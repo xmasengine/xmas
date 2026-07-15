@@ -21,8 +21,8 @@ const (
 	MouseButtonMax = ebiten.MouseButtonMax
 )
 
-// Mouse returns the current mouse cursor position.
-func Mouse() Point {
+// Cursor returns the current mouse cursor position.
+func Cursor() Point {
 	x, y := ebiten.CursorPosition()
 	return image.Pt(x, y)
 }
@@ -56,3 +56,45 @@ func Loose(button MouseButton) bool {
 func Wheel() (xoff, yoff float64) {
 	return ebiten.Wheel()
 }
+
+// MouseGroup is used for struct namespaced API
+type MouseGroup struct{}
+
+// Cursor returns the current mouse cursor position.
+func (MouseGroup) Cursor() Point {
+	x, y := ebiten.CursorPosition()
+	return image.Pt(x, y)
+}
+
+// Click reports whether one of the given the mouse buttons was just pressed.
+// If buttens are not given, MouseButtonLeft is used as the default.
+func (MouseGroup) Click(buttons ...MouseButton) bool {
+	if len(buttons) == 0 {
+		return inpututil.IsMouseButtonJustPressed(MouseButtonLeft)
+	}
+	for _, button := range buttons {
+		if inpututil.IsMouseButtonJustPressed(button) {
+			return true
+		}
+	}
+	return false
+}
+
+// Held reports whether the mouse button is currently held.
+func (MouseGroup) Held(button MouseButton) bool {
+	return ebiten.IsMouseButtonPressed(button)
+}
+
+// Release reports whether the mouse button was just released.
+func (MouseGroup) Release(button MouseButton) bool {
+	return inpututil.IsMouseButtonJustReleased(button)
+}
+
+// Wheel returns the scroll wheel movement since the last frame.
+// Positive Y scrolls toward the user (down), positive X scrolls right.
+func (MouseGroup) Wheel() (xoff, yoff float64) {
+	return ebiten.Wheel()
+}
+
+// Mouse is a variable that acts as a namespace.
+var Mouse MouseGroup

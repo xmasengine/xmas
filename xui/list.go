@@ -90,7 +90,7 @@ func (l *ListLayer) clampOffset() {
 }
 
 func (l *ListLayer) Poll() Reply {
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	l.hoverIdx = -1
 
 	// Clamp offset in case items changed externally

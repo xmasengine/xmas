@@ -43,7 +43,7 @@ type hasFocus struct {
 func (h *hasFocus) pollFocus(bounds xgal.Rectangle) Reply {
 	// focus with event bubbling is complex so here is what is happening:
 
-	h.hover = xgal.Mouse().In(bounds)
+	h.hover = xgal.Cursor().In(bounds)
 
 	// If we are not hovered
 	if !h.hover {

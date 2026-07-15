@@ -26,7 +26,7 @@ func Button(bounds xgal.Rectangle, text string, clicked func()) *ButtonLayer {
 var _ Widget = &ButtonLayer{}
 
 func (b *ButtonLayer) Poll() Reply {
-	b.hover = xgal.Mouse().In(b.Bounds)
+	b.hover = xgal.Cursor().In(b.Bounds)
 	if !b.hover {
 		if xgal.Loose(xgal.MouseButtonLeft) {
 			b.pressed = false

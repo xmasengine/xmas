@@ -74,7 +74,7 @@ func (a *AskLayer) Poll() Reply {
 		}
 	}
 
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	if !pos.In(a.Bounds) {
 		return Ignore
 	}
@@ -141,7 +141,7 @@ func (a *AskLayer) MoveBy(delta xgal.Point) {
 
 // AddAsk adds an [AskLayer] to this layer as a modal dialog.
 func (m *Layer) AddAsk(prompt string, buttons ...string) *AskLayer {
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	sz := m.Style.MeasureText(prompt)
 	dw := sz.X + m.Style.Margin.X*4
 	dh := sz.Y + m.Style.Margin.Y*6 + sz.Y // text + button row
@@ -153,7 +153,7 @@ func (m *Layer) AddAsk(prompt string, buttons ...string) *AskLayer {
 
 // AddAskEntry adds an [AskLayer] with Entry to this layer as a modal dialog.
 func (m *Layer) AddAskEntry(prompt, entry string, enter func(string), buttons ...string) *AskLayer {
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	sz := m.Style.MeasureText(prompt)
 	dw := sz.X + m.Style.Margin.X*4
 	dh := sz.Y + m.Style.Margin.Y*6 + sz.Y // text + button row

@@ -29,7 +29,7 @@ func Checkbox(bounds xgal.Rectangle, text string, onCheck func(bool)) *CheckboxL
 var _ Widget = &CheckboxLayer{}
 
 func (c *CheckboxLayer) Poll() Reply {
-	c.hover = xgal.Mouse().In(c.Bounds)
+	c.hover = xgal.Cursor().In(c.Bounds)
 
 	if c.hover && xgal.Click(xgal.MouseButtonLeft) {
 		c.pressed = true

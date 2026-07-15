@@ -23,7 +23,7 @@ func Label(bounds xgal.Rectangle, text string) *LabelLayer {
 var _ Widget = &LabelLayer{}
 
 func (l *LabelLayer) Poll() Reply {
-	if xgal.Mouse().In(l.Bounds) {
+	if xgal.Cursor().In(l.Bounds) {
 		l.hover = true
 		return Accept
 	}

@@ -35,11 +35,11 @@ func Slider(bounds xgal.Rectangle, onSlide func(int)) *SliderLayer {
 var _ Widget = &SliderLayer{}
 
 func (s *SliderLayer) Poll() Reply {
-	s.hover = xgal.Mouse().In(s.Bounds)
+	s.hover = xgal.Cursor().In(s.Bounds)
 
 	if s.hover && xgal.Click(xgal.MouseButtonLeft) {
 		s.dragging = true
-		s.slideTo(xgal.Mouse())
+		s.slideTo(xgal.Cursor())
 		return Accept
 	}
 
@@ -47,7 +47,7 @@ func (s *SliderLayer) Poll() Reply {
 		if xgal.Loose(xgal.MouseButtonLeft) {
 			s.dragging = false
 		} else {
-			s.slideTo(xgal.Mouse())
+			s.slideTo(xgal.Cursor())
 		}
 		return Accept
 	}

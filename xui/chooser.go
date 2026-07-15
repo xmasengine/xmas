@@ -27,7 +27,7 @@ func Chooser(bounds xgal.Rectangle, img *xgal.Surface, tileSize xgal.Point, sele
 var _ Widget = &ChooserLayer{}
 
 func (c *ChooserLayer) Poll() Reply {
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	if !pos.In(c.Bounds) {
 		return Ignore
 	}

@@ -73,7 +73,7 @@ func MenuItem(bounds xgal.Rectangle, text string, click func()) *MenuItemLayer {
 var _ Widget = &MenuItemLayer{}
 
 func (i *MenuItemLayer) Poll() Reply {
-	i.hover = xgal.Mouse().In(i.Bounds)
+	i.hover = xgal.Cursor().In(i.Bounds)
 
 	if i.Submenu != nil && !i.Submenu.hidden {
 		i.Submenu.Bounds.Min = i.Bounds.Min.Add(xgal.Pt(0, i.Bounds.Dy()))

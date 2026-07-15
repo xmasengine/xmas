@@ -30,7 +30,7 @@ func Tooltip(trigger xgal.Rectangle, text string) *TooltipLayer {
 var _ Widget = &TooltipLayer{}
 
 func (t *TooltipLayer) Poll() Reply {
-	pos := xgal.Mouse()
+	pos := xgal.Cursor()
 	t.Visible = pos.In(t.Trigger)
 	if !t.Visible {
 		return Ignore

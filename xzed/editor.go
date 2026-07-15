@@ -251,7 +251,7 @@ Enter: Confirm dialogs. | Esc: Cancel dialogs.
 
 func (e *Editor) Poll() xui.Reply {
 	// var err error
-	e.Hover = xgal.Mouse()
+	e.Hover = xgal.Cursor()
 	layer := e.ActiveLayer()
 	if layer != nil {
 		e.Tile = layer.ToTile(e.Hover, e.Camera)

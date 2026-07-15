@@ -53,22 +53,22 @@ func Prepare(w, h int) *Surface {
 	return ebiten.NewImage(w, h)
 }
 
-// CursorShape selects a system cursor icon. Pass one to [Cursor].
-type CursorShape = ebiten.CursorShapeType
+// PointerShape selects a system cursor icon. Pass one to Pointer.
+type PointerShape = ebiten.CursorShapeType
 
 const (
 	// Arrow is the standard pointer arrow.
-	Arrow CursorShape = ebiten.CursorShapeDefault
+	Arrow PointerShape = ebiten.CursorShapeDefault
 	// Hand is a pointing hand, useful for clickable items.
-	Hand CursorShape = ebiten.CursorShapePointer
+	Hand PointerShape = ebiten.CursorShapePointer
 	// Crosshair is a crosshair reticle.
-	Crosshair CursorShape = ebiten.CursorShapeCrosshair
+	Crosshair PointerShape = ebiten.CursorShapeCrosshair
 	// IBeam is the vertical line cursor used for text selection.
-	IBeam CursorShape = ebiten.CursorShapeText
+	IBeam PointerShape = ebiten.CursorShapeText
 )
 
-// Cursor shows or hides the system cursor and optionally sets its shape.
-func Cursor(show bool, shape ...CursorShape) {
+// Pointer shows or hides the system pointer and optionally sets its shape.
+func Pointer(show bool, shape ...PointerShape) {
 	if show {
 		ebiten.SetCursorMode(ebiten.CursorModeVisible)
 	} else {
