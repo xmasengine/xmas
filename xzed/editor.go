@@ -273,6 +273,7 @@ func (e *Editor) Poll() xui.Reply {
 
 	switch {
 	case xgal.Tap(xgal.KeyPause):
+		e.Layer.Done = true
 		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
 	case xgal.Tap(xgal.KeyY):
 		e.Cell = layer.Get(e.Tile)
