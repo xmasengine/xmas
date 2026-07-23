@@ -666,7 +666,7 @@ func (a *App) Update() error {
 		}
 	}
 
-	mx, my := xgal.Mouse().X, xgal.Mouse().Y
+	mx, my := xgal.Cursor().X, xgal.Cursor().Y
 	ix, iy, inBounds := a.screenToImg(mx, my)
 	a.mx, a.my = ix, iy
 

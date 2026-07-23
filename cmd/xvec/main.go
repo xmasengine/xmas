@@ -289,7 +289,7 @@ func main() {
 	if a.filename != "" {
 		title += " — " + a.filename
 	}
-	xgal.Cursor(true, xgal.Crosshair)
+	xgal.Pointer(true, xgal.Crosshair)
 	xgal.Screen(windowWidth, windowHeight, title)
 	xgal.Play(a)
 }
@@ -566,7 +566,7 @@ func (a *App) Update() error {
 
 func (a *App) canvasDocXY() (float32, float32) {
 	cv := a.canvasBounds()
-	mx, my := xgal.Mouse().X, xgal.Mouse().Y
+	mx, my := xgal.Cursor().X, xgal.Cursor().Y
 	docW := float32(a.doc.Size.W)
 	docH := float32(a.doc.Size.H)
 	cvW := float32(cv.Dx())
@@ -599,7 +599,7 @@ func (a *App) pollCanvas() {
 		return
 	}
 	cv := a.canvasBounds()
-	mx, my := xgal.Mouse().X, xgal.Mouse().Y
+	mx, my := xgal.Cursor().X, xgal.Cursor().Y
 	if mx < cv.Min.X || mx >= cv.Max.X || my < cv.Min.Y || my >= cv.Max.Y {
 		return
 	}
@@ -712,7 +712,7 @@ func (a *App) pollPalette() {
 		return
 	}
 	pb := a.paletteBounds()
-	mx, my := xgal.Mouse().X, xgal.Mouse().Y
+	mx, my := xgal.Cursor().X, xgal.Cursor().Y
 	if mx < pb.Min.X || mx >= pb.Max.X || my < pb.Min.Y || my >= pb.Max.Y {
 		return
 	}
@@ -740,7 +740,7 @@ func (a *App) pollPalette() {
 func (a *App) pollList() {
 	// Clicking on the slider must not also select a list item — the slider
 	// area sits entirely inside the list bounds.
-	if xgal.Click(xgal.MouseButtonLeft) && xgal.Mouse().In(a.sliderBounds()) {
+	if xgal.Click(xgal.MouseButtonLeft) && xgal.Cursor().In(a.sliderBounds()) {
 		return
 	}
 	res := a.list.Poll()
@@ -1070,7 +1070,7 @@ func (a *App) drawPreviews(screen *xgal.Surface, cv xgal.Rectangle) {
 	offX := float32(cv.Min.X) + (float32(cv.Dx())-outW)/2
 	offY := float32(cv.Min.Y) + (float32(cv.Dy())-outH)/2
 
-	mx, my := xgal.Mouse().X, xgal.Mouse().Y
+	mx, my := xgal.Cursor().X, xgal.Cursor().Y
 	sx := int(a.pend.x/docW*outW + offX)
 	sy := int(a.pend.y/docH*outH + offY)
 
@@ -1103,7 +1103,7 @@ func (a *App) drawPreviews(screen *xgal.Surface, cv xgal.Rectangle) {
 
 func (a *App) drawPathPreview(screen *xgal.Surface, cv xgal.Rectangle, offX, offY, outW, outH, docW, docH float32) {
 	prev := screen
-	mp := xgal.Mouse()
+	mp := xgal.Cursor()
 
 	// Stroke the path using proper curve segments
 	if len(a.pathSteps) > 0 {
