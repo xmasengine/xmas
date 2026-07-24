@@ -42,6 +42,9 @@ func main() {
 		println("Click main done, finish", button)
 		return xlui.Finish
 	}
+	layer2 := app.Layer(xgal.Bound(15, 15, WindowW-10*2, 32))
+	layer2.Label("hello 2")
+
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
 }

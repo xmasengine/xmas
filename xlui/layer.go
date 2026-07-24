@@ -115,5 +115,6 @@ func (l *Layer) Click(at xgal.Point, button int) Reply {
 			return res
 		}
 	}
-	return Ignore
+	// If the layer was clicked, qn nothing els used the click, raise the layer.
+	return Raise
 }
