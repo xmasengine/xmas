@@ -20,7 +20,7 @@ import "github.com/xmasengine/xmas/xgal"
 
 // UI is the single user interface, at least for one window.
 type UI struct {
-	Layers []*Layer
+	Layers []*Layer // Layers in botttom to top order.
 	Groups []Group
 }
 
@@ -36,7 +36,8 @@ type handler[T any] func(u *UI, l *Layer, t T) Reply
 type getHandler[T any] func(l *Layer) handler[T]
 
 func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
-	for i, layer := range u.Layers {
+	for i := len(u.Layers) - 1; 1 >= 0; i-- {
+		layer := u.Layers[i]
 		if layer == nil {
 			continue
 		}
@@ -68,11 +69,17 @@ func (u *UI) Poll() Reply {
 	return Ignore
 }
 
-func (m *UI) RenderLayers(s *xgal.Surface) {
-	for i := len(m.Layers) - 1; i >= 0; i-- {
-		kid := m.Layers[i]
-		if kid != nil {
-			kid.Render(s)
+func (u *UI) Render(s *xgal.Surface) {
+	for i := 0; i < len(u.Layers); i++ {
+		layer := u.Layers[i]
+		if layer != nil {
+			layer.Render(s)
 		}
 	}
+}
+
+func (u *UI) Layer(bounds xgal.Rectangle) *Layer {
+	layer := NewLayer(bounds)
+	u.Layers = append(u.Layers, layer)
+	return layer
 }

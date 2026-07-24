@@ -2,7 +2,7 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 
-func (s Style) MeasureText(txt string) xgal.Point {
+func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
 	return xgal.Pt(int(w), int(h))
 }
@@ -11,9 +11,9 @@ func (s Style) Stride() int {
 	return xgal.Stride(s.Face)
 }
 
-func (s Style) DrawText(dst *xgal.Surface, at xgal.Point, txt string) {
+func (s Style) Print(dst *xgal.Surface, at xgal.Point, txt string) {
 	pt := at.Add(s.Margin)
-	xgal.Ink(dst, s.Face, s.Fore, pt.X, pt.Y, txt)
+	xgal.Print(dst, s.Face, s.Fore, pt.X, pt.Y, txt)
 }
 
 func (s Style) DrawTextLine(dst *xgal.Surface, at xgal.Point, txt string) {
@@ -120,6 +120,12 @@ func HoverStyle() Style {
 func PressStyle() Style {
 	s := DefaultStyle()
 	s.Fill = xgal.Paint(15, 45, 200, 240)
+	return s
+}
+
+func ButtonStyle() Style {
+	s := DefaultStyle()
+	s.Fill = xgal.Paint(15, 200, 45, 240)
 	return s
 }
 

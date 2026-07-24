@@ -28,8 +28,10 @@ const (
 
 // Layer is a layer in the UI.
 type Layer struct {
-	Groups   []Group
-	Controls []Control
+	// Class for custom or type specific behavior.
+	Class
+
+	Controls []*Control
 	Bounds   xgal.Rectangle
 	Clip     *xgal.Rectangle
 	Style
@@ -38,17 +40,19 @@ type Layer struct {
 	Lock        bool
 	Drag        bool
 	Orientation Orientation // layout orientation in the group
-
-	// Flexible handlers
-	OnRender func(s *xgal.Surface, l Layer)
 }
 
-func MakeLayer(bounds xgal.Rectangle) Layer {
-	return Layer{Bounds: bounds, Style: DefaultStyle(), Orientation: Vertical}
+func NewLayer(bounds xgal.Rectangle) *Layer {
+	return &Layer{Bounds: bounds, Style: DefaultStyle(), Orientation: Horizontal}
 }
 
 func (l Layer) Render(s *xgal.Surface) {
-	l.Style.DrawBox(s, l.Bounds)
+	if l.Class.Render == nil {
+		l.Style.DrawBox(s, l.Bounds)
+	} else {
+		l.Class.Render(s)
+	}
+
 	for i := len(l.Controls) - 1; i >= 0; i-- {
 		ctrl := l.Controls[i]
 		ctrl.Render(s)
@@ -61,4 +65,35 @@ func (l *Layer) MoveBy(delta xgal.Point) {
 	for i := 0; i < len(l.Controls); i++ {
 		l.Controls[i].MoveBy(delta)
 	}
+}
+
+// Appends adds a control to this layer and lays it out by a simple
+// line algorithm.
+func (l *Layer) Append(ctrl *Control) *Control {
+	if len(l.Controls) == 0 {
+		ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+2, ctrl.Bounds.Min.Y+2, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+	} else {
+		last := l.Controls[len(l.Controls)-1]
+		if l.Orientation == Horizontal && last.Bounds.Dx()+ctrl.Bounds.Dx() < l.Bounds.Dx() {
+			// fits on the line
+			ctrl.Bounds = xgal.Bound(last.Bounds.Max.X+2, last.Bounds.Min.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+
+		} else {
+			ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+2, last.Bounds.Max.Y+2, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+		}
+	}
+	l.Controls = append(l.Controls, ctrl)
+	return ctrl
+}
+
+func (l *Layer) Label(text string) *Control {
+	at := l.Bounds.Min
+	ctrl := NewLabel(at, text)
+	return l.Append(ctrl)
+}
+
+func (l *Layer) Button(text string) *Control {
+	at := l.Bounds.Min
+	ctrl := NewButton(at, text)
+	return l.Append(ctrl)
 }

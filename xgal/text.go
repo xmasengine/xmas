@@ -74,6 +74,23 @@ func Ink(dst *Surface, face Face, color RGBA, x, y int, str string) {
 	text.Draw(dst, str, face, &opts)
 }
 
+// Print prints str onto dst at (x, y) using face and color.
+func Print(dst *Surface, face Face, color RGBA, x, y int, str string) {
+	if face == nil {
+		face = BuiltinFace
+	}
+	opts := text.DrawOptions{}
+	opts.LineSpacing = float64(Stride(face))
+	opts.GeoM.Translate(float64(x), float64(y))
+	opts.ColorScale.Scale(
+		float32(color.R)/255,
+		float32(color.G)/255,
+		float32(color.B)/255,
+		float32(color.A)/255,
+	)
+	text.Draw(dst, str, face, &opts)
+}
+
 // Measure returns the width and height of str when drawn with face at the
 // given stride between the lines.
 func Measure(str string, face Face, stride float64) (width, height float64) {

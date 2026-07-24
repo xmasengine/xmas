@@ -21,6 +21,7 @@ func (a *App) Update() error {
 
 func (a *App) Draw(screen *xgal.Surface) {
 	xgal.Clear(screen, xgal.Paint(40, 80, 160, 255))
+	a.UI.Render(screen)
 }
 
 func (a *App) Layout(w, h int) (int, int) {
@@ -31,6 +32,11 @@ var _ xgal.Game = (*App)(nil)
 
 func main() {
 	app := &App{}
+	layer := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 32))
+	layer.Label("hello")
+	layer.Button("OK")
+	layer.Orientation = xlui.Vertical // Set to vertical.
+	layer.Button("Done")              // will go below.
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
 }
