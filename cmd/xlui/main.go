@@ -37,7 +37,11 @@ func main() {
 	layer.Label("hello")
 	layer.Button("OK")
 	layer.Orientation = xlui.Vertical // Set to vertical.
-	layer.Button("Done")              // will go below.
+	done := layer.Button("Done")      // will go below.
+	done.Class.Click = func(at xgal.Point, button int) xlui.Reply {
+		println("Click main done, finish", button)
+		return xlui.Finish
+	}
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
 }
