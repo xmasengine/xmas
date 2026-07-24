@@ -60,6 +60,10 @@ func Rect(x0, y0, x1, y1 int) Rectangle { return image.Rect(x0, y0, x1, y1) }
 // Bound returns a [Rectangle] from (x0,y0) to (x0+w,y0+h).
 func Bound(x0, y0, w, h int) Rectangle { return image.Rect(x0, y0, x0+w, y0+h) }
 
+// Paint returns a color with the given channel values. Prefer this to
+// RGBA{R, G, B, A} to avoid vet warnings about unkeyed fields.
+func Paint(r, g, b, a uint8) RGBA { return RGBA{r, g, b, a} }
+
 // Wash returns a color with the given channel values. Prefer this to
 // RGBA{R, G, B, A} to avoid vet warnings about unkeyed fields.
 func Wash(r, g, b, a uint8) RGBA { return RGBA{r, g, b, a} }
@@ -83,5 +87,5 @@ func Recolor(c Color) RGBA {
 	g8 := uint8(g16 >> 8)
 	b8 := uint8(b16 >> 8)
 	a8 := uint8(a16 >> 8)
-	return Wash(r8, g8, b8, a8)
+	return Paint(r8, g8, b8, a8)
 }

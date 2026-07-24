@@ -106,73 +106,73 @@ func (s Style) Inset(bounds xgal.Rectangle) xgal.Rectangle {
 
 func FocusStyle() Style {
 	s := DefaultStyle()
-	s.Border = xgal.Wash(240, 140, 40, 245)
-	s.Fill = xgal.Wash(128, 128, 200, 240)
+	s.Border = xgal.Paint(240, 140, 40, 245)
+	s.Fill = xgal.Paint(128, 128, 200, 240)
 	return s
 }
 
 func HoverStyle() Style {
 	s := DefaultStyle()
-	s.Border = xgal.Wash(240, 240, 50, 250)
+	s.Border = xgal.Paint(240, 240, 50, 250)
 	return s
 }
 
 func PressStyle() Style {
 	s := DefaultStyle()
-	s.Fill = xgal.Wash(15, 45, 200, 240)
+	s.Fill = xgal.Paint(15, 45, 200, 240)
 	return s
 }
 
 func BarStyle() Style {
 	s := DefaultStyle()
-	s.Fill = xgal.Wash(45, 45, 200, 250)
+	s.Fill = xgal.Paint(45, 45, 200, 250)
 	return s
 }
 
 func CheckStyle() Style {
 	s := DefaultStyle()
-	s.Fill = xgal.Wash(245, 245, 245, 250)
+	s.Fill = xgal.Paint(245, 245, 245, 250)
 	return s
 }
 
 func (s Style) HoverStyle() Style {
-	s.Border = xgal.Wash(200, 200, 45, 250)
+	s.Border = xgal.Paint(200, 200, 45, 250)
 	return s
 }
 
 func (s Style) FocusStyle() Style {
-	s.Border = xgal.Wash(240, 140, 40, 245)
-	s.Fill = xgal.Wash(128, 128, 200, 245)
+	s.Border = xgal.Paint(240, 140, 40, 245)
+	s.Fill = xgal.Paint(128, 128, 200, 245)
 	return s
 }
 
 func (s Style) PressStyle() Style {
-	s.Fill = xgal.Wash(15, 45, 200, 240)
+	s.Fill = xgal.Paint(15, 45, 200, 240)
 	return s
 }
 
 func (s Style) DragStyle() Style {
-	s.Fill = xgal.Wash(15, 128, 200, 240)
+	s.Fill = xgal.Paint(15, 128, 200, 240)
 	return s
 }
 
 func (s Style) BarStyle() Style {
-	s.Fill = xgal.Wash(45, 45, 245, 250)
+	s.Fill = xgal.Paint(45, 45, 245, 250)
 	return s
 }
 
 func (s Style) CheckStyle() Style {
-	s.Fill = xgal.Wash(245, 245, 245, 250)
+	s.Fill = xgal.Paint(245, 245, 245, 250)
 	return s
 }
 
 func (s Style) ActiveStyle() Style {
-	s.Fill = xgal.Wash(60, 60, 140, 255)
-	s.Border = xgal.Wash(120, 120, 220, 255)
+	s.Fill = xgal.Paint(60, 60, 140, 255)
+	s.Border = xgal.Paint(120, 120, 220, 255)
 	return s
 }
 
 func (s Style) KnobStyle() Style {
-	s.Fill = xgal.Wash(245, 245, 245, 250)
+	s.Fill = xgal.Paint(245, 245, 245, 250)
 	return s
 }
