@@ -67,8 +67,7 @@ func (l *Layer) MoveBy(delta xgal.Point) {
 	}
 }
 
-// Appends adds a control to this layer and lays it out by a simple
-// line algorithm.
+// Appends adds a control to this layer and lays it out by a simple line algorithm.
 func (l *Layer) Append(ctrl *Control) *Control {
 	if len(l.Controls) == 0 {
 		ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+2, ctrl.Bounds.Min.Y+2, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
@@ -96,4 +95,25 @@ func (l *Layer) Button(text string) *Control {
 	at := l.Bounds.Min
 	ctrl := NewButton(at, text)
 	return l.Append(ctrl)
+}
+
+func (l *Layer) Click(at xgal.Point, button int) Reply {
+	if l.Class.Click != nil {
+		return l.Class.Click(at, button)
+	}
+
+	for i := len(l.Controls) - 1; i >= 0; i-- {
+		ctrl := l.Controls[i]
+		if ctrl == nil {
+			continue
+		}
+		if !at.In(ctrl.Bounds) {
+			continue
+		}
+		if ctrl.Class.Click != nil {
+			res := ctrl.Class.Click(at, button)
+			return res
+		}
+	}
+	return Ignore
 }

@@ -66,6 +66,45 @@ func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
 }
 
 func (u *UI) Poll() Reply {
+	for mb := xgal.MouseButton(0); mb < xgal.MouseButtonMax; mb++ {
+		if xgal.Click(mb) {
+			return u.Click(xgal.Cursor(), int(mb))
+		}
+	}
+	return Ignore
+}
+
+func (u *UI) onReply(i int, res Reply) Reply {
+	if res == Finish {
+		u.Layers = slices.Delete(u.Layers, i, i+1)
+	} else if res == Accept {
+		return res
+	} else if res == Raise {
+		if i < len(u.Layers)-1 {
+			u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
+		}
+		return res
+	} else if res == Lower {
+		if i > 0 {
+			u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
+		}
+		return res
+	}
+	return Ignore
+}
+
+func (u *UI) Click(at xgal.Point, button int) Reply {
+	for i := len(u.Layers) - 1; i >= 0; i-- {
+		layer := u.Layers[i]
+		if layer == nil {
+			continue
+		}
+		if !at.In(layer.Bounds) {
+			continue
+		}
+		res := layer.Click(at, button)
+		return u.onReply(i, res)
+	}
 	return Ignore
 }
 

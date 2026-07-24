@@ -68,6 +68,7 @@ func NewLabel(at xgal.Point, text string) *Control {
 
 type ButtonControl struct {
 	*LabelControl
+	click bool
 }
 
 func (l *ButtonControl) Render(screen *xgal.Surface) {
@@ -75,9 +76,16 @@ func (l *ButtonControl) Render(screen *xgal.Surface) {
 	l.Control.Style.Print(screen, l.Control.Bounds.Min, l.Text)
 }
 
+func (l *ButtonControl) Click(at xgal.Point, button int) Reply {
+	l.click = true
+	println("Click", l.Text, button)
+	return Accept
+}
+
 func (l *ButtonControl) Class() Class {
 	return Class{
 		Render: l.Render,
+		Click:  l.Click,
 	}
 }
 

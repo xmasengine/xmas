@@ -16,6 +16,7 @@ type App struct {
 }
 
 func (a *App) Update() error {
+	a.UI.Poll()
 	return nil
 }
 
