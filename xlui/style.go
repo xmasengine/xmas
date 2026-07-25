@@ -109,6 +109,11 @@ func (s Style) Focused() Style {
 	return s
 }
 
+func (s Style) Hovered() Style {
+	s.Border = xgal.Paint(240, 240, 50, 250)
+	return s
+}
+
 func FocusStyle() Style {
 	s := DefaultStyle()
 	s.Border = xgal.Paint(240, 140, 40, 245)

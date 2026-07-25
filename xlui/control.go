@@ -76,8 +76,12 @@ func NewButton(at xgal.Point, text string) *Control {
 		if button.State.Clicked {
 			delta = xgal.Pt(2, 2)
 		}
-		button.Style.DrawBox(screen, button.Bounds.Add(delta))
-		button.Style.Print(screen, button.Bounds.Min.Add(delta), button.Text)
+		style := button.Style
+		if button.State.Hovered {
+			style = style.Hovered()
+		}
+		style.DrawBox(screen, button.Bounds.Add(delta))
+		style.Print(screen, button.Bounds.Min.Add(delta), button.Text)
 	}
 
 	click := func(at xgal.Point, which int) Reply {
@@ -90,10 +94,16 @@ func NewButton(at xgal.Point, text string) *Control {
 		return Accept
 	}
 
+	hover := func(at xgal.Point) Reply {
+		println("Hover", button.Text, button.State.Clicked)
+		return Accept
+	}
+
 	button.Class = Class{
 		Render:  render,
 		Click:   click,
 		Release: release,
+		Hover:   hover,
 	}
 	return button
 }

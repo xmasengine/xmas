@@ -26,9 +26,10 @@ import "github.com/xmasengine/xmas/xgal"
 
 // UI is the single user interface, at least for one window.
 type UI struct {
-	Layers  []*Layer // Layers in botttom to top order.
-	Groups  []Group
-	Focused *Layer // Layer that is currently focused.
+	Layers     []*Layer // Layers in botttom to top order.
+	Groups     []Group
+	Focused    *Layer // Layer that is currently focused.
+	LastCursor xgal.Point
 }
 
 // xlui is the the global UI
@@ -74,13 +75,19 @@ func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
 
 func (u *UI) Poll() Reply {
 	for mb := xgal.MouseButton(0); mb < xgal.MouseButtonMax; mb++ {
+		cursor := xgal.Cursor()
 		if xgal.Click(mb) {
-			return u.Click(xgal.Cursor(), int(mb))
+			return u.Click(cursor, int(mb))
 		}
 		if xgal.Release(mb) {
-			return u.Release(xgal.Cursor(), int(mb))
+			return u.Release(cursor, int(mb))
 		}
-
+		if u.LastCursor != cursor {
+			delta := u.LastCursor.Sub(cursor)
+			u.LastCursor = cursor
+			_ = delta // todo , drag/move
+			u.Hover(cursor)
+		}
 	}
 	return Ignore
 }
@@ -123,6 +130,25 @@ func (u *UI) onReply(i int, res Reply) Reply {
 	return Ignore
 }
 
+// LayersAt is an iterator of all controls that at is inside of,
+// from top to bottom.
+func (u *UI) LayersAt(at xgal.Point) func(func(int, *Layer) bool) {
+	return func(yield func(int, *Layer) bool) {
+		for i := len(u.Layers) - 1; i >= 0; i-- {
+			layer := u.Layers[i]
+			if layer == nil {
+				continue
+			}
+			if !at.In(layer.Bounds) {
+				continue
+			}
+			if !yield(i, layer) {
+				break
+			}
+		}
+	}
+}
+
 func (u *UI) Release(at xgal.Point, button int) Reply {
 	if u.Focused != nil {
 		res := u.Focused.Release(at, button)
@@ -141,7 +167,9 @@ func (u *UI) Click(at xgal.Point, button int) Reply {
 			continue
 		}
 		res := layer.Click(at, button)
-		return u.onReply(i, res)
+		if res != Ignore {
+			return u.onReply(i, res)
+		}
 	}
 	return Ignore
 }
@@ -153,6 +181,16 @@ func (u *UI) Render(s *xgal.Surface) {
 			layer.Render(s)
 		}
 	}
+}
+
+func (u *UI) Hover(at xgal.Point) Reply {
+	for _, layer := range u.LayersAt(at) {
+		res := layer.Hover(at)
+		if res != Ignore {
+			return res
+		}
+	}
+	return Ignore
 }
 
 func (u *UI) Layer(bounds xgal.Rectangle) *Layer {

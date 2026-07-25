@@ -8,6 +8,7 @@ import "github.com/xmasengine/xmas/xgal"
 // and a default handler may be used.
 type Class struct {
 	Render  func(screen *xgal.Surface)
+	Hover   func(at xgal.Point) Reply
 	Click   func(at xgal.Point, button int) Reply
 	Release func(at xgal.Point, button int) Reply
 	Key     func(key int, mod int) Reply

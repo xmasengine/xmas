@@ -104,24 +104,60 @@ func (l *Layer) Button(text string) *Control {
 	return l.Append(ctrl)
 }
 
+// ControlsAt is an iterator of all controls that at is inside of,
+// from top to bottom.
+func (l *Layer) ControlsAt(at xgal.Point) func(func(*Control) bool) {
+	return func(yield func(*Control) bool) {
+		for i := len(l.Controls) - 1; i >= 0; i-- {
+			ctrl := l.Controls[i]
+			if ctrl == nil {
+				continue
+			}
+			if !at.In(ctrl.Bounds) {
+				continue
+			}
+			if !yield(ctrl) {
+				break
+			}
+		}
+	}
+}
+
 func (l *Layer) Click(at xgal.Point, button int) Reply {
 	if l.Class.Click != nil {
 		return l.Class.Click(at, button)
 	}
 
-	for i := len(l.Controls) - 1; i >= 0; i-- {
-		ctrl := l.Controls[i]
-		if ctrl == nil {
-			continue
-		}
-		if !at.In(ctrl.Bounds) {
-			continue
-		}
+	for ctrl := range l.ControlsAt(at) {
 		if ctrl.Class.Click != nil {
 			res := ctrl.Class.Click(at, button)
 			if res != Ignore {
 				ctrl.State.Clicked = true
 				l.Clicked = ctrl
+			}
+			return res
+		}
+	}
+	// If the layer was clicked, qn nothing els used the click, raise the layer.
+	return Raise
+}
+
+func (l *Layer) Hover(at xgal.Point) Reply {
+	if l.Class.Hover != nil {
+		return l.Class.Hover(at)
+	}
+
+	if l.Hovered != nil && !at.In(l.Hovered.Bounds) {
+		l.Hovered.State.Hovered = false
+		l.Hovered = nil
+	}
+
+	for ctrl := range l.ControlsAt(at) {
+		if ctrl.Class.Hover != nil {
+			res := ctrl.Class.Hover(at)
+			if res != Ignore {
+				ctrl.State.Hovered = true
+				l.Hovered = ctrl
 			}
 			return res
 		}
