@@ -1,13 +1,19 @@
 // package xlui implements simple layer based UI
 // xlui consists of 3 levels: the UI, the layers in the UI and the controls
 // in the layers.
+//
 // To simplify event handling, the UI controls the layers, and the layers
-// manage the controls.
-// There are specific handlers but these only get called if needed.
+// manage the controls. The state of the elemets is managed by the container.
+// Class is used to customize the layers and controls, but
+// the custonization is limited to the strict neccesary.
+//
+// There are specific handlers in Class but these only get called if needed.
+//
 // A control is a leaf, and cannot contain sub controls.
 // This means that for complex widgets like, for example a list, this will
 // be implemented as a layer, which can be dragged, focused, and
 // manipulated, like any other layer on the screen.
+//
 // This is somewhat unusual but it drasically simplifies event handling
 // and the reduced the complexity of the UI.
 // Furthermore the UI is a vertical stack, and the topmost Layer than can
@@ -20,8 +26,9 @@ import "github.com/xmasengine/xmas/xgal"
 
 // UI is the single user interface, at least for one window.
 type UI struct {
-	Layers []*Layer // Layers in botttom to top order.
-	Groups []Group
+	Layers  []*Layer // Layers in botttom to top order.
+	Groups  []Group
+	Focused *Layer // Layer that is currently focused.
 }
 
 // xlui is the the global UI
@@ -70,24 +77,55 @@ func (u *UI) Poll() Reply {
 		if xgal.Click(mb) {
 			return u.Click(xgal.Cursor(), int(mb))
 		}
+		if xgal.Release(mb) {
+			return u.Release(xgal.Cursor(), int(mb))
+		}
+
 	}
 	return Ignore
 }
 
+func (u *UI) SetFocus(l *Layer) {
+	if u.Focused != nil {
+		u.Focused.State.Focused = false
+	}
+	u.Focused = l
+	if u.Focused != nil {
+		u.Focused.State.Focused = true
+	}
+}
+
 func (u *UI) onReply(i int, res Reply) Reply {
 	if res == Finish {
+		del := u.Layers[i]
+		if u.Focused == del {
+			u.SetFocus(nil)
+		}
 		u.Layers = slices.Delete(u.Layers, i, i+1)
 	} else if res == Accept {
+		u.SetFocus(u.Layers[i])
 		return res
 	} else if res == Raise {
 		if i < len(u.Layers)-1 {
 			u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
+			u.SetFocus(u.Layers[i+1])
+		} else {
+			u.SetFocus(u.Layers[i])
 		}
 		return res
 	} else if res == Lower {
 		if i > 0 {
 			u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
+			u.SetFocus(u.Layers[i])
 		}
+		return res
+	}
+	return Ignore
+}
+
+func (u *UI) Release(at xgal.Point, button int) Reply {
+	if u.Focused != nil {
+		res := u.Focused.Release(at, button)
 		return res
 	}
 	return Ignore

@@ -2,6 +2,13 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 
+// State is the state of the control or layer.
+type State struct {
+	Hovered bool
+	Clicked bool
+	Focused bool
+}
+
 // Control is a possibly interactieve part of the UI inside a layer.
 type Control struct {
 	// Class for custom or type specific behavior.
@@ -13,6 +20,7 @@ type Control struct {
 	Style
 	From        xgal.Point
 	Orientation Orientation // layout orientation in the layer
+	State       State       // State of the control
 }
 
 func (c Control) Render(s *xgal.Surface) {
@@ -61,11 +69,11 @@ func NewLabel(at xgal.Point, text string) *Control {
 
 func NewButton(at xgal.Point, text string) *Control {
 	button := NewControlWithText(at, ButtonStyle(), text)
-	clicked := false
+	button.State.Clicked = false
 
 	render := func(screen *xgal.Surface) {
 		delta := xgal.Pt(0, 0)
-		if clicked {
+		if button.State.Clicked {
 			delta = xgal.Pt(2, 2)
 		}
 		button.Style.DrawBox(screen, button.Bounds.Add(delta))
@@ -73,14 +81,19 @@ func NewButton(at xgal.Point, text string) *Control {
 	}
 
 	click := func(at xgal.Point, which int) Reply {
-		clicked = true
-		println("Click", button.Text, clicked, which)
+		println("Click", button.Text, button.State.Clicked, which)
+		return Accept
+	}
+
+	release := func(at xgal.Point, which int) Reply {
+		println("Release", button.Text, button.State.Clicked, which)
 		return Accept
 	}
 
 	button.Class = Class{
-		Render: render,
-		Click:  click,
+		Render:  render,
+		Click:   click,
+		Release: release,
 	}
 	return button
 }

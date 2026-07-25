@@ -51,6 +51,11 @@ func Loose(button MouseButton) bool {
 	return inpututil.IsMouseButtonJustReleased(button)
 }
 
+// Release reports whether the mouse button was just released.
+func Release(button MouseButton) bool {
+	return inpututil.IsMouseButtonJustReleased(button)
+}
+
 // Wheel returns the scroll wheel movement since the last frame.
 // Positive Y scrolls toward the user (down), positive X scrolls right.
 func Wheel() (xoff, yoff float64) {

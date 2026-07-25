@@ -104,6 +104,11 @@ func (s Style) Inset(bounds xgal.Rectangle) xgal.Rectangle {
 	return xgal.Rect(xmin, ymin, xmax, ymax)
 }
 
+func (s Style) Focused() Style {
+	s.Border = xgal.Paint(240, 240, 240, 245)
+	return s
+}
+
 func FocusStyle() Style {
 	s := DefaultStyle()
 	s.Border = xgal.Paint(240, 140, 40, 245)

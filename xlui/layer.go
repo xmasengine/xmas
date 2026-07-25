@@ -36,10 +36,13 @@ type Layer struct {
 	Clip     *xgal.Rectangle
 	Style
 	From        xgal.Point
-	Done        bool
-	Lock        bool
-	Drag        bool
+	Lock        bool        // lock means the layer may not be dragged
 	Orientation Orientation // layout orientation in the group
+	State       State       // state of the layer
+
+	Hovered *Control // Hovered is currently hovered control or none if nil.
+	Clicked *Control // Clicked is currently clicked control or none if nil.
+	Focused *Control // Clicked is currently focused control or none if nil.
 }
 
 func NewLayer(bounds xgal.Rectangle) *Layer {
@@ -48,7 +51,11 @@ func NewLayer(bounds xgal.Rectangle) *Layer {
 
 func (l Layer) Render(s *xgal.Surface) {
 	if l.Class.Render == nil {
-		l.Style.DrawBox(s, l.Bounds)
+		if l.State.Focused {
+			l.Style.Focused().DrawBox(s, l.Bounds)
+		} else {
+			l.Style.DrawBox(s, l.Bounds)
+		}
 	} else {
 		l.Class.Render(s)
 	}
@@ -112,9 +119,32 @@ func (l *Layer) Click(at xgal.Point, button int) Reply {
 		}
 		if ctrl.Class.Click != nil {
 			res := ctrl.Class.Click(at, button)
+			if res != Ignore {
+				ctrl.State.Clicked = true
+				l.Clicked = ctrl
+			}
 			return res
 		}
 	}
 	// If the layer was clicked, qn nothing els used the click, raise the layer.
 	return Raise
+}
+
+func (l *Layer) Release(at xgal.Point, button int) Reply {
+	if l.Class.Release != nil {
+		return l.Class.Release(at, button)
+	}
+	if l.Clicked != nil {
+		ctrl := l.Clicked
+		if ctrl.Class.Release != nil {
+			res := ctrl.Class.Release(at, button)
+			if res != Ignore {
+				ctrl.State.Clicked = false
+				l.Clicked = nil
+			}
+			return res
+		}
+	}
+
+	return Ignore
 }
