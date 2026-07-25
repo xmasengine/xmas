@@ -7,6 +7,7 @@ type Control struct {
 	// Class for custom or type specific behavior.
 	Class
 	// Data
+	Text   string // For use by text controls.
 	Bounds xgal.Rectangle
 	Clip   *xgal.Rectangle
 	Style
@@ -36,68 +37,50 @@ func NewControl(at xgal.Point) *Control {
 	return &Control{Bounds: xgal.Bound(at.X, at.Y, ControlWidth, ControlHeight), Style: DefaultStyle(), Orientation: Vertical}
 }
 
-type LabelControl struct {
-	*Control
-	Text string
-}
-
-func (l *LabelControl) Render(screen *xgal.Surface) {
-	l.Control.Style.Print(screen, l.Control.Bounds.Min, l.Text)
-}
-
-func (l *LabelControl) Class() Class {
-	return Class{
-		Render: l.Render,
-	}
-}
-
-func NewLabelControl(at xgal.Point, text string, style Style) *LabelControl {
+func NewControlWithText(at xgal.Point, style Style, text string) *Control {
 	ctrl := NewControl(at)
-	ctrl.Style = style
-	size := ctrl.Style.Measure(text)
-	ctrl.Bounds = xgal.Bound(at.X, at.Y, size.X, size.Y)
-	label := &LabelControl{Text: text, Control: ctrl}
-	ctrl.Class = label.Class()
-	return label
+	ctrl.Style = ButtonStyle()
+	ctrl.Text = text
+	if ctrl.Text != "" {
+		size := ctrl.Style.Measure(ctrl.Text)
+		ctrl.Bounds = xgal.Bound(at.X, at.Y, size.X, size.Y)
+	}
+	return ctrl
 }
 
 func NewLabel(at xgal.Point, text string) *Control {
-	label := NewLabelControl(at, text, DefaultStyle())
-	return label.Control
-}
-
-type ButtonControl struct {
-	*LabelControl
-	click bool
-}
-
-func (l *ButtonControl) Render(screen *xgal.Surface) {
-	l.Control.Style.DrawBox(screen, l.Bounds)
-	l.Control.Style.Print(screen, l.Control.Bounds.Min, l.Text)
-}
-
-func (l *ButtonControl) Click(at xgal.Point, button int) Reply {
-	l.click = true
-	println("Click", l.Text, button)
-	return Accept
-}
-
-func (l *ButtonControl) Class() Class {
-	return Class{
-		Render: l.Render,
-		Click:  l.Click,
+	label := NewControlWithText(at, ButtonStyle(), text)
+	render := func(screen *xgal.Surface) {
+		label.Style.Print(screen, label.Bounds.Min, label.Text)
 	}
-}
-
-func NewButtonControl(at xgal.Point, text string) *ButtonControl {
-	label := NewLabelControl(at, text, ButtonStyle())
-	button := &ButtonControl{LabelControl: label}
-	label.Control.Bounds = button.Control.Bounds.Add(label.Style.Margin)
-	label.Control.Class = button.Class()
-	return button
+	label.Class = Class{
+		Render: render,
+	}
+	return label
 }
 
 func NewButton(at xgal.Point, text string) *Control {
-	button := NewButtonControl(at, text)
-	return button.Control
+	button := NewControlWithText(at, ButtonStyle(), text)
+	clicked := false
+
+	render := func(screen *xgal.Surface) {
+		delta := xgal.Pt(0, 0)
+		if clicked {
+			delta = xgal.Pt(2, 2)
+		}
+		button.Style.DrawBox(screen, button.Bounds.Add(delta))
+		button.Style.Print(screen, button.Bounds.Min.Add(delta), button.Text)
+	}
+
+	click := func(at xgal.Point, which int) Reply {
+		clicked = true
+		println("Click", button.Text, clicked, which)
+		return Accept
+	}
+
+	button.Class = Class{
+		Render: render,
+		Click:  click,
+	}
+	return button
 }
