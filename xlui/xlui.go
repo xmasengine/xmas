@@ -24,12 +24,21 @@ import "slices"
 
 import "github.com/xmasengine/xmas/xgal"
 
+// Mods are the key mods
+type Mods struct {
+	Shift   bool
+	Alt     bool
+	Control bool
+	Meta    bool
+}
+
 // UI is the single user interface, at least for one window.
 type UI struct {
 	Layers     []*Layer // Layers in botttom to top order.
 	Groups     []Group
 	Focused    *Layer // Layer that is currently focused.
 	LastCursor xgal.Point
+	Mods       Mods
 }
 
 // xlui is the the global UI
@@ -74,6 +83,11 @@ func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
 }
 
 func (u *UI) Poll() Reply {
+	kr := u.pollKeys()
+	if kr != Ignore {
+		return kr
+	}
+
 	for mb := xgal.MouseButton(0); mb < xgal.MouseButtonMax; mb++ {
 		cursor := xgal.Cursor()
 		if xgal.Click(mb) {
@@ -88,6 +102,109 @@ func (u *UI) Poll() Reply {
 			_ = delta // todo , drag/move
 			u.Hover(cursor)
 		}
+	}
+	return Ignore
+}
+
+func (u *UI) pollKeys() Reply {
+	accepted := false
+	keys := xgal.Taps(nil)
+	for _, key := range keys {
+		switch xgal.KeyCode(key) {
+		case xgal.KeyAlt:
+			u.Mods.Alt = true
+		case xgal.KeyShift:
+			u.Mods.Shift = true
+		case xgal.KeyControl:
+			u.Mods.Control = true
+		case xgal.KeyMeta:
+			u.Mods.Meta = true
+		}
+		res := u.Tap(key, u.Mods)
+		if res == Accept {
+			accepted = true
+		}
+	}
+
+	keys = xgal.Keys(nil)
+	for _, key := range keys {
+		dur := xgal.Tapped(key)
+		res := u.Key(key, dur)
+		if res == Accept {
+			accepted = true
+		}
+	}
+
+	keys = xgal.Lifts(nil)
+	for _, key := range keys {
+		switch xgal.KeyCode(key) {
+		case xgal.KeyAlt:
+			u.Mods.Alt = false
+		case xgal.KeyShift:
+			u.Mods.Shift = false
+		case xgal.KeyControl:
+			u.Mods.Control = false
+		case xgal.KeyMeta:
+			u.Mods.Meta = false
+		}
+		res := u.Lift(key, u.Mods)
+		if res == Accept {
+			accepted = true
+		}
+	}
+
+	chars := xgal.Chars(nil)
+	res := u.Chars(chars...)
+	if res == Accept {
+		accepted = true
+	}
+
+	if accepted {
+		return Accept
+	}
+	return Ignore
+}
+
+func (u *UI) focusOrTop() *Layer {
+	if u.Focused != nil {
+		return u.Focused
+	}
+
+	if len(u.Layers) < 1 {
+		return nil
+	}
+
+	return u.Layers[len(u.Layers)-1]
+}
+
+func (u *UI) Tap(key xgal.KeyCode, mods Mods) Reply {
+	top := u.focusOrTop()
+	if top != nil {
+		return top.Tap(int(key), mods)
+	}
+	return Ignore
+}
+
+func (u *UI) Key(key xgal.KeyCode, duration int) Reply {
+	top := u.focusOrTop()
+	if top != nil {
+		return top.Key(int(key), duration)
+	}
+	return Ignore
+}
+
+func (u *UI) Lift(key xgal.KeyCode, mods Mods) Reply {
+	top := u.focusOrTop()
+	if top != nil {
+		return top.Lift(int(key), mods)
+	}
+	return Ignore
+}
+
+func (u *UI) Chars(chars ...rune) Reply {
+	top := u.focusOrTop()
+	if top != nil {
+		return top.Chars(chars...)
 	}
 	return Ignore
 }

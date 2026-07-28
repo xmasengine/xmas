@@ -11,5 +11,9 @@ type Class struct {
 	Hover   func(at xgal.Point) Reply
 	Click   func(at xgal.Point, button int) Reply
 	Release func(at xgal.Point, button int) Reply
-	Key     func(key int, mod int) Reply
+	Key     func(key int, duration int) Reply
+	Tap     func(key int, mods Mods) Reply
+	Lift    func(key int, mods Mods) Reply
+	Entry   func(string) Reply
+	Chars   func(chars ...rune) Reply
 }

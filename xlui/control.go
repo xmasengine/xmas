@@ -85,17 +85,14 @@ func NewButton(at xgal.Point, text string) *Control {
 	}
 
 	click := func(at xgal.Point, which int) Reply {
-		println("Click", button.Text, button.State.Clicked, which)
 		return Accept
 	}
 
 	release := func(at xgal.Point, which int) Reply {
-		println("Release", button.Text, button.State.Clicked, which)
 		return Accept
 	}
 
 	hover := func(at xgal.Point) Reply {
-		println("Hover", button.Text, button.State.Clicked)
 		return Accept
 	}
 

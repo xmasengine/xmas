@@ -104,16 +104,16 @@ func (l *Layer) Button(text string) *Control {
 	return l.Append(ctrl)
 }
 
-// ControlsAt is an iterator of all controls that at is inside of,
-// from top to bottom.
-func (l *Layer) ControlsAt(at xgal.Point) func(func(*Control) bool) {
+// AllControls is an iterator of all controls which are not nil,
+// and where check returns true from top to bottom.
+func (l *Layer) AllControlsWhere(check func(*Control) bool) func(func(*Control) bool) {
 	return func(yield func(*Control) bool) {
 		for i := len(l.Controls) - 1; i >= 0; i-- {
 			ctrl := l.Controls[i]
 			if ctrl == nil {
 				continue
 			}
-			if !at.In(ctrl.Bounds) {
+			if !check(ctrl) {
 				continue
 			}
 			if !yield(ctrl) {
@@ -121,6 +121,14 @@ func (l *Layer) ControlsAt(at xgal.Point) func(func(*Control) bool) {
 			}
 		}
 	}
+}
+
+// ControlsAt is an iterator of all controls that at is inside of,
+// from top to bottom.
+func (l *Layer) ControlsAt(at xgal.Point) func(func(*Control) bool) {
+	return l.AllControlsWhere(func(ctrl *Control) bool {
+		return at.In(ctrl.Bounds)
+	})
 }
 
 func (l *Layer) Click(at xgal.Point, button int) Reply {
@@ -182,5 +190,81 @@ func (l *Layer) Release(at xgal.Point, button int) Reply {
 		}
 	}
 
+	return Ignore
+}
+
+func (l *Layer) Tap(key int, mods Mods) Reply {
+	if l.Class.Tap != nil {
+		return l.Class.Tap(key, mods)
+	}
+
+	if l.Focused != nil {
+		if l.Focused.Class.Tap != nil {
+			return l.Focused.Class.Tap(key, mods)
+		}
+	}
+
+	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
+		return ctrl.Class.Tap != nil
+	}) {
+		return ctrl.Class.Tap(key, mods)
+	}
+	return Ignore
+}
+
+func (l *Layer) Key(key int, dur int) Reply {
+	if l.Class.Key != nil {
+		return l.Class.Key(key, dur)
+	}
+
+	if l.Focused != nil {
+		if l.Focused.Class.Key != nil {
+			return l.Focused.Class.Key(key, dur)
+		}
+	}
+
+	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
+		return ctrl.Class.Key != nil
+	}) {
+		return ctrl.Class.Key(key, dur)
+	}
+	return Ignore
+}
+
+func (l *Layer) Chars(chars ...rune) Reply {
+	if l.Class.Key != nil {
+		return l.Class.Chars(chars...)
+	}
+
+	if l.Focused != nil {
+		if l.Focused.Class.Key != nil {
+			return l.Focused.Class.Chars(chars...)
+		}
+	}
+
+	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
+		return ctrl.Class.Key != nil
+	}) {
+		return ctrl.Class.Chars(chars...)
+	}
+	return Ignore
+}
+
+func (l *Layer) Lift(key int, mods Mods) Reply {
+	if l.Class.Lift != nil {
+		return l.Class.Lift(key, mods)
+	}
+
+	if l.Focused != nil {
+		if l.Focused.Class.Lift != nil {
+			return l.Focused.Class.Lift(key, mods)
+		}
+	}
+
+	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
+		return ctrl.Class.Lift != nil
+	}) {
+		return ctrl.Class.Lift(key, mods)
+	}
 	return Ignore
 }

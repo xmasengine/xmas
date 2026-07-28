@@ -33,7 +33,7 @@ var _ xgal.Game = (*App)(nil)
 
 func main() {
 	app := &App{}
-	layer := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 32))
+	layer := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 40))
 	layer.Label("hello")
 	layer.Button("OK")
 	layer.Orientation = xlui.Vertical // Set to vertical.
@@ -42,8 +42,9 @@ func main() {
 		println("Click main done, finish", button)
 		return xlui.Finish
 	}
-	layer2 := app.Layer(xgal.Bound(15, 15, WindowW-10*2, 32))
+	layer2 := app.Layer(xgal.Bound(15, 15, WindowW-10*2, 40))
 	layer2.Label("hello 2")
+	layer2.Entry("")
 
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
