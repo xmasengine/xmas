@@ -49,6 +49,16 @@ func NewLayer(bounds xgal.Rectangle) *Layer {
 	return &Layer{Bounds: bounds, Style: DefaultStyle(), Orientation: Horizontal}
 }
 
+func (l *Layer) SetFocus(c *Control) {
+	if l.Focused != nil {
+		l.Focused.State.Focused = false
+	}
+	l.Focused = c
+	if l.Focused != nil {
+		l.Focused.State.Focused = true
+	}
+}
+
 func (l Layer) Render(s *xgal.Surface) {
 	if l.Class.Render == nil {
 		if l.State.Focused {
@@ -137,8 +147,7 @@ func (l *Layer) Click(at xgal.Point, button int) Reply {
 	}
 
 	if l.Hovered != nil && at.In(l.Hovered.Bounds) {
-		l.Hovered.State.Focused = true
-		l.Focused = l.Hovered
+		l.SetFocus(l.Hovered)
 	}
 
 	for ctrl := range l.ControlsAt(at) {
