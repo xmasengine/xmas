@@ -136,6 +136,11 @@ func (l *Layer) Click(at xgal.Point, button int) Reply {
 		return l.Class.Click(at, button)
 	}
 
+	if l.Hovered != nil && at.In(l.Hovered.Bounds) {
+		l.Hovered.State.Focused = true
+		l.Focused = l.Hovered
+	}
+
 	for ctrl := range l.ControlsAt(at) {
 		if ctrl.Class.Click != nil {
 			res := ctrl.Class.Click(at, button)
@@ -237,13 +242,13 @@ func (l *Layer) Chars(chars ...rune) Reply {
 	}
 
 	if l.Focused != nil {
-		if l.Focused.Class.Key != nil {
+		if l.Focused.Class.Chars != nil {
 			return l.Focused.Class.Chars(chars...)
 		}
 	}
 
 	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
-		return ctrl.Class.Key != nil
+		return ctrl.Class.Chars != nil
 	}) {
 		return ctrl.Class.Chars(chars...)
 	}

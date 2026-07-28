@@ -4,30 +4,36 @@ import "slices"
 
 import "github.com/xmasengine/xmas/xgal"
 
+const EntrySizer = "WWWWWWWW"
+
 func NewEntry(at xgal.Point, text string) *Control {
 	entry := NewControl(at)
 	entry.State.Clicked = false
+	size := entry.Style.Measure(EntrySizer)
+	entry.Bounds = xgal.Bound(entry.Bounds.Min.X, entry.Bounds.Min.Y, size.X, size.Y)
 
 	var cursor int
 	var input []rune
 
 	render := func(screen *xgal.Surface) {
-		delta := xgal.Pt(0, 0)
-		if entry.State.Clicked {
-			delta = xgal.Pt(2, 2)
-		}
+		delta := xgal.Pt(2, 0)
 		style := entry.Style
 		if entry.State.Hovered {
 			style = style.Hovered()
 		}
+		if entry.State.Focused {
+			style = style.Focused()
+		}
+
 		style.DrawBox(screen, entry.Bounds.Add(delta))
 		style.Print(screen, entry.Bounds.Min.Add(delta), entry.Text)
 		// Draw cursor if focused.
 		if entry.State.Focused {
 			sz := entry.Style.Measure(entry.Text[:cursor])
 			box := entry.Bounds
-			cx := box.Min.X + style.Margin.X + sz.X
-			cy := box.Min.Y + style.Margin.Y
+			min := box.Min.Add(delta)
+			cx := min.X + style.Margin.X + sz.X
+			cy := min.Y + style.Margin.Y
 			ch := box.Dy() - style.Margin.Y*2
 			xgal.Line(screen, cx, cy, cx, cy+ch, style.Stroke, style.Fore)
 		}
@@ -75,10 +81,10 @@ func NewEntry(at xgal.Point, text string) *Control {
 		return Accept
 	}
 
-	chars := func(chars ...rune) Reply {
-		if len(chars) > 0 {
-			input = slices.Insert(input, cursor, chars...)
-			cursor += len(chars)
+	chars := func(chrs ...rune) Reply {
+		if len(chrs) > 0 {
+			input = slices.Insert(input, cursor, chrs...)
+			cursor += len(chrs)
 			entry.Text = string(input)
 			return Accept
 		}

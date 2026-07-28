@@ -42,9 +42,19 @@ func main() {
 		println("Click main done, finish", button)
 		return xlui.Finish
 	}
+
 	layer2 := app.Layer(xgal.Bound(15, 15, WindowW-10*2, 40))
 	layer2.Label("hello 2")
-	layer2.Entry("")
+	entry := layer2.Entry("")
+	entry.Class.Entry = func(string) xlui.Reply {
+		println("Accept: ", entry.Text)
+		return xlui.Accept
+	}
+	entry2 := layer2.Entry("")
+	entry2.Class.Entry = func(string) xlui.Reply {
+		println("Accept: ", entry2.Text)
+		return xlui.Accept
+	}
 
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
