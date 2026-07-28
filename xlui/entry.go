@@ -6,6 +6,7 @@ import "github.com/xmasengine/xmas/xgal"
 
 const EntrySizer = "WWWWWWWW"
 
+// NewEntry returns a new text entry Control.
 func NewEntry(at xgal.Point, text string) *Control {
 	entry := NewControl(at)
 	entry.State.Clicked = false
@@ -102,6 +103,7 @@ func NewEntry(at xgal.Point, text string) *Control {
 	return entry
 }
 
+// Entry adds a new test entry to the layer.
 func (l *Layer) Entry(text string) *Control {
 	at := l.Bounds.Min
 	ctrl := NewEntry(at, text)
