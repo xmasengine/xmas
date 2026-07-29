@@ -50,7 +50,6 @@ func init() {
 		println("Could not load frame:" + err.Error())
 	} else {
 		DefaultFrame = xgal.Prepare(int(DefaultVec.Size.W), int(DefaultVec.Size.H))
-		// xgal.Clear(DefaultFrame, xgal.Paint(255, 255, 255, 0))
 		DefaultVec.Draw(DefaultFrame)
 	}
 }
@@ -78,7 +77,6 @@ func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
 	xgal.Box(dst, r, s.Fill)
 
 	if s.Frame != nil {
-		// xgal.Blit(dst, s.Frame, r, s.Frame.Bounds())
 		offsetX, offsetY := float32(r.Min.X), float32(r.Min.Y)
 		dstW, dstH := (r.Dx()), (r.Dy())
 		xgal.NineSlice(dst, s.Frame, offsetX, offsetY, dstW, dstH, OffNine, OffNine, OffNine, OffNine)

@@ -1,7 +1,7 @@
 xvec 1
 size 240 192
 antialias true
-stroke 4 #ffffffff
+stroke 2 #ffffffff
   move 1 1
   quad 60 10 120 3
   quad 180 10 239 1
