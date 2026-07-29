@@ -37,6 +37,7 @@ type UI struct {
 	Layers     []*Layer // Layers in botttom to top order.
 	Groups     []Group
 	Focused    *Layer // Layer that is currently focused.
+	Dragged    *Layer // Layer that is currently being dragged.
 	LastCursor xgal.Point
 	Mods       Mods
 }
@@ -97,10 +98,13 @@ func (u *UI) Poll() Reply {
 			return u.Release(cursor, int(mb))
 		}
 		if u.LastCursor != cursor {
-			delta := u.LastCursor.Sub(cursor)
+			delta := cursor.Sub(u.LastCursor)
 			u.LastCursor = cursor
-			_ = delta // todo , drag/move
-			u.Hover(cursor)
+			if u.Dragged != nil {
+				u.Dragged.MoveBy(delta)
+			} else {
+				u.Hover(cursor)
+			}
 		}
 	}
 	return Ignore
@@ -267,6 +271,10 @@ func (u *UI) LayersAt(at xgal.Point) func(func(int, *Layer) bool) {
 }
 
 func (u *UI) Release(at xgal.Point, button int) Reply {
+	if u.Dragged != nil {
+		u.Dragged = nil
+	}
+
 	if u.Focused != nil {
 		res := u.Focused.Release(at, button)
 		return res
@@ -283,7 +291,14 @@ func (u *UI) Click(at xgal.Point, button int) Reply {
 		if !at.In(layer.Bounds) {
 			continue
 		}
+
 		res := layer.Click(at, button)
+		if res != Accept {
+			if u.Dragged == nil && !layer.Lock {
+				u.Dragged = layer
+			}
+		}
+
 		if res != Ignore {
 			return u.onReply(i, res)
 		}

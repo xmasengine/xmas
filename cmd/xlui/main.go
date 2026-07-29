@@ -66,6 +66,7 @@ func main() {
 		println("Accept: ", entry2.Text)
 		return xlui.Accept
 	}
+	layer2.Lock = true
 
 	app.Image, err = xgal.Texture(app.FS, "pack/tile/tile_0002.png")
 	if err != nil {
