@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	"io/fs"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -49,8 +50,16 @@ type Vertex struct {
 	Y float32
 }
 
+func (v Vertex) Add(u Vertex) Vertex {
+	return Vertex{X: v.X + u.X, Y: v.Y + u.Y}
+}
+
 // Length is a distance (float32).
 type Length float32
+
+func (l Length) Scale(scale Size) Length {
+	return l * Length(scale.W) * Length(scale.H)
+}
 
 // Size defines the drawing dimensions.
 type Size struct {
@@ -106,6 +115,17 @@ type Painter interface {
 	Paint(color Color)
 }
 
+// Offsetter is an instruction that can be offset at the given position.
+type Offsetter interface {
+	Offset(at Vertex) Instruction
+}
+
+// Renderer is an instruction that can be rendered at a given position
+// with a given size.
+type Renderer interface {
+	Render(surface *Surface, at Vertex, size Size)
+}
+
 // CircleInstruction strokes a circle outline.
 type CircleInstruction struct {
 	C         Vertex
@@ -132,8 +152,14 @@ func (x *XVEC) Circle(cx, cy, r, stroke float32, col Color) *CircleInstruction {
 	return c
 }
 
-func (c *CircleInstruction) Draw(s *Surface) {
+func (c CircleInstruction) Draw(s *Surface) {
 	vector.StrokeCircle(s, c.C.X, c.C.Y, float32(c.R), float32(c.Stroke), c.Color, c.Antialias)
+}
+
+func (c CircleInstruction) Render(s *Surface, at Vertex, scale Size) {
+	p := c.C.Add(at)
+	r := c.R.Scale(scale)
+	vector.StrokeCircle(s, p.X, p.Y, float32(r), float32(c.Stroke), c.Color, c.Antialias)
 }
 
 func (c *CircleInstruction) MarshalText() ([]byte, error) {
@@ -147,6 +173,10 @@ type DiskInstruction struct {
 	R         Length
 	Color     Color
 	Antialias bool
+}
+
+func (c *DiskInstruction) Offset(at Vertex) {
+	c.C = c.C.Add(at)
 }
 
 func (c *DiskInstruction) Paint(color Color) {
@@ -166,6 +196,12 @@ func (d *DiskInstruction) Draw(s *Surface) {
 	vector.FillCircle(s, d.C.X, d.C.Y, float32(d.R), d.Color, d.Antialias)
 }
 
+func (d DiskInstruction) Render(s *Surface, at Vertex, scale Size) {
+	p := d.C.Add(at)
+	r := d.R.Scale(scale)
+	vector.FillCircle(s, p.X, p.Y, float32(r), d.Color, d.Antialias)
+}
+
 func (d *DiskInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("disk %s %s %s %s",
 		ftos(d.C.X), ftos(d.C.Y), ftos(float32(d.R)), coltos(d.Color))), nil
@@ -177,6 +213,9 @@ type RectInstruction struct {
 	Color      Color
 	Stroke     Length
 	Antialias  bool
+}
+
+func (r *RectInstruction) Offset(at Vertex) {
 }
 
 func (r *RectInstruction) Paint(color Color) {
@@ -200,6 +239,14 @@ func (r *RectInstruction) Draw(s *Surface) {
 	vector.StrokeRect(s, r.X, r.Y, r.W, r.H, float32(r.Stroke), r.Color, r.Antialias)
 }
 
+func (r RectInstruction) Render(s *Surface, at Vertex, scale Size) {
+	x := r.X + at.X
+	y := r.Y + at.Y
+	w := r.W * scale.W
+	h := r.H * scale.H
+	vector.StrokeRect(s, x, y, w, h, float32(r.Stroke), r.Color, r.Antialias)
+}
+
 func (r *RectInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("rect %s %s %s %s %s %s",
 		ftos(r.X), ftos(r.Y), ftos(r.W), ftos(r.H), ftos(float32(r.Stroke)), coltos(r.Color))), nil
@@ -210,6 +257,11 @@ type SlabInstruction struct {
 	X, Y, W, H float32
 	Color      Color
 	Antialias  bool
+}
+
+func (r *SlabInstruction) Offset(at Vertex) {
+	r.X += at.X
+	r.Y += at.Y
 }
 
 func (s *SlabInstruction) Paint(color Color) {
@@ -234,12 +286,27 @@ func (r *SlabInstruction) MarshalText() ([]byte, error) {
 		ftos(r.X), ftos(r.Y), ftos(r.W), ftos(r.H), coltos(r.Color))), nil
 }
 
+func (r SlabInstruction) Render(s *Surface, at Vertex, scale Size) {
+	x := r.X + at.X
+	y := r.Y + at.Y
+	w := r.W * scale.W
+	h := r.H * scale.H
+	vector.FillRect(s, x, y, w, h, r.Color, r.Antialias)
+}
+
 // LineInstruction strokes a line segment.
 type LineInstruction struct {
 	X1, Y1, X2, Y2 float32
 	Color          Color
 	Stroke         Length
 	Antialias      bool
+}
+
+func (l *LineInstruction) Offset(at Vertex) {
+	l.X1 += at.X
+	l.Y1 += at.Y
+	l.X2 += at.X
+	l.Y2 += at.Y
 }
 
 func (l *LineInstruction) Adjust(stroke Length) {
@@ -261,6 +328,19 @@ func (x *XVEC) Line(x1, y1, x2, y2, stroke float32, col Color) *LineInstruction 
 
 func (l *LineInstruction) Draw(s *Surface) {
 	vector.StrokeLine(s, l.X1, l.Y1, l.X2, l.Y2, float32(l.Stroke), l.Color, l.Antialias)
+}
+
+func (l LineInstruction) Render(s *Surface, at Vertex, scale Size) {
+	x1 := l.X1 + at.X
+	y1 := l.Y1 + at.Y
+	x2 := l.X2 + at.X
+	y2 := l.Y2 + at.Y
+
+	// XXX likely incorrect.
+	x2 = x2 * (x2 - x1) * scale.W
+	y2 = y2 * (y2 - y1) * scale.H
+
+	vector.StrokeLine(s, x1, y1, x2, y2, float32(l.Stroke), l.Color, l.Antialias)
 }
 
 func (l *LineInstruction) MarshalText() ([]byte, error) {
@@ -317,6 +397,14 @@ func (f *FillInstruction) MarshalText() ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
+func (f *FillInstruction) Offset(at Vertex) {
+	for _, step := range f.Steps {
+		if offsetter, ok := step.(Offsetter); ok {
+			offsetter.Offset(at)
+		}
+	}
+}
+
 // StrokeInstruction strokes a path built from steps.
 type StrokeInstruction struct {
 	Color      Color
@@ -345,6 +433,14 @@ func (x *XVEC) Stroke(stroke float32, col Color, steps ...Stepper) *StrokeInstru
 	s.StrokeOpts.Width = float32(s.Stroke)
 	x.Instructions = append(x.Instructions, s)
 	return s
+}
+
+func (s *StrokeInstruction) Offset(at Vertex) {
+	for _, step := range s.Steps {
+		if offsetter, ok := step.(Offsetter); ok {
+			offsetter.Offset(at)
+		}
+	}
 }
 
 func (s *StrokeInstruction) Draw(dst *Surface) {
@@ -382,6 +478,11 @@ type MoveStep struct {
 	X, Y float32
 }
 
+func (m *MoveStep) Offset(at Vertex) {
+	m.X += at.X
+	m.Y += at.Y
+}
+
 // MoveTo returns a MoveStep that starts a new sub-path at (x, y).
 func MoveTo(x, y float32) *MoveStep { return &MoveStep{X: x, Y: y} }
 
@@ -391,9 +492,18 @@ func (m *MoveStep) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("move %s %s", ftos(m.X), ftos(m.Y))), nil
 }
 
+func (m MoveStep) RenderStep(p *Path, at Vertex, scale Size) {
+	p.MoveTo(m.X+at.X, m.Y+at.Y)
+}
+
 // LineStep draws a straight line to (x, y).
 type LineStep struct {
 	X, Y float32
+}
+
+func (l *LineStep) Offset(at Vertex) {
+	l.X += at.X
+	l.Y += at.Y
 }
 
 // LineTo returns a LineStep that draws a line to (x, y).
@@ -408,6 +518,13 @@ func (l *LineStep) MarshalText() ([]byte, error) {
 // QuadStep draws a quadratic Bézier curve to (x2, y2) with control point (x1, y1).
 type QuadStep struct {
 	X1, Y1, X2, Y2 float32
+}
+
+func (q *QuadStep) Offset(at Vertex) {
+	q.X1 += at.X
+	q.Y1 += at.Y
+	q.X2 += at.X
+	q.Y2 += at.Y
 }
 
 // QuadTo returns a QuadStep for a quadratic Bézier curve.
@@ -429,6 +546,15 @@ func CubicTo(x1, y1, x2, y2, x3, y3 float32) *CubicStep {
 	return &CubicStep{X1: x1, Y1: y1, X2: x2, Y2: y2, X3: x3, Y3: y3}
 }
 
+func (c *CubicStep) Offset(at Vertex) {
+	c.X1 += at.X
+	c.Y1 += at.Y
+	c.X2 += at.X
+	c.Y2 += at.Y
+	c.X3 += at.X
+	c.Y3 += at.Y
+}
+
 func (c *CubicStep) Step(p *Path) { p.CubicTo(c.X1, c.Y1, c.X2, c.Y2, c.X3, c.Y3) }
 
 func (c *CubicStep) MarshalText() ([]byte, error) {
@@ -442,6 +568,11 @@ type ArcStep struct {
 	Start     float32
 	End       float32
 	Dir       Direction
+}
+
+func (a *ArcStep) Offset(at Vertex) {
+	a.CX += at.X
+	a.CY += at.Y
 }
 
 // Direction is the sweep direction of an arc.
@@ -488,6 +619,10 @@ func (a *ArcToStep) MarshalText() ([]byte, error) {
 
 // CloseStep closes the current sub-path by drawing a line back to its start point.
 type CloseStep struct{}
+
+// Just to implement the Offset interface
+func (c *CloseStep) Offset(at Vertex) {
+}
 
 // Close returns a CloseStep that closes the current sub-path.
 func Close() *CloseStep { return &CloseStep{} }
@@ -701,6 +836,20 @@ func (x *XVEC) Draw(s *Surface) {
 	}
 }
 
+// Offset returns an offset copy of xvec.
+func Offset(x XVEC, at Vertex) *XVEC {
+	res := &XVEC{}
+	res.Size = x.Size
+	res.Antialias = x.Antialias
+	for _, inst := range x.Instructions {
+		if offsetter, ok := inst.(Offsetter); ok {
+			offsetter.Offset(at)
+		}
+		res.Instructions = append(res.Instructions, inst)
+	}
+	return res
+}
+
 // V is a shorthand for Vertex{X: x, Y: y}.
 func V(x, y float32) Vertex { return Vertex{X: x, Y: y} }
 
@@ -848,4 +997,22 @@ func (p *scannerParser) readHex() Color {
 
 func isHex(b byte) bool {
 	return (b >= '0' && b <= '9') || (b >= 'a' && b <= 'f') || (b >= 'A' && b <= 'F')
+}
+
+func Parse(rd io.Reader) (*XVEC, error) {
+	var vec XVEC
+	err := vec.Decode(rd)
+	if err != nil {
+		return nil, err
+	}
+	return &vec, nil
+}
+
+func ParseFS(fs fs.FS, name string) (*XVEC, error) {
+	fin, err := fs.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer fin.Close()
+	return Parse(fin)
 }

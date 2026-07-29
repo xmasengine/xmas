@@ -1,6 +1,7 @@
 package xlui
 
 import "github.com/xmasengine/xmas/xgal"
+import "github.com/xmasengine/xmas/xvec"
 import "os"
 
 func (s Style) Measure(txt string) xgal.Point {
@@ -31,20 +32,25 @@ type Style struct {
 	Stroke int
 	Margin xgal.Point
 	Face   xgal.Face
+	Vec    *xvec.XVEC
 	Frame  *xgal.Surface
 }
 
 var DefaultFS = os.DirFS("pack/image/ui")
 
-const DefaultFrameName = "frame.png"
+const DefaultFrameName = "frame.xvec"
 
+var DefaultVec *xvec.XVEC
 var DefaultFrame *xgal.Surface
 
 func init() {
 	var err error
-	DefaultFrame, err = xgal.Texture(DefaultFS, DefaultFrameName)
+	DefaultVec, err = xvec.ParseFS(DefaultFS, DefaultFrameName)
 	if err != nil {
 		println("Could not load frame:" + err.Error())
+	} else {
+		DefaultFrame = xgal.Prepare(int(DefaultVec.Size.W), int(DefaultVec.Size.H))
+		DefaultVec.Draw(DefaultFrame)
 	}
 }
 
@@ -65,9 +71,14 @@ func (s Style) DrawRect(dst *xgal.Surface, r xgal.Rectangle) {
 	xgal.Outline(dst, r, int(s.Stroke), s.Border)
 }
 
+const OffNine = 5
+
 func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
 	if s.Frame != nil {
-		xgal.Blit(dst, s.Frame, r, s.Frame.Bounds())
+		// xgal.Blit(dst, s.Frame, r, s.Frame.Bounds())
+		offsetX, offsetY := float32(r.Min.X), float32(r.Min.Y)
+		dstW, dstH := (r.Dx()), (r.Dy())
+		xgal.NineSlice(dst, s.Frame, offsetX, offsetY, dstW, dstH, OffNine, OffNine, OffNine, OffNine)
 	}
 
 	if s.Shadow.A != 0 {

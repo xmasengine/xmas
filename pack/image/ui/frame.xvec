@@ -1,0 +1,23 @@
+xvec 1
+size 240 192
+antialias true
+stroke 4 #ffffffff
+  move 1 1
+  quad 60 10 120 3
+  quad 180 10 239 1
+  quad 230 96 239 191
+  quad 60 181 120 191
+  quad 10 181 3 191
+  quad 10 96 1 1
+  close
+end
+fill #0000aaaa
+  move 1 1
+  quad 60 10 120 3
+  quad 180 10 239 1
+  quad 230 96 239 191
+  quad 60 181 120 191
+  quad 10 181 3 191
+  quad 10 96 1 1
+  close
+end

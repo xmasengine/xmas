@@ -167,3 +167,63 @@ func Zoom(dst, src *Surface, x, y, zoom float64) {
 	op.Filter = ebiten.FilterNearest
 	dst.DrawImage(src, op)
 }
+
+// NineSlice draws a 9-slice image with one draw call, and custom positioning.
+// src: The source texture
+// offsetX, offsetY: The screen position where the 9-slice should be drawn
+// dstW, dstH: The target dimensions on the screen
+// left, right, top, bottom: The inset margins of the 9-slice in pixels
+func NineSlice(screen *ebiten.Image, src *ebiten.Image, offsetX, offsetY float32, dstW, dstH int, left, right, top, bottom int) {
+	w, h := src.Bounds().Dx(), src.Bounds().Dy()
+
+	// 1. Define coordinate arrays for Source (Texture Space)
+	srcX := [4]float32{0, float32(left), float32(w - right), float32(w)}
+	srcY := [4]float32{0, float32(top), float32(h - bottom), float32(h)}
+
+	// 2. Define coordinate arrays for Destination (Screen Space) with translation applied
+	dstX := [4]float32{offsetX, offsetX + float32(left), offsetX + float32(dstW-right), offsetX + float32(dstW)}
+	dstY := [4]float32{offsetY, offsetY + float32(top), offsetY + float32(dstH-bottom), offsetY + float32(dstH)}
+
+	// 3. Allocate vertex array on the stack
+	var vertices [16]ebiten.Vertex
+
+	// 4. Populate vertices
+	for y := 0; y < 4; y++ {
+		for x := 0; x < 4; x++ {
+			vertices[y*4+x] = ebiten.Vertex{
+				DstX:   dstX[x],
+				DstY:   dstY[y],
+				SrcX:   srcX[x],
+				SrcY:   srcY[y],
+				ColorR: 1, ColorG: 1, ColorB: 1, ColorA: 1,
+			}
+		}
+	}
+
+	// 5. Allocate index array on the stack
+	var indices [54]uint16
+	idx := 0
+
+	// 6. Generate indices linking the grid into triangles
+	for y := 0; y < 3; y++ {
+		for x := 0; x < 3; x++ {
+			topLeft := uint16(y*4 + x)
+			topRight := topLeft + 1
+			bottomLeft := topLeft + 4
+			bottomRight := bottomLeft + 1
+
+			indices[idx] = topLeft
+			indices[idx+1] = topRight
+			indices[idx+2] = bottomLeft
+
+			indices[idx+3] = topRight
+			indices[idx+4] = bottomRight
+			indices[idx+5] = bottomLeft
+			idx += 6
+		}
+	}
+
+	// 7. Execute draw call
+	op := &ebiten.DrawTrianglesOptions{}
+	screen.DrawTriangles(vertices[:], indices[:], src, op)
+}
