@@ -1,6 +1,7 @@
 package xlui
 
 import "github.com/xmasengine/xmas/xgal"
+import "os"
 
 func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
@@ -30,6 +31,21 @@ type Style struct {
 	Stroke int
 	Margin xgal.Point
 	Face   xgal.Face
+	Frame  *xgal.Surface
+}
+
+var DefaultFS = os.DirFS("pack/image/ui")
+
+const DefaultFrameName = "frame.png"
+
+var DefaultFrame *xgal.Surface
+
+func init() {
+	var err error
+	DefaultFrame, err = xgal.Texture(DefaultFS, DefaultFrameName)
+	if err != nil {
+		println("Could not load frame:" + err.Error())
+	}
 }
 
 func DefaultStyle() Style {
@@ -41,6 +57,7 @@ func DefaultStyle() Style {
 	s.Stroke = 1
 	s.Margin = xgal.Pt(2, 2)
 	s.Face = xgal.BuiltinFace
+	s.Frame = DefaultFrame
 	return s
 }
 
@@ -49,6 +66,10 @@ func (s Style) DrawRect(dst *xgal.Surface, r xgal.Rectangle) {
 }
 
 func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
+	if s.Frame != nil {
+		xgal.Blit(dst, s.Frame, r, s.Frame.Bounds())
+	}
+
 	if s.Shadow.A != 0 {
 		shadow := s.Shadow
 		shadow.A = (shadow.A / 2) + 1 // make half transparent
