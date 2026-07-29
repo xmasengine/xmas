@@ -1,6 +1,11 @@
 package main
 
 import (
+	"io/fs"
+	"os"
+)
+
+import (
 	"github.com/xmasengine/xmas/xgal"
 	"github.com/xmasengine/xmas/xlui"
 )
@@ -13,6 +18,8 @@ const (
 
 type App struct {
 	xlui.UI
+	FS    fs.FS
+	Image *xgal.Surface
 }
 
 func (a *App) Update() error {
@@ -32,7 +39,11 @@ func (a *App) Layout(w, h int) (int, int) {
 var _ xgal.Game = (*App)(nil)
 
 func main() {
+	var err error
 	app := &App{}
+	wd, _ := os.Getwd()
+	app.FS = os.DirFS(wd)
+
 	layer := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 40))
 	layer.Label("hello")
 	layer.Button("OK")
@@ -54,6 +65,16 @@ func main() {
 	entry2.Class.Entry = func(string) xlui.Reply {
 		println("Accept: ", entry2.Text)
 		return xlui.Accept
+	}
+
+	app.Image, err = xgal.Texture(app.FS, "pack/tile/tile_0002.png")
+	if err != nil {
+		layer3 := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 40))
+		layer3.Label("Error:" + err.Error())
+	} else {
+		layer3 := app.Layer(xgal.Bound(10, 50, app.Image.Bounds().Dx()+10, app.Image.Bounds().Dy()+10))
+		tileSize := xgal.Pt(8, 8)
+		layer3.Chooser(app.Image, tileSize)
 	}
 
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")

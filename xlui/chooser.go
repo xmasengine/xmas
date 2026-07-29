@@ -28,8 +28,8 @@ func chooserMouseTile(c *Control, image *xgal.Surface, tileSize, pos xgal.Point)
 func NewChooser(at xgal.Point, image *xgal.Surface, tileSize xgal.Point) *Control {
 	chooser := NewControl(at)
 	chooser.State.Clicked = false
-	size := chooser.Style.Measure(EntrySizer)
-	chooser.Bounds = xgal.Bound(chooser.Bounds.Min.X, chooser.Bounds.Min.Y, size.X, size.Y)
+	size := image.Bounds()
+	chooser.Bounds = xgal.Bound(chooser.Bounds.Min.X, chooser.Bounds.Min.Y, size.Dx(), size.Dy())
 
 	var focused xgal.Point
 	var hovered xgal.Point
@@ -46,7 +46,7 @@ func NewChooser(at xgal.Point, image *xgal.Surface, tileSize xgal.Point) *Contro
 				chooser.Bounds.Min.X+(hovered.X+1)*tileSize.X,
 				chooser.Bounds.Min.Y+(hovered.Y+1)*tileSize.Y,
 			)
-			xgal.Outline(screen, hb, 2, xgal.Paint(255, 255, 255, 255))
+			xgal.Outline(screen, hb, 2, chooser.Style.Hovered().Border)
 		}
 
 		if chooser.State.Focused {
@@ -56,7 +56,7 @@ func NewChooser(at xgal.Point, image *xgal.Surface, tileSize xgal.Point) *Contro
 				chooser.Bounds.Min.X+(focused.X+1)*tileSize.X,
 				chooser.Bounds.Min.Y+(focused.Y+1)*tileSize.Y,
 			)
-			xgal.Outline(screen, hb, 2, xgal.Paint(255, 255, 255, 255))
+			xgal.Outline(screen, hb, 2, chooser.Style.Focused().Border)
 		}
 	}
 

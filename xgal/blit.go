@@ -101,7 +101,24 @@ func (opts BlitOpts) toDrawImageOptions(dr, sr Rectangle) *ebiten.DrawImageOptio
 	}
 
 	// Scale and position
-	op.GeoM.Scale(dw/w, dh/h)
+	if dw != w && dh != h {
+		op.GeoM.Scale(dw/w, dh/h)
+	}
+	op.GeoM.Translate(float64(dr.Min.X), float64(dr.Min.Y))
+
+	return op
+}
+
+func drawImageOptions(dr, sr Rectangle) *ebiten.DrawImageOptions {
+	sw, sh := float64(sr.Dx()), float64(sr.Dy())
+	dw, dh := float64(dr.Dx()), float64(dr.Dy())
+
+	op := &ebiten.DrawImageOptions{}
+
+	// Scale and position
+	if dw != sw && dh != sh {
+		op.GeoM.Scale(dw/sw, dh/sh)
+	}
 	op.GeoM.Translate(float64(dr.Min.X), float64(dr.Min.Y))
 
 	return op
@@ -115,6 +132,8 @@ func Blit(dst, src *Surface, dr, sr Rectangle, ops ...BlitOpts) {
 	op := &ebiten.DrawImageOptions{}
 	if len(ops) >= 1 {
 		op = ops[0].toDrawImageOptions(dr, sr)
+	} else {
+		op = drawImageOptions(dr, sr)
 	}
 
 	dst.DrawImage(sub, op)
