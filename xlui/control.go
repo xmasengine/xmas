@@ -14,7 +14,9 @@ type Control struct {
 	// Class for custom or type specific behavior.
 	Class
 	// Data
-	Text   string // For use by text controls.
+	Text    string // For use by text controls.
+	Checked bool   // For use by boolean controls like a checkbox or radio button.
+	// Size
 	Bounds xgal.Rectangle
 	Clip   *xgal.Rectangle
 	Style
@@ -47,7 +49,7 @@ func NewControl(at xgal.Point) *Control {
 
 func NewControlWithText(at xgal.Point, style Style, text string) *Control {
 	ctrl := NewControl(at)
-	ctrl.Style = ButtonStyle()
+	ctrl.Style = style
 	ctrl.Text = text
 	if ctrl.Text != "" {
 		size := ctrl.Style.Measure(ctrl.Text)

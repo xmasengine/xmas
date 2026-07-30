@@ -66,7 +66,10 @@ func main() {
 		println("Accept: ", entry2.Text)
 		return xlui.Accept
 	}
-	layer2.Lock = true
+
+	layer2.CheckboxWithLabel(false, "Check")
+	layer2.Checkbox(true)
+	layer2.Toggle("Toggle")
 
 	app.Image, err = xgal.Texture(app.FS, "pack/tile/tile_0002.png")
 	if err != nil {

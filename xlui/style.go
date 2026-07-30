@@ -63,7 +63,7 @@ func DefaultStyle() Style {
 	s.Stroke = 1
 	s.Margin = xgal.Pt(2, 2)
 	s.Face = xgal.BuiltinFace
-	s.Frame = DefaultFrame
+	s.Frame = nil
 	return s
 }
 
