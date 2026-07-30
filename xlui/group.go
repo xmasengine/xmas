@@ -1,5 +1,6 @@
 package xlui
 
-// Group groups several layers or controls together.
-// Group is simply an integer ID.
-type Group int
+// Group is a group of Controls.
+type Group struct {
+	Controls []*Control
+}

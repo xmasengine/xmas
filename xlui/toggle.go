@@ -2,15 +2,18 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 
-func (l *Layer) Toggle(text string) *Control {
+func (l *Layer) Toggle(text string, group *Group) *Control {
 	at := l.Bounds.Min
-	ctrl := NewToggle(at, text)
+	ctrl := NewToggle(at, text, group)
+	if group != nil {
+		group.Controls = append(group.Controls, ctrl)
+	}
 	return l.Append(ctrl)
 }
 
 // Toggle is a toggle that stays ON or OFF.
 // If grouped only one of the group can be ON.
-func NewToggle(at xgal.Point, text string) *Control {
+func NewToggle(at xgal.Point, text string, group *Group) *Control {
 	toggle := NewControlWithText(at, ButtonStyle(), text)
 	toggle.State.Clicked = false
 	toggle.Checked = false
@@ -29,7 +32,13 @@ func NewToggle(at xgal.Point, text string) *Control {
 	}
 
 	click := func(at xgal.Point, which int) Reply {
-		toggle.Checked = !toggle.Checked
+		if group != nil {
+			for _, ctrl := range group.Controls {
+				ctrl.Checked = ctrl == toggle
+			}
+		} else {
+			toggle.Checked = !toggle.Checked
+		}
 		return Accept
 	}
 

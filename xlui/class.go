@@ -17,3 +17,21 @@ type Class struct {
 	Entry   func(string) Reply
 	Chars   func(chars ...rune) Reply
 }
+
+type ClickFunc func(at xgal.Point, button int) Reply
+
+func (f ClickFunc) Link(linked ClickFunc) ClickFunc {
+	return func(at xgal.Point, button int) Reply {
+		linked(at, button)
+		return f(at, button)
+	}
+}
+
+func (c *Class) LinkClick(linked ClickFunc) {
+	if c.Click == nil {
+		c.Click = linked
+	} else {
+		cf := ClickFunc(c.Click)
+		c.Click = cf.Link(linked)
+	}
+}

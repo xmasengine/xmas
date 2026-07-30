@@ -69,7 +69,15 @@ func main() {
 
 	layer2.CheckboxWithLabel(false, "Check")
 	layer2.Checkbox(true)
-	layer2.Toggle("Toggle")
+	g := &xlui.Group{}
+
+	layer2.Orientation = xlui.Vertical
+	layer2.Toggle("Foo", g)
+	layer.Orientation = xlui.Horizontal
+
+	layer2.Toggle("Bar", g)
+	layer2.Toggle("Baz", g)
+	layer2.Toggle("Quux", nil)
 
 	app.Image, err = xgal.Texture(app.FS, "pack/tile/tile_0002.png")
 	if err != nil {

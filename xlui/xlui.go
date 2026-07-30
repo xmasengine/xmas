@@ -35,9 +35,8 @@ type Mods struct {
 // UI is the single user interface, at least for one window.
 type UI struct {
 	Layers     []*Layer // Layers in botttom to top order.
-	Groups     []Group
-	Focused    *Layer // Layer that is currently focused.
-	Dragged    *Layer // Layer that is currently being dragged.
+	Focused    *Layer   // Layer that is currently focused.
+	Dragged    *Layer   // Layer that is currently being dragged.
 	LastCursor xgal.Point
 	Mods       Mods
 }
