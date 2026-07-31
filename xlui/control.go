@@ -16,6 +16,9 @@ type Control struct {
 	// Data
 	Text    string // For use by text controls.
 	Checked bool   // For use by boolean controls like a checkbox or radio button.
+	Value   int
+	Low     int
+	High    int
 	// Size
 	Bounds xgal.Rectangle
 	Clip   *xgal.Rectangle

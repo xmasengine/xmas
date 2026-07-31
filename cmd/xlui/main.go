@@ -89,6 +89,13 @@ func main() {
 		layer3.Chooser(app.Image, tileSize)
 	}
 
+	layer4 := app.Layer(xgal.Bound(10, 50, WindowW-10*2, 40))
+	slider := layer4.Slider(xlui.Horizontal, 1, 10)
+	slider.Class.Slide = func(value int) xlui.Reply {
+		println("Slider: ", value)
+		return xlui.Accept
+	}
+
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
 }
