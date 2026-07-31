@@ -22,8 +22,8 @@ const (
 type Orientation int
 
 const (
-	Vertical Orientation = iota
-	Horizontal
+	Horizontal Orientation = iota
+	Vertical
 )
 
 // Layer is a layer in the UI.

@@ -51,10 +51,12 @@ func NewControlWithText(at xgal.Point, style Style, text string) *Control {
 	ctrl := NewControl(at)
 	ctrl.Style = style
 	ctrl.Text = text
+	size := xgal.Pt(ControlWidth, ControlHeight)
 	if ctrl.Text != "" {
-		size := ctrl.Style.Measure(ctrl.Text)
-		ctrl.Bounds = xgal.Bound(at.X, at.Y, size.X, size.Y)
+		size = ctrl.Style.Measure(ctrl.Text)
 	}
+	size = size.Add(ctrl.Style.Margin.Mul(2))
+	ctrl.Bounds = xgal.Bound(at.X, at.Y, size.X, size.Y)
 	return ctrl
 }
 
@@ -74,23 +76,24 @@ func NewButton(at xgal.Point, text string) *Control {
 	button.State.Clicked = false
 
 	render := func(screen *xgal.Surface) {
-		delta := xgal.Pt(0, 0)
-		if button.State.Clicked {
-			delta = xgal.Pt(2, 2)
-		}
 		style := button.Style
 		if button.State.Hovered {
 			style = style.Hovered()
 		}
-		style.DrawBox(screen, button.Bounds.Add(delta))
-		style.Print(screen, button.Bounds.Min.Add(delta), button.Text)
+		if button.State.Clicked {
+			style = style.Clicked()
+		}
+		style.DrawBox(screen, button.Bounds)
+		style.Print(screen, button.Bounds.Min, button.Text)
 	}
 
 	click := func(at xgal.Point, which int) Reply {
+		button.State.Clicked = true
 		return Accept
 	}
 
 	release := func(at xgal.Point, which int) Reply {
+		button.State.Clicked = false
 		return Accept
 	}
 

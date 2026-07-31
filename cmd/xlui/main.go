@@ -73,7 +73,7 @@ func main() {
 
 	layer2.Orientation = xlui.Vertical
 	layer2.Toggle("Foo", g)
-	layer.Orientation = xlui.Horizontal
+	layer2.Orientation = xlui.Horizontal
 
 	layer2.Toggle("Bar", g)
 	layer2.Toggle("Baz", g)

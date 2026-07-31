@@ -19,16 +19,15 @@ func NewToggle(at xgal.Point, text string, group *Group) *Control {
 	toggle.Checked = false
 
 	render := func(screen *xgal.Surface) {
-		delta := xgal.Pt(0, 0)
-		if toggle.Checked {
-			delta = xgal.Pt(2, 2)
-		}
 		style := toggle.Style
 		if toggle.State.Hovered {
 			style = style.Hovered()
 		}
-		style.DrawBox(screen, toggle.Bounds.Add(delta))
-		style.Print(screen, toggle.Bounds.Min.Add(delta), toggle.Text)
+		if toggle.Checked {
+			style = style.Clicked()
+		}
+		style.DrawBox(screen, toggle.Bounds)
+		style.Print(screen, toggle.Bounds.Min, toggle.Text)
 	}
 
 	click := func(at xgal.Point, which int) Reply {

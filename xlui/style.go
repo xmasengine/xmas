@@ -14,7 +14,7 @@ func (s Style) Stride() int {
 }
 
 func (s Style) Print(dst *xgal.Surface, at xgal.Point, txt string) {
-	pt := at.Add(s.Margin)
+	pt := at.Add(s.Margin).Add(s.Offset)
 	xgal.Print(dst, s.Face, s.Fore, pt.X, pt.Y, txt)
 }
 
@@ -32,8 +32,12 @@ type Style struct {
 	Stroke int
 	Margin xgal.Point
 	Face   xgal.Face
-	Vec    *xvec.XVEC
-	Frame  *xgal.Surface
+	Shade  xgal.Point // Shade is the direction of the shadow
+	Gloom  int        // Gloom is the width of the shadow
+	Offset xgal.Point // Offset for buttons, etc.
+
+	Vec   *xvec.XVEC
+	Frame *xgal.Surface
 }
 
 var DefaultFS = os.DirFS("pack/image/ui")
@@ -58,10 +62,12 @@ func DefaultStyle() Style {
 	s := Style{}
 	s.Fore = xgal.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
 	s.Border = xgal.RGBA{R: 0x55, G: 0x55, B: 0x55, A: 0xff}
-	s.Shadow = xgal.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0xaa}
+	s.Shadow = xgal.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
 	s.Fill = xgal.RGBA{R: 0x00, G: 0x00, B: 0x55, A: 0xaa}
 	s.Stroke = 1
-	s.Margin = xgal.Pt(2, 2)
+	s.Gloom = 10
+	s.Margin = xgal.Pt(2, 0)
+	s.Shade = xgal.Pt(1, 1)
 	s.Face = xgal.BuiltinFace
 	s.Frame = nil
 	return s
@@ -74,27 +80,29 @@ func (s Style) DrawRect(dst *xgal.Surface, r xgal.Rectangle) {
 const OffNine = 5
 
 func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
-	xgal.Box(dst, r, s.Fill)
+	xgal.Box(dst, r.Add(s.Offset), s.Fill)
 
 	if s.Frame != nil {
-		offsetX, offsetY := float32(r.Min.X), float32(r.Min.Y)
+		offset := r.Min.Add(s.Offset)
+		offsetX, offsetY := float32(offset.X), float32(offset.Y)
 		dstW, dstH := (r.Dx()), (r.Dy())
 		xgal.NineSlice(dst, s.Frame, offsetX, offsetY, dstW, dstH, OffNine, OffNine, OffNine, OffNine)
 	}
 
-	if s.Shadow.A != 0 {
-		shadow := s.Shadow
-		shadow.A = (shadow.A / 2) + 1 // make half transparent
-		xgal.Line(dst, r.Max.X+1, r.Min.Y+1, r.Max.X+1, r.Max.Y+1, 1, shadow)
-		xgal.Line(dst, r.Min.X+1, r.Max.Y+1, r.Max.X+1, r.Max.Y+1, 1, shadow)
+	if s.Gloom > 0 {
+		lo := r.Min.Add(s.Offset).Add(s.Shade)
+		hi := r.Max.Add(s.Offset).Add(s.Shade)
+		xgal.Line(dst, hi.X, lo.Y, hi.X, lo.Y, s.Gloom, s.Shadow)
+		xgal.Line(dst, lo.X, hi.Y, lo.X, hi.Y, s.Gloom, s.Shadow)
 	}
 
 	if s.Stroke > 0 {
-		xgal.Outline(dst, r, s.Stroke, s.Border)
+		xgal.Outline(dst, r.Add(s.Offset), s.Stroke, s.Border)
 	}
 }
 
 func (s Style) DrawCircleInBox(Surface *xgal.Surface, box xgal.Rectangle) {
+	box = box.Add(s.Offset)
 	r := box.Dx()
 	if box.Dy() < r {
 		r = box.Dy()
@@ -105,6 +113,7 @@ func (s Style) DrawCircleInBox(Surface *xgal.Surface, box xgal.Rectangle) {
 }
 
 func (s Style) DrawCircle(dst *xgal.Surface, c xgal.Point, r int) {
+	c = c.Add(s.Offset)
 	if r < 0 {
 		r = 1
 	}
@@ -116,12 +125,14 @@ func (s Style) DrawCircle(dst *xgal.Surface, c xgal.Point, r int) {
 }
 
 func (s Style) DrawX(dst *xgal.Surface, bounds xgal.Rectangle) {
+	bounds = bounds.Add(s.Offset)
 	if s.Stroke > 0 {
 		xgal.Andreas(dst, bounds, s.Stroke, s.Border)
 	}
 }
 
 func (s Style) Ink(dst *xgal.Surface, bounds xgal.Rectangle, text string) {
+	bounds = bounds.Add(s.Offset)
 	xgal.Ink(dst, s.Face, s.Fore, bounds.Min.X+s.Margin.X, bounds.Min.Y+s.Margin.Y, text)
 }
 
@@ -137,6 +148,15 @@ func (s Style) Inset(bounds xgal.Rectangle) xgal.Rectangle {
 
 func (s Style) Focused() Style {
 	s.Border = xgal.Paint(240, 240, 240, 245)
+	return s
+}
+
+func (s Style) Clicked() Style {
+	s.Border = xgal.Paint(0xff, 0xff, 0xff, 0xff)
+	s.Fill = xgal.Paint(0x55, 0x55, 0xff, 0xff)
+	s.Gloom = 2
+	s.Shade = xgal.Pt(-1, -1)
+	s.Offset = xgal.Pt(0, 1)
 	return s
 }
 
@@ -166,7 +186,8 @@ func PressStyle() Style {
 
 func ButtonStyle() Style {
 	s := DefaultStyle()
-	s.Fill = xgal.Paint(15, 200, 45, 240)
+	s.Fill = xgal.Paint(0x00, 0x00, 0xaa, 0xaa)
+	s.Shadow = xgal.Paint(0x00, 0x00, 0x00, 0xff)
 	return s
 }
 
