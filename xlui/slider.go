@@ -7,7 +7,8 @@ const knobSize = 8
 func (s *Control) slideTo(mouse xgal.Point) {
 	track := s.sliderTrackSize()
 	if track <= 0 {
-		track = s.Style.Margin.X
+		println("slider track size zero or negative")
+		return
 	}
 
 	mousePos := mouse.X - s.Bounds.Min.X - s.Style.Margin.X
@@ -24,30 +25,41 @@ func (s *Control) slideTo(mouse xgal.Point) {
 func (s Control) knobPos() int {
 	track := s.sliderTrackSize()
 	if track <= 0 {
+		println("slider track size zero or negative")
 		return s.Style.Margin.X
 	}
-	p := (s.Value - s.Low) * track / (s.High - s.Low)
+	p := ((s.Value - s.Low) * track) / (s.High - s.Low)
 	return p
 }
 
 func (s Control) sliderTrackSize() int {
-	if s.Orientation == Horizontal {
-		return s.Bounds.Dx() - 2*s.Style.Margin.X - knobSize
+	if s.Orientation == Vertical {
+		return s.Bounds.Dy() - knobSize
 	}
-	return s.Bounds.Dy() - 2*s.Style.Margin.Y - knobSize
+	return s.Bounds.Dx() - knobSize
 }
 
 // NewSlider adds a new slider Control
-func NewSlider(at xgal.Point, orientation Orientation, low, high int) *Control {
+func NewSlider(at xgal.Point, orientation Orientation, low, high, value int) *Control {
 	slider := NewControl(at)
 	slider.State.Clicked = false
-	size := xgal.Pt(knobSize, high-low)
-	if orientation == Horizontal {
-		size = xgal.Pt(knobSize+high-low, knobSize)
+	slider.Low = low
+	slider.High = high
+	slider.Value = value
+	slider.Orientation = orientation
+
+	size := xgal.Pt(knobSize+(high-low)*2, knobSize)
+	if orientation == Vertical {
+		size = xgal.Pt(knobSize, knobSize+(high-low)*2)
 	}
 	slider.Bounds = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y, size.X, size.Y)
 
 	render := func(screen *xgal.Surface) {
+		kb := slider.knobPos()
+		knob := xgal.Bound(slider.Bounds.Min.X+kb, slider.Bounds.Min.Y, knobSize, knobSize)
+		if orientation == Vertical {
+			knob = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y+kb, knobSize, knobSize)
+		}
 
 		style := slider.Style
 		if slider.State.Hovered {
@@ -58,32 +70,8 @@ func NewSlider(at xgal.Point, orientation Orientation, low, high int) *Control {
 		}
 
 		style.DrawBox(screen, slider.Bounds)
-
-		track := slider.sliderTrackSize()
-		if track <= 0 {
-			return
-		}
-
-		kp := slider.knobPos()
-		var kbox xgal.Rectangle
-		if slider.Orientation == Horizontal {
-			kbox = xgal.Rect(
-				slider.Bounds.Min.X+slider.Style.Margin.X+kp,
-				slider.Bounds.Min.Y,
-				slider.Bounds.Min.X+slider.Style.Margin.X+kp+knobSize,
-				slider.Bounds.Max.Y,
-			)
-		} else {
-			kbox = xgal.Rect(
-				slider.Bounds.Min.X,
-				slider.Bounds.Min.Y+slider.Style.Margin.Y+kp,
-				slider.Bounds.Max.X,
-				slider.Bounds.Min.Y+slider.Style.Margin.Y+kp+knobSize,
-			)
-		}
-
 		ks := style.KnobStyle()
-		ks.DrawBox(screen, kbox)
+		ks.DrawCircleInBox(screen, knob)
 	}
 
 	click := func(at xgal.Point, which int) Reply {
@@ -111,8 +99,8 @@ func NewSlider(at xgal.Point, orientation Orientation, low, high int) *Control {
 
 // Slider adds a new image chooser to the layer.
 // The orientation determines if it is vertical or horizontal.
-func (l *Layer) Slider(orientation Orientation, low, high int) *Control {
+func (l *Layer) Slider(orientation Orientation, low, high, value int) *Control {
 	at := l.Bounds.Min
-	ctrl := NewSlider(at, orientation, low, high)
+	ctrl := NewSlider(at, orientation, low, high, value)
 	return l.Append(ctrl)
 }

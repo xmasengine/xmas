@@ -90,8 +90,13 @@ func main() {
 	}
 
 	layer4 := app.Layer(xgal.Bound(10, 50, WindowW-10*2, 40))
-	slider := layer4.Slider(xlui.Horizontal, 1, 10)
+	slider := layer4.Slider(xlui.Vertical, 0, 10, 2)
 	slider.Class.Slide = func(value int) xlui.Reply {
+		println("Slider: ", value)
+		return xlui.Accept
+	}
+	slider2 := layer4.Slider(xlui.Horizontal, 0, 10, 2)
+	slider2.Class.Slide = func(value int) xlui.Reply {
 		println("Slider: ", value)
 		return xlui.Accept
 	}
