@@ -126,6 +126,8 @@ func (u *UI) pollKeys() Reply {
 		res := u.Tap(key, u.Mods)
 		if res == Accept {
 			accepted = true
+		} else if res != Ignore {
+			u.onReply(u.focusOrTopIndex(), res)
 		}
 	}
 
@@ -168,6 +170,16 @@ func (u *UI) pollKeys() Reply {
 	return Ignore
 }
 
+func (u *UI) focusOrTopIndex() int {
+	l := u.focusOrTop()
+	for i := 0; i < len(u.Layers); i++ {
+		if u.Layers[i] == l {
+			return i
+		}
+	}
+	return -1
+}
+
 func (u *UI) focusOrTop() *Layer {
 	if u.Focused != nil {
 		return u.Focused
@@ -183,7 +195,7 @@ func (u *UI) focusOrTop() *Layer {
 func (u *UI) Tap(key xgal.KeyCode, mods Mods) Reply {
 	top := u.focusOrTop()
 	if top != nil {
-		return top.Tap(int(key), mods)
+		return top.OnTap(int(key), mods)
 	}
 	return Ignore
 }
@@ -191,7 +203,7 @@ func (u *UI) Tap(key xgal.KeyCode, mods Mods) Reply {
 func (u *UI) Key(key xgal.KeyCode, duration int) Reply {
 	top := u.focusOrTop()
 	if top != nil {
-		return top.Key(int(key), duration)
+		return top.OnKey(int(key), duration)
 	}
 	return Ignore
 }
@@ -199,7 +211,7 @@ func (u *UI) Key(key xgal.KeyCode, duration int) Reply {
 func (u *UI) Lift(key xgal.KeyCode, mods Mods) Reply {
 	top := u.focusOrTop()
 	if top != nil {
-		return top.Lift(int(key), mods)
+		return top.OnLift(int(key), mods)
 	}
 	return Ignore
 }
@@ -207,7 +219,7 @@ func (u *UI) Lift(key xgal.KeyCode, mods Mods) Reply {
 func (u *UI) Chars(chars ...rune) Reply {
 	top := u.focusOrTop()
 	if top != nil {
-		return top.Chars(chars...)
+		return top.OnChars(chars...)
 	}
 	return Ignore
 }
@@ -275,7 +287,7 @@ func (u *UI) Release(at xgal.Point, button int) Reply {
 	}
 
 	if u.Focused != nil {
-		res := u.Focused.Release(at, button)
+		res := u.Focused.OnRelease(at, button)
 		return res
 	}
 	return Ignore
@@ -291,7 +303,7 @@ func (u *UI) Click(at xgal.Point, button int) Reply {
 			continue
 		}
 
-		res := layer.Click(at, button)
+		res := layer.OnClick(at, button)
 		if res != Accept {
 			if u.Dragged == nil && !layer.Lock {
 				u.Dragged = layer
@@ -316,7 +328,7 @@ func (u *UI) Render(s *xgal.Surface) {
 
 func (u *UI) Hover(at xgal.Point) Reply {
 	for _, layer := range u.LayersAt(at) {
-		res := layer.Hover(at)
+		res := layer.OnHover(at)
 		if res != Ignore {
 			return res
 		}
@@ -326,6 +338,18 @@ func (u *UI) Hover(at xgal.Point) Reply {
 
 func (u *UI) Layer(bounds xgal.Rectangle) *Layer {
 	layer := NewLayer(bounds)
+	u.Layers = append(u.Layers, layer)
+	return layer
+}
+
+func (u *UI) Asker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {
+	layer := NewAsker(bounds, label, entry, buttons...)
+	u.Layers = append(u.Layers, layer)
+	return layer
+}
+
+func (u *UI) Menu(bounds xgal.Rectangle, options ...string) *Layer {
+	layer := NewMenu(bounds, options...)
 	u.Layers = append(u.Layers, layer)
 	return layer
 }

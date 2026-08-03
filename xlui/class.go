@@ -15,8 +15,9 @@ type Class struct {
 	Tap     func(key int, mods Mods) Reply
 	Lift    func(key int, mods Mods) Reply
 	Entry   func(string) Reply
-	Slide   func(value int) Reply
+	Value   func(value int) Reply
 	Chars   func(chars ...rune) Reply
+	MoveBy  func(delta xgal.Point)
 }
 
 type ClickFunc func(at xgal.Point, button int) Reply

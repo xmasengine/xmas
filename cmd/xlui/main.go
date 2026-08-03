@@ -46,7 +46,21 @@ func main() {
 
 	layer := app.Layer(xgal.Bound(10, 10, WindowW-10*2, 40))
 	layer.Label("hello")
-	layer.Button("OK")
+	askButton := layer.Button("Ask")
+	askButton.Class.Click = func(at xgal.Point, button int) xlui.Reply {
+		ab := xgal.Bound(10, 10, WindowW-10*2, 60)
+		asker := app.Asker(ab, "say my name", "alehandro", "cancel", "ok")
+		asker.Class.Entry = func(entry string) xlui.Reply {
+			println("asker entry: ", entry)
+			return xlui.Finish
+		}
+		asker.Class.Value = func(value int) xlui.Reply {
+			println("asker value: ", value)
+			return xlui.Finish
+		}
+		return xlui.Accept
+	}
+
 	layer.Orientation = xlui.Vertical // Set to vertical.
 	done := layer.Button("Done")      // will go below.
 	done.Class.Click = func(at xgal.Point, button int) xlui.Reply {
@@ -72,12 +86,21 @@ func main() {
 	g := &xlui.Group{}
 
 	layer2.Orientation = xlui.Vertical
-	layer2.Toggle("Foo", g)
+	t1 := layer2.Toggle("Foo", g)
 	layer2.Orientation = xlui.Horizontal
 
 	layer2.Toggle("Bar", g)
 	layer2.Toggle("Baz", g)
 	layer2.Toggle("Quux", nil)
+
+	t1.Class.Click = func(at xgal.Point, button int) xlui.Reply {
+		menu := app.Menu(xgal.Bound(t1.Bounds.Min.X, t1.Bounds.Min.Y, 0, 0), "Menu 1", "Menu 2", "Menu 3")
+		menu.Class.Value = func(value int) xlui.Reply {
+			println("Menu: ", value)
+			return xlui.Finish
+		}
+		return xlui.Accept
+	}
 
 	app.Image, err = xgal.Texture(app.FS, "pack/tile/tile_0002.png")
 	if err != nil {
@@ -91,12 +114,12 @@ func main() {
 
 	layer4 := app.Layer(xgal.Bound(10, 50, WindowW-10*2, 40))
 	slider := layer4.Slider(xlui.Vertical, 0, 10, 2)
-	slider.Class.Slide = func(value int) xlui.Reply {
+	slider.Class.Value = func(value int) xlui.Reply {
 		println("Slider: ", value)
 		return xlui.Accept
 	}
 	slider2 := layer4.Slider(xlui.Horizontal, 0, 10, 2)
-	slider2.Class.Slide = func(value int) xlui.Reply {
+	slider2.Class.Value = func(value int) xlui.Reply {
 		println("Slider: ", value)
 		return xlui.Accept
 	}

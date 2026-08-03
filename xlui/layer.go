@@ -29,7 +29,7 @@ const (
 // Layer is a layer in the UI.
 type Layer struct {
 	// Class for custom or type specific behavior.
-	Class
+	Class Class
 
 	Controls []*Control
 	Bounds   xgal.Rectangle
@@ -141,7 +141,7 @@ func (l *Layer) ControlsAt(at xgal.Point) func(func(*Control) bool) {
 	})
 }
 
-func (l *Layer) Click(at xgal.Point, button int) Reply {
+func (l *Layer) OnClick(at xgal.Point, button int) Reply {
 	if l.Class.Click != nil {
 		return l.Class.Click(at, button)
 	}
@@ -160,11 +160,11 @@ func (l *Layer) Click(at xgal.Point, button int) Reply {
 			return res
 		}
 	}
-	// If the layer was clicked, qn nothing els used the click, raise the layer.
+	// If the layer was clicked, andn nothing else used the click, raise the layer.
 	return Raise
 }
 
-func (l *Layer) Hover(at xgal.Point) Reply {
+func (l *Layer) OnHover(at xgal.Point) Reply {
 	if l.Class.Hover != nil {
 		return l.Class.Hover(at)
 	}
@@ -184,11 +184,11 @@ func (l *Layer) Hover(at xgal.Point) Reply {
 			return res
 		}
 	}
-	// If the layer was clicked, qn nothing els used the click, raise the layer.
+	// If the layer was hovered, and nothing else used the click, raise the layer.
 	return Raise
 }
 
-func (l *Layer) Release(at xgal.Point, button int) Reply {
+func (l *Layer) OnRelease(at xgal.Point, button int) Reply {
 	if l.Class.Release != nil {
 		return l.Class.Release(at, button)
 	}
@@ -207,7 +207,7 @@ func (l *Layer) Release(at xgal.Point, button int) Reply {
 	return Ignore
 }
 
-func (l *Layer) Tap(key int, mods Mods) Reply {
+func (l *Layer) OnTap(key int, mods Mods) Reply {
 	if l.Class.Tap != nil {
 		return l.Class.Tap(key, mods)
 	}
@@ -226,7 +226,7 @@ func (l *Layer) Tap(key int, mods Mods) Reply {
 	return Ignore
 }
 
-func (l *Layer) Key(key int, dur int) Reply {
+func (l *Layer) OnKey(key int, dur int) Reply {
 	if l.Class.Key != nil {
 		return l.Class.Key(key, dur)
 	}
@@ -245,7 +245,7 @@ func (l *Layer) Key(key int, dur int) Reply {
 	return Ignore
 }
 
-func (l *Layer) Chars(chars ...rune) Reply {
+func (l *Layer) OnChars(chars ...rune) Reply {
 	if l.Class.Key != nil {
 		return l.Class.Chars(chars...)
 	}
@@ -264,7 +264,7 @@ func (l *Layer) Chars(chars ...rune) Reply {
 	return Ignore
 }
 
-func (l *Layer) Lift(key int, mods Mods) Reply {
+func (l *Layer) OnLift(key int, mods Mods) Reply {
 	if l.Class.Lift != nil {
 		return l.Class.Lift(key, mods)
 	}
@@ -281,4 +281,68 @@ func (l *Layer) Lift(key int, mods Mods) Reply {
 		return ctrl.Class.Lift(key, mods)
 	}
 	return Ignore
+}
+
+// NewAsker creates a new simple dialog pop up layer.
+func NewAsker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {
+	asker := NewLayer(bounds)
+	asker.Label(label)
+	asker.Orientation = Vertical
+	e := asker.Entry(entry)
+
+	e.Class.Entry = func(entry string) Reply {
+		if asker.Class.Entry != nil {
+			return asker.Class.Entry(entry)
+		}
+		return Ignore
+	}
+	// full width
+	e.Bounds.Max.X = asker.Bounds.Max.X - asker.Style.Margin.X
+
+	for i, buttonText := range buttons {
+		if i > 0 {
+			asker.Orientation = Horizontal
+		}
+		button := asker.Button(buttonText)
+		button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
+			if asker.Class.Value != nil {
+				asker.Class.Value(i)
+			}
+			// Call the entry if needed.
+			if i > 0 && e.Text != "" && e.Class.Entry != nil {
+				e.Class.Entry(e.Text)
+			}
+			return Finish
+		}
+	}
+
+	return asker
+}
+
+// NewMenu creates a simple vertical menu with buttons.
+// Use Class.Value as a callback get the clicked button index.
+func NewMenu(bounds xgal.Rectangle, options ...string) *Layer {
+	menu := NewLayer(bounds)
+	menu.Orientation = Vertical
+	width := menu.Bounds.Dx()
+	height := menu.Bounds.Dy()
+	for i, option := range options {
+		button := menu.Button(option)
+		button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
+			if menu.Class.Value != nil {
+				menu.Class.Value(i)
+			}
+			// Call the entry if needed.
+			if i >= 0 && button.Text != "" && button.Class.Entry != nil {
+				button.Class.Entry(option)
+			}
+			return Finish
+		}
+		if button.Bounds.Dx() > width {
+			width = button.Bounds.Dx()
+		}
+		height += button.Bounds.Dy()
+	}
+	menu.Bounds = xgal.Bound(menu.Bounds.Min.X, menu.Bounds.Min.Y, width, height)
+	return menu
 }

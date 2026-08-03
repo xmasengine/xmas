@@ -1,13 +1,14 @@
 package xlui
 
 import "github.com/xmasengine/xmas/xgal"
+import "log/slog"
 
 const knobSize = 8
 
 func (s *Control) slideTo(mouse xgal.Point) {
 	track := s.sliderTrackSize()
 	if track <= 0 {
-		println("slider track size zero or negative")
+		slog.Error("slider track size zero or negative")
 		return
 	}
 
@@ -17,15 +18,15 @@ func (s *Control) slideTo(mouse xgal.Point) {
 	}
 	p := mousePos * (s.High - s.Low) / track
 	s.Value = min(max(p, s.Low), s.High)
-	if s.Class.Slide != nil {
-		s.Class.Slide(s.Value)
+	if s.Class.Value != nil {
+		s.Class.Value(s.Value)
 	}
 }
 
 func (s Control) knobPos() int {
 	track := s.sliderTrackSize()
 	if track <= 0 {
-		println("slider track size zero or negative")
+		slog.Error("slider track size zero or negative")
 		return s.Style.Margin.X
 	}
 	p := ((s.Value - s.Low) * track) / (s.High - s.Low)

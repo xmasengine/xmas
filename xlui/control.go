@@ -38,6 +38,10 @@ func (c Control) Render(s *xgal.Surface) {
 
 // MoveBy moves the control.
 func (c *Control) MoveBy(delta xgal.Point) {
+	if c.Class.MoveBy != nil {
+		c.Class.MoveBy(delta)
+		return
+	}
 	c.Bounds = c.Bounds.Add(delta)
 }
 
