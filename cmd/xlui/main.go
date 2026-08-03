@@ -124,6 +124,9 @@ func main() {
 		return xlui.Accept
 	}
 
+	layer5 := app.Layer(xgal.Bound(20, 60, 68, 68))
+	layer5.Frame(app.Image)
+
 	bar := app.MenuBar(xgal.Bound(0, 0, WindowW, 20),
 		xlui.SubMenu("File", "Save", "New", "Open"),
 		xlui.SubMenu("Edit", "Copy", "Paste", "Clear"),
