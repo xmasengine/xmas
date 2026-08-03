@@ -42,8 +42,8 @@ type ValueFunc func(value int) Reply
 
 func (f ValueFunc) Link(linked ValueFunc) ValueFunc {
 	return func(value int) Reply {
-		linked(value)
-		return f(value)
+		f(value)
+		return linked(value)
 	}
 }
 

@@ -133,6 +133,10 @@ func main() {
 		println("Bar: ", value)
 		return xlui.Accept
 	}
+	bar.Class.Entry = func(entry string) xlui.Reply {
+		println("Bar: ", entry)
+		return xlui.Accept
+	}
 
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
