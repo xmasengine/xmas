@@ -234,30 +234,63 @@ func (u *UI) SetFocus(l *Layer) {
 	}
 }
 
+func (u *UI) LayerIndex(search *Layer) int {
+	for i, layer := range u.Layers {
+		if layer == search {
+			return i
+		}
+	}
+	return -1
+}
+
+func (u *UI) CloseLayer(layer *Layer) {
+	u.closeLayerByIndex(u.LayerIndex(layer))
+}
+
+func (u *UI) indexOOB(i int) bool {
+	return (i < 0) || (i >= len(u.Layers))
+}
+
+func (u *UI) closeLayerByIndex(i int) {
+	if u.indexOOB(i) {
+		return
+	}
+	del := u.Layers[i]
+	if u.Focused == del {
+		u.SetFocus(nil)
+	}
+	u.Layers = slices.Delete(u.Layers, i, i+1)
+}
+
+func (u *UI) setFocusByIndex(i int) {
+	u.SetFocus(u.Layers[i])
+}
+
+func (u *UI) raiseLayerByIndex(i int) {
+	if i < len(u.Layers)-1 {
+		u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
+		u.SetFocus(u.Layers[i+1])
+	} else {
+		u.SetFocus(u.Layers[i])
+	}
+}
+
+func (u *UI) lowerLayerByIndex(i int) {
+	if i > 0 {
+		u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
+		u.SetFocus(u.Layers[i])
+	}
+}
+
 func (u *UI) onReply(i int, res Reply) Reply {
 	if res == Finish {
-		del := u.Layers[i]
-		if u.Focused == del {
-			u.SetFocus(nil)
-		}
-		u.Layers = slices.Delete(u.Layers, i, i+1)
+		u.closeLayerByIndex(i)
 	} else if res == Accept {
-		u.SetFocus(u.Layers[i])
-		return res
+		u.setFocusByIndex(i)
 	} else if res == Raise {
-		if i < len(u.Layers)-1 {
-			u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
-			u.SetFocus(u.Layers[i+1])
-		} else {
-			u.SetFocus(u.Layers[i])
-		}
-		return res
+		u.raiseLayerByIndex(i)
 	} else if res == Lower {
-		if i > 0 {
-			u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
-			u.SetFocus(u.Layers[i])
-		}
-		return res
+		u.lowerLayerByIndex(i)
 	}
 	return Ignore
 }

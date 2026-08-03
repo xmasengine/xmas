@@ -192,6 +192,14 @@ func ButtonStyle() Style {
 	return s
 }
 
+func MenuStyle() Style {
+	s := DefaultStyle()
+	s.Margin = xgal.Pt(2, 0)
+	s.Gloom = 0
+	s.Stroke = 0
+	return s
+}
+
 func BarStyle() Style {
 	s := DefaultStyle()
 	s.Fill = xgal.Paint(45, 45, 200, 250)
@@ -206,6 +214,7 @@ func CheckStyle() Style {
 
 func (s Style) HoverStyle() Style {
 	s.Border = xgal.Paint(200, 200, 45, 250)
+	s.Stroke = 1
 	return s
 }
 

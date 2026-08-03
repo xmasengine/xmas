@@ -333,6 +333,7 @@ func NewMenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string
 	height := menu.Bounds.Dy() + menu.Style.Margin.Y
 	for i, option := range options {
 		button := menu.Button(option)
+		button.Style = MenuStyle()
 		button.Value = i + offset
 		button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
 			if mouseButton == int(xgal.MouseButtonRight) {
@@ -395,7 +396,7 @@ func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 	bar.Orientation = Horizontal
 	group := &Group{}
 	height := bar.Bounds.Dy()
-	menus := make([]*Layer, len(subs))
+	var menu *Layer
 
 	for si, sub := range subs {
 		toggle := bar.Toggle(sub.Name, group)
@@ -405,22 +406,24 @@ func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 		}
 
 		toggle.Class.LinkClick(func(at xgal.Point, button int) Reply {
-			if (menus[si]) == nil {
-				menus[si] = ui.MenuWithValueOffset(xgal.Bound(toggle.Bounds.Min.X, toggle.Bounds.Max.Y, 0, 0), offset, sub.Options...)
-				menus[si].Class.LinkValue(func(value int) Reply {
-					toggle.State.Clicked = false
-					menus[si] = nil
-					if value != MenuClosedValue && bar.Class.Value != nil {
-						bar.Class.Value(value)
-					}
-					return Finish
-				})
-				menus[si].Class.Entry = func(entry string) Reply {
-					if bar.Class.Entry != nil {
-						bar.Class.Entry(entry)
-					}
-					return Accept
+			if menu != nil {
+				ui.CloseLayer(menu)
+				menu = nil
+			}
+			menu = ui.MenuWithValueOffset(xgal.Bound(toggle.Bounds.Min.X, toggle.Bounds.Max.Y, 0, 0), offset, sub.Options...)
+			menu.Class.LinkValue(func(value int) Reply {
+				toggle.State.Clicked = false
+				menu = nil
+				if value != MenuClosedValue && bar.Class.Value != nil {
+					bar.Class.Value(value)
 				}
+				return Finish
+			})
+			menu.Class.Entry = func(entry string) Reply {
+				if bar.Class.Entry != nil {
+					bar.Class.Entry(entry)
+				}
+				return Accept
 			}
 			return Accept
 		})
