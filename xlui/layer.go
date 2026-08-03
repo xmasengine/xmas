@@ -86,16 +86,17 @@ func (l *Layer) MoveBy(delta xgal.Point) {
 
 // Appends adds a control to this layer and lays it out by a simple line algorithm.
 func (l *Layer) Append(ctrl *Control) *Control {
+	margin := l.Style.Margin
 	if len(l.Controls) == 0 {
-		ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+2, ctrl.Bounds.Min.Y+2, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+		ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+margin.X, ctrl.Bounds.Min.Y+margin.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
 	} else {
 		last := l.Controls[len(l.Controls)-1]
 		if l.Orientation == Horizontal && last.Bounds.Dx()+ctrl.Bounds.Dx() < l.Bounds.Dx() {
 			// fits on the line
-			ctrl.Bounds = xgal.Bound(last.Bounds.Max.X+2, last.Bounds.Min.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+			ctrl.Bounds = xgal.Bound(last.Bounds.Max.X+margin.X, last.Bounds.Min.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
 
 		} else {
-			ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+2, last.Bounds.Max.Y+2, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+			ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+margin.X, last.Bounds.Max.Y+margin.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
 		}
 	}
 	l.Controls = append(l.Controls, ctrl)
@@ -319,18 +320,21 @@ func NewAsker(bounds xgal.Rectangle, label, entry string, buttons ...string) *La
 	return asker
 }
 
-// NewMenu creates a simple vertical menu with buttons.
+// NewMenuWithValueOffset creates a simple vertical menu with buttons.
+// The value of the buttons if offset with offset.
 // Use Class.Value as a callback get the clicked button index.
-func NewMenu(bounds xgal.Rectangle, options ...string) *Layer {
+func NewMenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string) *Layer {
 	menu := NewLayer(bounds)
+	menu.Style = DefaultStyle()
 	menu.Orientation = Vertical
 	width := menu.Bounds.Dx()
-	height := menu.Bounds.Dy()
+	height := menu.Bounds.Dy() + menu.Style.Margin.Y
 	for i, option := range options {
 		button := menu.Button(option)
+		button.Value = i + offset
 		button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
 			if menu.Class.Value != nil {
-				menu.Class.Value(i)
+				menu.Class.Value(button.Value)
 			}
 			// Call the entry if needed.
 			if i >= 0 && button.Text != "" && button.Class.Entry != nil {
@@ -338,11 +342,67 @@ func NewMenu(bounds xgal.Rectangle, options ...string) *Layer {
 			}
 			return Finish
 		}
-		if button.Bounds.Dx() > width {
-			width = button.Bounds.Dx()
+		buttonWidth := button.Bounds.Dx() + button.Style.Margin.X*2
+		if buttonWidth > width {
+			width = buttonWidth
 		}
-		height += button.Bounds.Dy()
+		height += button.Bounds.Dy() + menu.Style.Margin.Y
 	}
 	menu.Bounds = xgal.Bound(menu.Bounds.Min.X, menu.Bounds.Min.Y, width, height)
 	return menu
+}
+
+// NewMenu creates a simple vertical menu with buttons.
+// The value of the buttons will be 0..(len options)-1.
+// Use Class.Value as a callback get the clicked button index.
+func NewMenu(bounds xgal.Rectangle, options ...string) *Layer {
+	return NewMenuWithValueOffset(bounds, 0, options...)
+}
+
+type SubMenuOption struct {
+	Name    string   // Name of the menu and top button
+	Options []string // Options in the menu.
+	Value   int      // Value offset.
+}
+
+func SubMenuWithOffset(name string, offset int, options ...string) SubMenuOption {
+	return SubMenuOption{
+		Name:    name,
+		Options: options,
+		Value:   offset,
+	}
+}
+
+func SubMenu(name string, options ...string) SubMenuOption {
+	return SubMenuWithOffset(name, SubMenuDefaultOffset, options...)
+}
+
+const SubMenuDefaultOffset = 100
+
+// NewMenuBar creates a horizontal menu bar with vertical pop up menus.
+func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
+	bar := NewLayer(bounds)
+	bar.Orientation = Horizontal
+	group := &Group{}
+
+	for si, sub := range subs {
+		toggle := bar.Toggle(sub.Name, group)
+		offset := sub.Value
+		if offset == 0 {
+			offset = SubMenuDefaultOffset * si
+		}
+
+		toggle.Class.Click = func(at xgal.Point, button int) Reply {
+			menu := ui.MenuWithValueOffset(xgal.Bound(at.X, at.Y, 0, 0), offset, sub.Options...)
+			_ = menu
+			return Accept
+		}
+	}
+	return bar
+}
+
+func (u *UI) MenuBar(bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
+	layer := NewMenuBar(u, bounds, subs...)
+	u.Layers = append(u.Layers, layer)
+	return layer
 }

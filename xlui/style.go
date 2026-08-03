@@ -66,7 +66,7 @@ func DefaultStyle() Style {
 	s.Fill = xgal.RGBA{R: 0x00, G: 0x00, B: 0x55, A: 0xaa}
 	s.Stroke = 1
 	s.Gloom = 10
-	s.Margin = xgal.Pt(2, 0)
+	s.Margin = xgal.Pt(2, 2)
 	s.Shade = xgal.Pt(1, 1)
 	s.Face = xgal.BuiltinFace
 	s.Frame = nil
@@ -186,6 +186,7 @@ func PressStyle() Style {
 
 func ButtonStyle() Style {
 	s := DefaultStyle()
+	s.Margin = xgal.Pt(2, 0)
 	s.Fill = xgal.Paint(0x00, 0x00, 0xaa, 0xaa)
 	s.Shadow = xgal.Paint(0x00, 0x00, 0x00, 0xff)
 	return s

@@ -353,3 +353,9 @@ func (u *UI) Menu(bounds xgal.Rectangle, options ...string) *Layer {
 	u.Layers = append(u.Layers, layer)
 	return layer
 }
+
+func (u *UI) MenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string) *Layer {
+	layer := NewMenuWithValueOffset(bounds, offset, options...)
+	u.Layers = append(u.Layers, layer)
+	return layer
+}

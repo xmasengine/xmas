@@ -124,6 +124,16 @@ func main() {
 		return xlui.Accept
 	}
 
+	bar := app.MenuBar(xgal.Bound(0, 0, WindowW, 20),
+		xlui.SubMenu("File", "Save", "New", "Open"),
+		xlui.SubMenu("Edit", "Copy", "Paste", "Clear"),
+	)
+
+	bar.Class.Value = func(value int) xlui.Reply {
+		println("Bar: ", value)
+		return xlui.Accept
+	}
+
 	xgal.Screen(WindowW*WindowScale, WindowH*WindowScale, "xpix")
 	xgal.Play(app)
 }

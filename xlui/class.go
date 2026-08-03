@@ -37,3 +37,21 @@ func (c *Class) LinkClick(linked ClickFunc) {
 		c.Click = cf.Link(linked)
 	}
 }
+
+type ValueFunc func(value int) Reply
+
+func (f ValueFunc) Link(linked ValueFunc) ValueFunc {
+	return func(value int) Reply {
+		linked(value)
+		return f(value)
+	}
+}
+
+func (c *Class) LinkValue(linked ValueFunc) {
+	if c.Value == nil {
+		c.Value = linked
+	} else {
+		cf := ValueFunc(c.Value)
+		c.Value = cf.Link(linked)
+	}
+}
