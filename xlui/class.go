@@ -16,6 +16,7 @@ type Class struct {
 	Lift    func(key int, mods Mods) Reply
 	Entry   func(string) Reply
 	Value   func(value int) Reply
+	Tick    func(tick int64) Reply
 	Chars   func(chars ...rune) Reply
 	MoveBy  func(delta xgal.Point)
 }

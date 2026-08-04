@@ -10,12 +10,11 @@ import (
 type Reply int
 
 const (
-	Ignore  Reply = iota // Ignore: the widget ignored the input, other widgets *should* process it.
-	Accept               // Accept: the widget accepted the input, other widgets *must not* process it.
-	Raise                // Raise: the widget accepted and needs to be raised higher in the layer stack.
-	Lower                // Lower: the widget accepted and needs to be lowered in the layer stack.
-	Finish               // Finish: the widget is done processing and should be considered closed.
-	Proceed              // Proceed: the widget accepted the input but other widgets should continue processing. Only for sub widgets.
+	Ignore Reply = iota // Ignore: the widget ignored the input, other widgets *should* process it.
+	Accept              // Accept: the widget accepted the input, other widgets *must not* process it.
+	Raise               // Raise: the widget accepted and needs to be raised higher in the layer stack.
+	Lower               // Lower: the widget accepted and needs to be lowered in the layer stack.
+	Finish              // Finish: the widget is done processing and should be considered closed.
 )
 
 // Orientation is the layout orientation for layers in a group.
@@ -284,6 +283,27 @@ func (l *Layer) OnLift(key int, mods Mods) Reply {
 	return Ignore
 }
 
+// OnTick is normally used for animation.
+func (l *Layer) OnTick(tick int64) Reply {
+	if l.Class.Tick != nil {
+		return l.Class.Tick(tick)
+	}
+
+	res := Ignore
+
+	// Tick is passed on to all controls that support it, not just
+	// the focused control.
+	for ctrl := range l.AllControlsWhere(func(ctrl *Control) bool {
+		return ctrl.Class.Tick != nil
+	}) {
+		sres := ctrl.Class.Tick(tick)
+		if sres > res {
+			res = sres
+		}
+	}
+	return res
+}
+
 // NewAsker creates a new simple dialog pop up layer.
 func NewAsker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {
 	asker := NewLayer(bounds)
@@ -397,6 +417,7 @@ func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 	group := &Group{}
 	height := bar.Bounds.Dy()
 	var menu *Layer
+	var menuIndex int
 
 	for si, sub := range subs {
 		toggle := bar.Toggle(sub.Name, group)
@@ -409,11 +430,14 @@ func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 			if menu != nil {
 				ui.CloseLayer(menu)
 				menu = nil
+				menuIndex = -1
 			}
 			menu = ui.MenuWithValueOffset(xgal.Bound(toggle.Bounds.Min.X, toggle.Bounds.Max.Y, 0, 0), offset, sub.Options...)
+			menuIndex = si
 			menu.Class.LinkValue(func(value int) Reply {
 				toggle.State.Clicked = false
 				menu = nil
+				menuIndex = -1
 				if value != MenuClosedValue && bar.Class.Value != nil {
 					bar.Class.Value(value)
 				}
@@ -427,6 +451,16 @@ func NewMenuBar(ui *UI, bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 			}
 			return Accept
 		})
+
+		toggle.Class.MoveBy = func(delta xgal.Point) {
+			toggle.Bounds = toggle.Bounds.Add(delta)
+
+			if menu != nil && menuIndex == si {
+				menuDelta := xgal.Pt(toggle.Bounds.Min.X-menu.Bounds.Min.X, toggle.Bounds.Max.Y-menu.Bounds.Min.Y)
+				menu.MoveBy(menuDelta)
+			}
+		}
+
 		toggleHeight := toggle.Bounds.Dy() + toggle.Style.Margin.Y*2
 		if toggleHeight > height {
 			height = toggleHeight

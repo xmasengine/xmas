@@ -5,6 +5,7 @@ import "slices"
 import "github.com/xmasengine/xmas/xgal"
 
 const EntrySizer = "WWWWWWWW"
+const EntryBlink = 60
 
 // NewEntry returns a new text entry Control.
 func NewEntry(at xgal.Point, text string) *Control {
@@ -12,9 +13,12 @@ func NewEntry(at xgal.Point, text string) *Control {
 	entry.State.Clicked = false
 	size := entry.Style.Measure(EntrySizer)
 	entry.Bounds = xgal.Bound(entry.Bounds.Min.X, entry.Bounds.Min.Y, size.X, size.Y)
-
-	var cursor int
-	var input []rune
+	// entry variables
+	var (
+		blink  = true
+		cursor int
+		input  []rune
+	)
 
 	render := func(screen *xgal.Surface) {
 		delta := xgal.Pt(2, 0)
@@ -36,7 +40,9 @@ func NewEntry(at xgal.Point, text string) *Control {
 			cx := min.X + style.Margin.X + sz.X
 			cy := min.Y + style.Margin.Y
 			ch := box.Dy() - style.Margin.Y*2
-			xgal.Line(screen, cx, cy, cx, cy+ch, style.Stroke, style.Fore)
+			if blink {
+				xgal.Line(screen, cx, cy, cx, cy+ch, style.Stroke, style.Fore)
+			}
 		}
 	}
 
@@ -92,6 +98,13 @@ func NewEntry(at xgal.Point, text string) *Control {
 		return Ignore
 	}
 
+	tick := func(t int64) Reply {
+		if (t % EntryBlink) == 0 {
+			blink = !blink
+		}
+		return Ignore
+	}
+
 	entry.Class = Class{
 		Render:  render,
 		Click:   click,
@@ -99,6 +112,7 @@ func NewEntry(at xgal.Point, text string) *Control {
 		Hover:   hover,
 		Tap:     tap,
 		Chars:   chars,
+		Tick:    tick,
 	}
 	return entry
 }

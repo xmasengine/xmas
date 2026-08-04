@@ -83,6 +83,8 @@ func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
 }
 
 func (u *UI) Poll() Reply {
+	u.Tick(xgal.Tick())
+
 	kr := u.pollKeys()
 	if kr != Ignore {
 		return kr
@@ -222,6 +224,19 @@ func (u *UI) Chars(chars ...rune) Reply {
 		return top.OnChars(chars...)
 	}
 	return Ignore
+}
+
+func (u *UI) Tick(tick int64) Reply {
+	// Tick is passed to all layers since it is used for animation.
+	res := Ignore
+	for i, layer := range u.Layers {
+		sres := layer.OnTick(tick)
+		u.onReply(i, sres)
+		if sres > res {
+			res = sres
+		}
+	}
+	return res
 }
 
 func (u *UI) SetFocus(l *Layer) {
