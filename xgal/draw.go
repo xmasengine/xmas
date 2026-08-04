@@ -110,3 +110,42 @@ func Andreas(surface *Surface, r Rectangle, thick int, col RGBA) {
 	r.Min.X, r.Max.X = r.Max.X, r.Min.X
 	Line(surface, r.Min.X, r.Min.Y, r.Max.X, r.Max.Y, thick, col)
 }
+
+// Polygon draws a polygon. points must have an even length and consist of
+// polygon point x and y coordinates
+func Polygon(dst *Surface, strokeWidth int, col RGBA, points ...int) {
+	var p vector.Path
+	for i := 1; i < len(points); i += 2 {
+		x, y := points[i-1], points[i]
+		if i == 0 {
+			p.MoveTo(float32(x), float32(y))
+		} else {
+			p.LineTo(float32(x), float32(y))
+		}
+	}
+	p.Close()
+	var so vector.StrokeOptions
+	so.Width = float32(strokeWidth)
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.StrokePath(dst, &p, &so, &opts)
+}
+
+// Polyfill draws a filled polygon. points must have an even length and consist of
+// polygon point x and y coordinates
+func Polyfill(dst *Surface, col RGBA, points ...int) {
+	var p vector.Path
+	for i := 1; i < len(points); i += 2 {
+		x, y := points[i-1], points[i]
+		if i == 0 {
+			p.MoveTo(float32(x), float32(y))
+		} else {
+			p.LineTo(float32(x), float32(y))
+		}
+	}
+	p.Close()
+	var so vector.FillOptions
+	var opts vector.DrawPathOptions
+	opts.ColorScale.ScaleWithColor(col)
+	vector.FillPath(dst, &p, &so, &opts)
+}

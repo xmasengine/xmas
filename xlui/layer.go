@@ -78,6 +78,10 @@ func (l Layer) Render(s *xgal.Surface) {
 // MoveBy moves all children relative to current position.
 func (l *Layer) MoveBy(delta xgal.Point) {
 	l.Bounds = l.Bounds.Add(delta)
+	if l.Clip != nil {
+		clip := l.Clip.Add(delta)
+		l.Clip = &clip
+	}
 	for i := 0; i < len(l.Controls); i++ {
 		l.Controls[i].MoveBy(delta)
 	}

@@ -42,6 +42,10 @@ func (c *Control) MoveBy(delta xgal.Point) {
 		c.Class.MoveBy(delta)
 		return
 	}
+	if c.Clip != nil {
+		clip := c.Clip.Add(delta)
+		c.Clip = &clip
+	}
 	c.Bounds = c.Bounds.Add(delta)
 }
 

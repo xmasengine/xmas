@@ -89,3 +89,8 @@ func Recolor(c Color) RGBA {
 	a8 := uint8(a16 >> 8)
 	return Paint(r8, g8, b8, a8)
 }
+
+// Grow returns a [Rectangle] where the Max has been moved by the point siwe.
+func Grow(r Rectangle, size Point) Rectangle {
+	return image.Rectangle{Min: r.Min, Max: r.Max.Add(size)}
+}

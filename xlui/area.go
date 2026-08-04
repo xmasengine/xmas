@@ -45,8 +45,15 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 	input = textToRuneLines(text)
 
 	area.Bounds = xgal.Bound(area.Bounds.Min.X, area.Bounds.Min.Y, size.X, size.Y*lines)
+	clip := xgal.Grow(area.Bounds, area.Margin.Mul(3))
+	area.Clip = &clip
 
 	render := func(screen *xgal.Surface) {
+		if area.Clip != nil {
+			sub := screen.SubImage(*area.Clip)
+			screen = sub.(*xgal.Surface)
+		}
+
 		delta := xgal.Pt(2, 0)
 		style := area.Style
 		if area.State.Hovered {
@@ -57,6 +64,26 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 		}
 
 		style.DrawBox(screen, area.Bounds.Add(delta))
+		// shift markers
+		if len(input) > lines {
+			if cursor.Y < len(input)-1 {
+				xgal.Polyfill(screen, style.Fore,
+					area.Bounds.Max.X-5, area.Bounds.Max.Y,
+					area.Bounds.Max.X, area.Bounds.Max.Y-10,
+					area.Bounds.Max.X-10, area.Bounds.Max.Y-10,
+				)
+			}
+			if area.From.Y < 0 {
+				xgal.Polyfill(screen, style.Fore,
+					area.Bounds.Max.X-5, area.Bounds.Min.Y,
+					area.Bounds.Max.X, area.Bounds.Min.Y+10,
+					area.Bounds.Max.X-10, area.Bounds.Min.Y+10,
+				)
+			}
+		}
+
+		// don't shift the box, but do shift the text and cursor
+		delta = delta.Add(area.From)
 		style.Print(screen, area.Bounds.Min.Add(delta), area.Text)
 		// Draw cursor if focused.
 		if area.State.Focused {
@@ -87,9 +114,19 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 	tap := func(key int, mods Mods) Reply {
 		switch xgal.KeyCode(key) {
 		case xgal.KeyArrowLeft:
-			cursor.X = max(0, cursor.X-1)
+			if cursor.X == 0 && cursor.Y > 0 {
+				cursor.Y--
+				cursor.X = len(input[cursor.Y])
+			} else {
+				cursor.X = max(0, cursor.X-1)
+			}
 		case xgal.KeyArrowRight:
-			cursor.X = min(cursor.X+1, len(input[cursor.Y]))
+			if cursor.X == len(input[cursor.Y]) && cursor.Y < (len(input)-1) {
+				cursor.Y++
+				cursor.X = 0
+			} else {
+				cursor.X = min(cursor.X+1, len(input[cursor.Y]))
+			}
 		case xgal.KeyArrowUp:
 			cursor.Y = max(0, cursor.Y-1)
 			cursor.X = min(cursor.X, len(input[cursor.Y]))
@@ -131,7 +168,7 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 			}
 		case xgal.KeyEnter:
 			line := input[cursor.Y]
-			before, after := line[:cursor.X], line[cursor.X:]
+			before, after := slices.Clone(line[:cursor.X]), slices.Clone(line[cursor.X:])
 			input = slices.Insert(input, cursor.Y, before)
 			cursor.Y++
 			input[cursor.Y] = after
@@ -141,6 +178,17 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 		}
 		blink = true
 		area.Text = runeLinesToText(input)
+		area.From = xgal.Pt(0, 0)
+		if cursor.Y >= lines {
+			// shift up
+			area.From.Y = (lines - cursor.Y - 1) * size.Y
+		}
+		lineLen := len(AreaSizer)
+		if cursor.X >= len(AreaSizer) {
+			// shift left
+			area.From.X = (lineLen - cursor.X - 1) * (size.X / len(AreaSizer))
+		}
+
 		return Accept
 	}
 
@@ -148,6 +196,11 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 		if len(chrs) > 0 {
 			input[cursor.Y] = slices.Insert(input[cursor.Y], cursor.X, chrs...)
 			cursor.X += len(chrs)
+			lineLen := len(AreaSizer)
+			if cursor.X >= len(AreaSizer) {
+				// shift left
+				area.From.X = (lineLen - cursor.X - 1) * (size.X / len(AreaSizer))
+			}
 			area.Text = runeLinesToText(input)
 			return Accept
 		}
