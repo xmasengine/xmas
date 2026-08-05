@@ -91,15 +91,17 @@ func (l *Layer) MoveBy(delta xgal.Point) {
 func (l *Layer) Append(ctrl *Control) *Control {
 	margin := l.Style.Margin
 	if len(l.Controls) == 0 {
-		ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+margin.X, ctrl.Bounds.Min.Y+margin.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+		at := xgal.Pt(ctrl.Bounds.Min.X+margin.X, ctrl.Bounds.Min.Y+margin.Y)
+		ctrl.MoveTo(at)
 	} else {
 		last := l.Controls[len(l.Controls)-1]
 		if l.Orientation == Horizontal && last.Bounds.Dx()+ctrl.Bounds.Dx() < l.Bounds.Dx() {
 			// fits on the line
-			ctrl.Bounds = xgal.Bound(last.Bounds.Max.X+margin.X, last.Bounds.Min.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
-
+			at := xgal.Pt(last.Bounds.Max.X+margin.X, last.Bounds.Min.Y)
+			ctrl.MoveTo(at)
 		} else {
-			ctrl.Bounds = xgal.Bound(ctrl.Bounds.Min.X+margin.X, last.Bounds.Max.Y+margin.Y, ctrl.Bounds.Dx(), ctrl.Bounds.Dy())
+			at := xgal.Pt(ctrl.Bounds.Min.X+margin.X, last.Bounds.Max.Y+margin.Y)
+			ctrl.MoveTo(at)
 		}
 	}
 	l.Controls = append(l.Controls, ctrl)

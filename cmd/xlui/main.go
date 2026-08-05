@@ -130,6 +130,9 @@ func main() {
 	layer6 := app.Layer(xgal.Bound(30, 80, 200, 100))
 	layer6.Area("Hello\nworld", 5)
 
+	layer7 := app.Layer(xgal.Bound(30, 80, 200, 100))
+	layer7.Talk("Hello world\nThis is me\nLife should be\nBlessed for everyone\nHello world.", 3)
+
 	bar := app.MenuBar(xgal.Bound(0, 0, WindowW, 20),
 		xlui.SubMenu("File", "Save", "New", "Open"),
 		xlui.SubMenu("Edit", "Copy", "Paste", "Clear"),

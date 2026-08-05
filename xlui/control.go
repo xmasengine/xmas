@@ -36,7 +36,8 @@ func (c Control) Render(s *xgal.Surface) {
 	c.Class.Render(s)
 }
 
-// MoveBy moves the control.
+// MoveBy moves the control by delta.
+// It also moves the Clip if set.
 func (c *Control) MoveBy(delta xgal.Point) {
 	if c.Class.MoveBy != nil {
 		c.Class.MoveBy(delta)
@@ -47,6 +48,13 @@ func (c *Control) MoveBy(delta xgal.Point) {
 		c.Clip = &clip
 	}
 	c.Bounds = c.Bounds.Add(delta)
+}
+
+// Move To moves the control to have its top left at at,
+// keeping the size and updating the Clip if set.
+func (c *Control) MoveTo(at xgal.Point) {
+	delta := at.Sub(c.Bounds.Min)
+	c.MoveBy(delta)
 }
 
 const (

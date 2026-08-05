@@ -45,7 +45,13 @@ func NewArea(at xgal.Point, text string, lines int) *Control {
 	input = textToRuneLines(text)
 
 	area.Bounds = xgal.Bound(area.Bounds.Min.X, area.Bounds.Min.Y, size.X, size.Y*lines)
-	clip := xgal.Grow(area.Bounds, area.Margin.Mul(3))
+	clip := xgal.Bound(
+		area.Bounds.Min.X-area.Style.Margin.X,
+		area.Bounds.Min.Y-area.Style.Margin.Y,
+		area.Bounds.Dx()+area.Style.Margin.X,
+		area.Bounds.Dy()+area.Style.Margin.Y,
+	)
+
 	area.Clip = &clip
 
 	render := func(screen *xgal.Surface) {

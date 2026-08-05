@@ -42,6 +42,30 @@ func Boarded(ctx context.Context, form ClipboardFormat) <-chan []byte {
 	return clipboard.Watch(ctx, form)
 }
 
+type Clipboard struct{}
+
+func (Clipboard) Paste(form ClipboardFormat) []byte {
+	if !clipboardAvailable {
+		return nil
+	}
+	return clipboard.Read(form)
+}
+
+func (Clipboard) Copy(form ClipboardFormat, data []byte) <-chan struct{} {
+	if !clipboardAvailable {
+		return nil
+	}
+	return clipboard.Write(form, data)
+}
+
+// Watch returns a channel to watch any changed to the clipboard.
+func (Clipboard) Watch(ctx context.Context, form ClipboardFormat) <-chan []byte {
+	if !clipboardAvailable {
+		return nil
+	}
+	return clipboard.Watch(ctx, form)
+}
+
 func init() {
 	err := clipboard.Init()
 	if err != nil {
