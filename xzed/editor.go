@@ -18,9 +18,8 @@ type Editor struct {
 	Layer         *xlui.Layer // Layer is back pointer to the layer this data is kept in.
 	Name          string
 	Zone          *xdat.Zone
-	Camera        image.Rectangle
-	Tile          image.Point // Tile we have selected
-	Hovered       image.Point // Tile we are hovering
+	Camera        *xgal.Rectangle
+	Over          image.Point // Over which tile the mouse is ahovering
 	Cell          xdat.Tile
 	Depth         int
 	Scale         int
@@ -37,9 +36,9 @@ type Editor struct {
 	// Commander *Tila
 }
 
-func NewEditorLayer(zone *xdat.Zone, name string, w, h, scale int) *xlui.Layer {
-	e := newEditor(zone, name, w, h, scale)
-	l := xlui.NewLayer(xgal.Bound(0, 0, w, h))
+func NewEditorLayer(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *xlui.Layer {
+	e := newEditor(zone, name, camera, scale)
+	l := xlui.NewLayer(*camera)
 	e.Layer = l
 	e.Layer.Lock = true
 	l.Data = e
@@ -52,8 +51,8 @@ func NewEditorLayer(zone *xdat.Zone, name string, w, h, scale int) *xlui.Layer {
 	return l
 }
 
-func newEditor(zone *xdat.Zone, name string, w, h, scale int) *Editor {
-	e := &Editor{Zone: zone, Name: name, Camera: image.Rect(0, 0, w, h),
+func newEditor(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *Editor {
+	e := &Editor{Zone: zone, Name: name, Camera: camera,
 		Scale: scale,
 	}
 
@@ -91,32 +90,34 @@ func (e Editor) ActiveLayer() *xdat.Layer {
 	return &e.Zone.Layers[e.Depth]
 }
 
-func (e Editor) Render(screen *xgal.Surface) {
-	m := e.ActiveLayer()
+func (e *Editor) Render(screen *xgal.Surface) {
 	style := e.Layer.Style
+
+	m := e.ActiveLayer()
 	if m != nil {
-		if e.Tile.In(image.Rect(0, 0, m.Width-1, m.Height-1)) {
-			cr := xgal.Bound(e.Tile.X*m.TileWidth, e.Tile.Y*m.TileHeight,
-				m.TileWidth, m.TileHeight).Add(e.Camera.Min)
+		cr := xgal.Bound(e.Over.X*m.TileWidth, e.Over.Y*m.TileHeight,
+			m.TileWidth, m.TileHeight).Add(e.Camera.Min)
+
+		if e.Over.In(image.Rect(0, 0, m.Width-1, m.Height-1)) {
 			style.DrawRect(screen, cr)
 		}
+		pr := cr.Min.Add(xgal.Pt(m.TileWidth, 0))
+
+		style.Print(screen, pr, fmt.Sprintf("%s: (%d,%d): %d",
+			e.Name, e.Over.X, e.Over.Y, e.Cell))
 	}
 
-	pr := xgal.Bound(e.Hovered.X, e.Hovered.Y, 100, 20)
-
-	style.Ink(screen, pr, fmt.Sprintf("%s: (%d,%d): %d",
-		e.Name, e.Hovered.X, e.Hovered.Y, e.Cell))
+	pr := xgal.Pt(0, 0)
 	di := xgal.Pt(0, 12)
 	pr = pr.Add(di)
 	if e.Error != nil {
-		style.Ink(screen, pr, fmt.Sprintf("Error %s", e.Error))
+		style.Print(screen, pr, fmt.Sprintf("Error %s", e.Error))
 		pr = pr.Add(di)
 	}
 	if e.Message != "" {
-		style.Ink(screen, pr, e.Message)
+		style.Print(screen, pr, e.Message)
 		pr = pr.Add(di)
 	}
-	e.Layer.Render(screen)
 }
 
 func (e *Editor) UpdateChoosers() {
@@ -176,12 +177,6 @@ func (e *Editor) ShowMessage(msg string, args ...any) {
 }
 
 func (e *Editor) UpdateWatcher() bool {
-	if e.MessageTicks > 0 {
-		e.MessageTicks--
-	} else {
-		e.Message = ""
-		e.Error = nil
-	}
 	if e.TileWatcher == nil {
 		return false
 	}
@@ -292,15 +287,19 @@ Enter: Confirm dialogs. | Esc: Cancel dialogs.
 func (e *Editor) Hover(at xgal.Point) xlui.Reply {
 	layer := e.ActiveLayer()
 	if layer != nil {
-		e.Tile = layer.ToTile(e.Hovered, e.Camera)
+		e.Over = layer.ToTile(at, *e.Camera)
 		return xlui.Accept
 	}
 	return xlui.Ignore
 }
 
 func (e *Editor) Click(at xgal.Point, button int) xlui.Reply {
-	if xgal.MouseButton(button) == xgal.MouseButtonRight {
-		// e.Zone.PutIndex(e.Tile, 0)
+	layer := e.ActiveLayer()
+	if layer == nil {
+		return xlui.Ignore
+	}
+	if xgal.MouseButton(button) == xgal.MouseButtonLeft {
+		layer.Set(e.Over, e.Cell)
 	}
 
 	if xgal.MouseButton(button) == xgal.MouseButtonMiddle {
@@ -321,11 +320,15 @@ func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
 
 func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 	switch xgal.KeyCode(key) {
+	case xgal.KeyEqual:
+		e.Cell++
+	case xgal.KeyMinus:
+		e.Cell = max(0, e.Cell-1)
 	case xgal.KeyPause:
 		e.Done = true
 		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
 	case xgal.KeyY:
-		e.Cell = e.ActiveLayer().Get(e.Tile)
+		e.Cell = e.ActiveLayer().Get(e.Over)
 		e.ShowMessage("Yanked %d", e.Cell)
 	/*
 		case xgal.Key(xgal.KeyL):
@@ -388,6 +391,13 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 }
 
 func (e *Editor) Tick(tick int64) xlui.Reply {
+	if e.MessageTicks > 0 {
+		e.MessageTicks--
+	} else {
+		e.Message = ""
+		e.Error = nil
+	}
+
 	e.UpdateWatcher()
 	if e.Done {
 		return xlui.Finish

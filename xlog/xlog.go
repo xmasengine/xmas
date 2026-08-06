@@ -86,13 +86,10 @@ func (l *Log) Logger() *slog.Logger {
 
 func (l *Log) Update() error {
 	l.Pressed = l.Pressed[:0]
-	l.Pressed = inpututil.AppendPressedKeys(l.Pressed)
+	l.Pressed = inpututil.AppendJustPressedKeys(l.Pressed)
 	for _, k := range l.Pressed {
-		if k == ebiten.KeyF10 {
-			l.Hide = false
-		}
 		if k == ebiten.KeyF11 {
-			l.Hide = true
+			l.Hide = !l.Hide
 		}
 		if l.Hide {
 			continue

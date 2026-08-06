@@ -33,7 +33,7 @@ type Engine struct {
 	Script      strings.Reader
 	DebugRow    int
 	ScreenSize  image.Point
-	Root        *xlui.UI
+	Root        xlui.UI
 	Zone        *Zone
 	FS          fs.FS
 	Debug       bool
@@ -166,14 +166,9 @@ func (engine *Engine) testUI() {
 func (g *Engine) Update() error {
 	g.Log.Update()
 
-	if g.Root != nil {
-		res := g.Root.Poll()
-		if res != xlui.Ignore {
-			if res == xlui.Finish {
-				g.Root = nil
-			}
-			return nil
-		}
+	res := g.Root.Poll()
+	if res == xlui.Finish {
+		return nil
 	}
 
 	g.Pressed = g.Pressed[:0]
@@ -212,11 +207,8 @@ func (g *Engine) Update() error {
 		case xgal.KeyEnd:
 			mdelta.X = 1
 		case xgal.KeyF10:
-			if g.Root == nil {
-				g.Root = &xlui.UI{}
-			}
 			if g.Zone != nil {
-				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", ViewWidth, ViewHeight, 1)
+				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", &g.Camera, 1)
 				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
 				g.Root.Add(g.EditorLayer)
 			}
@@ -238,9 +230,12 @@ func (g *Engine) Update() error {
 	case xgal.Tap(xgal.KeyF):
 		g.Debug = !g.Debug
 	case xgal.Tap(xgal.KeyU):
-		if g.Root == nil {
-			g.Root = &xlui.UI{}
+		l := g.Root.Layer(xgal.Bound(0, 0, ViewWidth, 20))
+		b := l.Button("X")
+		b.Class.Click = func(at xgal.Point, button int) xlui.Reply {
+			return xlui.Finish
 		}
+		l.Label("UI test")
 	default:
 	}
 
@@ -259,13 +254,7 @@ func (g *Engine) Draw(screen *xgal.Surface) {
 		}
 	}
 
-	if g.Editor != nil {
-		g.Editor.Render(screen)
-	}
-
-	if g.Root != nil {
-		g.Root.Render(screen)
-	}
+	g.Root.Render(screen)
 
 	if g.Debug {
 		xgal.Debug(screen, fmt.Sprintf("\n%f\n", xgal.FPS()), 0, 0)

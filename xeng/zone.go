@@ -5,10 +5,6 @@ import (
 	"github.com/xmasengine/xmas/xgal"
 )
 
-type Layer struct {
-	Source *xgal.Surface
-}
-
 type Zone struct {
 	// data of the zone
 	*xdat.Zone
