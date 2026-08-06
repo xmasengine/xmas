@@ -42,6 +42,7 @@ type Layer struct {
 	Hovered *Control // Hovered is currently hovered control or none if nil.
 	Clicked *Control // Clicked is currently clicked control or none if nil.
 	Focused *Control // Clicked is currently focused control or none if nil.
+	Data    any      // Additional data if needed.
 }
 
 func NewLayer(bounds xgal.Rectangle) *Layer {

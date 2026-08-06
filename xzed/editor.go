@@ -10,11 +10,11 @@ import (
 import (
 	"github.com/xmasengine/xmas/xdat"
 	"github.com/xmasengine/xmas/xgal"
-	"github.com/xmasengine/xmas/xui"
+	"github.com/xmasengine/xmas/xlui"
 )
 
 type Editor struct {
-	Layer         xui.Layer // Editor is a widget layer
+	Layer         *xlui.Layer // Layer is back pointer to the layer this data is kept in.
 	Name          string
 	Zone          *xdat.Zone
 	Camera        image.Rectangle
@@ -32,6 +32,13 @@ type Editor struct {
 	// Presence      Presence
 	// Backup
 	// Commander *Tila
+}
+
+func NewEditorLayer(w, h int) *xlui.Layer {
+	e := Editor{}
+	l := xlui.NewLayer(xgal.Bound(0, 0, w, h))
+	e.Layer = l
+	return l
 }
 
 // var _ xui.Widget = &Editor{}

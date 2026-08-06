@@ -26,6 +26,7 @@ type Control struct {
 	From        xgal.Point
 	Orientation Orientation // layout orientation in the layer
 	State       State       // State of the control
+	Data        any         // Additional data if needed.
 }
 
 func (c Control) Render(s *xgal.Surface) {
