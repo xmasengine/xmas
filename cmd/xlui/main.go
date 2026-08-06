@@ -92,11 +92,14 @@ func main() {
 	layer2.Toggle("Bar", g)
 	layer2.Toggle("Baz", g)
 	layer2.Toggle("Quux", nil)
+	stat := layer2.Statistic("%d/%d", 71, 96)
+	hbar := layer2.Bar(xlui.Horizontal, 71, 96)
 
 	t1.Class.Click = func(at xgal.Point, button int) xlui.Reply {
 		menu := app.Menu(xgal.Bound(t1.Bounds.Min.X, t1.Bounds.Min.Y, 0, 0), "Menu 1", "Menu 2", "Menu 3")
 		menu.Class.Value = func(value int) xlui.Reply {
-			println("Menu: ", value)
+			hbar.Value = value * 10
+			stat.Class.Set(hbar.Value, hbar.High)
 			return xlui.Finish
 		}
 		return xlui.Accept

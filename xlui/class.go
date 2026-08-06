@@ -19,6 +19,7 @@ type Class struct {
 	Tick    func(tick int64) Reply
 	Chars   func(chars ...rune) Reply
 	MoveBy  func(delta xgal.Point)
+	Set     func(args ...any)
 }
 
 type ClickFunc func(at xgal.Point, button int) Reply

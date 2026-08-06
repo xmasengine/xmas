@@ -77,6 +77,10 @@ func (s Style) DrawRect(dst *xgal.Surface, r xgal.Rectangle) {
 	xgal.Outline(dst, r, int(s.Stroke), s.Border)
 }
 
+func (s Style) DrawPlainBox(dst *xgal.Surface, r xgal.Rectangle) {
+	xgal.Box(dst, r.Add(s.Offset), s.Fill)
+}
+
 const OffNine = 5
 
 func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
@@ -192,14 +196,6 @@ func ButtonStyle() Style {
 	return s
 }
 
-func MenuStyle() Style {
-	s := DefaultStyle()
-	s.Margin = xgal.Pt(2, 0)
-	s.Gloom = 0
-	s.Stroke = 0
-	return s
-}
-
 func BarStyle() Style {
 	s := DefaultStyle()
 	s.Fill = xgal.Paint(45, 45, 200, 250)
@@ -214,7 +210,6 @@ func CheckStyle() Style {
 
 func (s Style) HoverStyle() Style {
 	s.Border = xgal.Paint(200, 200, 45, 250)
-	s.Stroke = 1
 	return s
 }
 
@@ -252,5 +247,19 @@ func (s Style) ActiveStyle() Style {
 
 func (s Style) KnobStyle() Style {
 	s.Fill = xgal.Paint(245, 245, 245, 250)
+	return s
+}
+
+func MenuStyle() Style {
+	s := DefaultStyle()
+	s.Margin = xgal.Pt(2, 0)
+	s.Gloom = 0
+	s.Stroke = 0
+	return s
+}
+
+func HUDBarStyle() Style {
+	s := DefaultStyle()
+	s.Fill = xgal.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
 	return s
 }
