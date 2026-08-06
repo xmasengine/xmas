@@ -80,6 +80,11 @@ func NewSlider(at xgal.Point, orientation Orientation, low, high, value int) *Co
 		return Accept
 	}
 
+	wheel := func(at xgal.Point, delta int) Reply {
+		slider.Value = min(max(slider.Value+delta, slider.Low), slider.High)
+		return Accept
+	}
+
 	release := func(at xgal.Point, which int) Reply {
 		return Accept
 	}
@@ -92,6 +97,7 @@ func NewSlider(at xgal.Point, orientation Orientation, low, high, value int) *Co
 		Render:  render,
 		Click:   click,
 		Release: release,
+		Wheel:   wheel,
 		Hover:   hover,
 	}
 

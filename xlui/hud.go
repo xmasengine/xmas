@@ -10,8 +10,9 @@ func NewStatistic(at xgal.Point, form string, args ...any) *Control {
 	render := func(screen *xgal.Surface) {
 		statistic.Style.Print(screen, statistic.Bounds.Min, statistic.Text)
 	}
-	set := func(args ...any) {
+	set := func(args ...any) error {
 		statistic.Text = fmt.Sprintf(form, args...)
+		return nil
 	}
 	statistic.Class = Class{
 		Render: render,

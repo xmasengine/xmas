@@ -7,19 +7,23 @@ import "github.com/xmasengine/xmas/xgal"
 // If the handler is nil, this meand the type doesn4t support the operation
 // and a default handler may be used.
 type Class struct {
-	Render  func(screen *xgal.Surface)
+	Render func(screen *xgal.Surface)
+
 	Hover   func(at xgal.Point) Reply
 	Click   func(at xgal.Point, button int) Reply
 	Release func(at xgal.Point, button int) Reply
-	Key     func(key int, duration int) Reply
-	Tap     func(key int, mods Mods) Reply
-	Lift    func(key int, mods Mods) Reply
-	Entry   func(string) Reply
-	Value   func(value int) Reply
-	Tick    func(tick int64) Reply
-	Chars   func(chars ...rune) Reply
-	MoveBy  func(delta xgal.Point)
-	Set     func(args ...any)
+	Wheel   func(at xgal.Point, delta int) Reply
+
+	Key   func(key int, duration int) Reply
+	Tap   func(key int, mods Mods) Reply
+	Lift  func(key int, mods Mods) Reply
+	Entry func(string) Reply
+
+	Value  func(value int) Reply
+	Tick   func(tick int64) Reply
+	Chars  func(chars ...rune) Reply
+	MoveBy func(delta xgal.Point)
+	Set    func(args ...any) error
 }
 
 type ClickFunc func(at xgal.Point, button int) Reply

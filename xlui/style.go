@@ -3,6 +3,7 @@ package xlui
 import "github.com/xmasengine/xmas/xgal"
 import "github.com/xmasengine/xmas/xvec"
 import "os"
+import "log/slog"
 
 func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
@@ -51,7 +52,7 @@ func init() {
 	var err error
 	DefaultVec, err = xvec.ParseFS(DefaultFS, DefaultFrameName)
 	if err != nil {
-		println("Could not load frame:" + err.Error())
+		slog.Error("Could not load frame.", "err", err)
 	} else {
 		DefaultFrame = xgal.Prepare(int(DefaultVec.Size.W), int(DefaultVec.Size.H))
 		DefaultVec.Draw(DefaultFrame)

@@ -163,12 +163,32 @@ func (l *Layer) OnClick(at xgal.Point, button int) Reply {
 			if res != Ignore {
 				ctrl.State.Clicked = true
 				l.Clicked = ctrl
+				return res
 			}
-			return res
 		}
 	}
-	// If the layer was clicked, andn nothing else used the click, raise the layer.
+	// If the layer was clicked, ann nothing else used the click, raise the layer.
 	return Raise
+}
+
+func (l *Layer) OnWheel(at xgal.Point, button int) Reply {
+	if l.Class.Wheel != nil {
+		return l.Class.Wheel(at, button)
+	}
+
+	if l.Hovered != nil && at.In(l.Hovered.Bounds) {
+		l.SetFocus(l.Hovered)
+	}
+
+	for ctrl := range l.ControlsAt(at) {
+		if ctrl.Class.Wheel != nil {
+			res := ctrl.Class.Wheel(at, button)
+			if res != Ignore {
+				return res
+			}
+		}
+	}
+	return Ignore
 }
 
 func (l *Layer) OnHover(at xgal.Point) Reply {
@@ -187,8 +207,8 @@ func (l *Layer) OnHover(at xgal.Point) Reply {
 			if res != Ignore {
 				ctrl.State.Hovered = true
 				l.Hovered = ctrl
+				return res
 			}
-			return res
 		}
 	}
 	// If the layer was hovered, and nothing else used the click, raise the layer.
@@ -206,8 +226,8 @@ func (l *Layer) OnRelease(at xgal.Point, button int) Reply {
 			if res != Ignore {
 				ctrl.State.Clicked = false
 				l.Clicked = nil
+				return res
 			}
-			return res
 		}
 	}
 

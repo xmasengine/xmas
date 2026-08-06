@@ -34,6 +34,19 @@ func NewChooser(at xgal.Point, image *xgal.Surface, tileSize xgal.Point) *Contro
 	var focused xgal.Point
 	var hovered xgal.Point
 
+	set := func(args ...any) error {
+		if len(args) != 1 {
+			return Error("Chooser: need 1 argument")
+		}
+		if surf, ok := args[0].(*xgal.Surface); ok {
+			image = surf
+			chooser.Bounds = xgal.Bound(chooser.Bounds.Min.X, chooser.Bounds.Min.Y, size.Dx(), size.Dy())
+			return nil
+		} else {
+			return Error("Chooser: not a Surface")
+		}
+	}
+
 	render := func(screen *xgal.Surface) {
 		if image != nil {
 			xgal.Blit(screen, image, chooser.Bounds, image.Bounds())
@@ -79,6 +92,7 @@ func NewChooser(at xgal.Point, image *xgal.Surface, tileSize xgal.Point) *Contro
 		Click:   click,
 		Release: release,
 		Hover:   hover,
+		Set:     set,
 	}
 
 	return chooser

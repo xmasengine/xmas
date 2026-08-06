@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image"
 	"io/fs"
+	"log/slog"
 	//	"os"
 )
 
@@ -29,15 +30,19 @@ type Editor struct {
 	SpriteWatcher *Watcher
 	MessageTicks  int
 	Fsys          fs.FS
+	Choosers      xlui.Stack
+	Done          bool
 	// Presence      Presence
 	// Backup
 	// Commander *Tila
 }
 
 func NewEditorLayer(w, h int) *xlui.Layer {
-	e := Editor{}
+	e := &Editor{}
 	l := xlui.NewLayer(xgal.Bound(0, 0, w, h))
 	e.Layer = l
+	l.Data = e
+	l.Class.Render = e.Render
 	return l
 }
 
@@ -81,20 +86,15 @@ func (e Editor) Render(screen *xgal.Surface) {
 	e.Layer.Render(screen)
 }
 
-func (e Editor) Place(bounds xgal.Rectangle) (rw, th int) {
-	e.Layer.Place(bounds)
-	return e.Camera.Dx() / e.Scale, e.Camera.Dy() / e.Scale
-}
-
 func (e *Editor) UpdateChoosers() {
 	m := e.ActiveLayer()
 	if m == nil || m.Texture == nil {
 		return
 	}
-	for _, sub := range e.Layer.Kids {
-		if choose, ok := sub.(*xui.ChooserLayer); ok {
-			choose.Image = m.Texture
-			choose.TileSize = xgal.Pt(m.TileWidth, m.TileHeight)
+	for _, chooser := range e.Choosers.Layers {
+		err := chooser.Class.Set(m.Texture)
+		if err != nil {
+			slog.Error("set texture", "err", err)
 		}
 	}
 }
@@ -229,7 +229,7 @@ func (e *Editor) LoadZone(name string) bool {
 }
 
 func (e *Editor) SetDone(done bool) {
-	e.Layer.Done = done
+	e.Done = done
 }
 
 func (e Editor) FloodFill(at xgal.Point, cell xdat.Tile) {

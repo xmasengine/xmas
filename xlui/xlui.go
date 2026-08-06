@@ -108,6 +108,16 @@ func (u *UI) Poll() Reply {
 			}
 		}
 	}
+
+	_, delta := xgal.Wheel()
+	if delta != 0 {
+		cursor := xgal.Cursor()
+		res := u.Wheel(cursor, int(delta))
+		if res != Ignore {
+			return res
+		}
+	}
+
 	return Ignore
 }
 
@@ -365,6 +375,28 @@ func (u *UI) Click(at xgal.Point, button int) Reply {
 	return Ignore
 }
 
+func (u *UI) Wheel(at xgal.Point, delta int) Reply {
+	for i := len(u.Layers) - 1; i >= 0; i-- {
+		layer := u.Layers[i]
+		if layer == nil {
+			continue
+		}
+		if !at.In(layer.Bounds) {
+			continue
+		}
+
+		res := layer.OnWheel(at, delta)
+		if res != Accept {
+			// Perhaps imprement layer scrolling here.
+		}
+
+		if res != Ignore {
+			return u.onReply(i, res)
+		}
+	}
+	return Ignore
+}
+
 func (u *UI) Render(s *xgal.Surface) {
 	for i := 0; i < len(u.Layers); i++ {
 		layer := u.Layers[i]
@@ -406,4 +438,10 @@ func (u *UI) MenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...s
 	layer := NewMenuWithValueOffset(bounds, offset, options...)
 	u.Layers = append(u.Layers, layer)
 	return layer
+}
+
+type Error string
+
+func (e Error) Error() string {
+	return string(e)
 }
