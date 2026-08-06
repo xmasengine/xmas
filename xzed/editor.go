@@ -19,8 +19,8 @@ type Editor struct {
 	Name          string
 	Zone          *xdat.Zone
 	Camera        image.Rectangle
-	Hover         image.Point
-	Tile          image.Point // Tile we are hovering
+	Tile          image.Point // Tile we have selected
+	Hovered       image.Point // Tile we are hovering
 	Cell          xdat.Tile
 	Depth         int
 	Scale         int
@@ -37,13 +37,46 @@ type Editor struct {
 	// Commander *Tila
 }
 
-func NewEditorLayer(w, h int) *xlui.Layer {
-	e := &Editor{}
+func NewEditorLayer(zone *xdat.Zone, name string, w, h, scale int) *xlui.Layer {
+	e := newEditor(zone, name, w, h, scale)
 	l := xlui.NewLayer(xgal.Bound(0, 0, w, h))
 	e.Layer = l
+	e.Layer.Lock = true
 	l.Data = e
 	l.Class.Render = e.Render
+	l.Class.Click = e.Click
+	l.Class.Hover = e.Hover
+	l.Class.Tap = e.Tap
+	l.Class.Tick = e.Tick
+	l.Class.Wheel = e.Wheel
 	return l
+}
+
+func newEditor(zone *xdat.Zone, name string, w, h, scale int) *Editor {
+	e := &Editor{Zone: zone, Name: name, Camera: image.Rect(0, 0, w, h),
+		Scale: scale,
+	}
+
+	/*
+		if tm.From != "" {
+			e.TileWatcher = Watch(tm.From)
+		}
+		if tm.Sprites.From != "" {
+			e.SpriteWatcher = Watch(tm.Sprites.From)
+		}
+	*/
+	/*
+		e.Backup.Pattern = "xmas*.xml"
+		e.Commander = NewTila()
+		e.Commander.Commands["get"] = (*Tila).Get
+		e.Commander.Operators["$"] = (*Tila).Get
+		e.Commander.Commands["set"] = (*Tila).Set
+		e.Commander.Commands["wrap"] = e.Wrap
+		e.Commander.Commands["roll"] = e.Roll
+		e.Commander.Commands["help"] = e.CommandHelp
+	*/
+
+	return e
 }
 
 // var _ xui.Widget = &Editor{}
@@ -69,10 +102,10 @@ func (e Editor) Render(screen *xgal.Surface) {
 		}
 	}
 
-	pr := xgal.Bound(e.Hover.X, e.Hover.Y, 100, 20)
+	pr := xgal.Bound(e.Hovered.X, e.Hovered.Y, 100, 20)
 
 	style.Ink(screen, pr, fmt.Sprintf("%s: (%d,%d): %d",
-		e.Name, e.Hover.X, e.Hover.Y, e.Cell))
+		e.Name, e.Hovered.X, e.Hovered.Y, e.Cell))
 	di := xgal.Pt(0, 12)
 	pr = pr.Add(di)
 	if e.Error != nil {
@@ -256,77 +289,86 @@ Y: Yank hovered tile.   | G: Edit flags.
 Enter: Confirm dialogs. | Esc: Cancel dialogs.
 `
 
-func (e *Editor) Poll() xui.Reply {
-	// var err error
-	e.Hover = xgal.Cursor()
+func (e *Editor) Hover(at xgal.Point) xlui.Reply {
 	layer := e.ActiveLayer()
 	if layer != nil {
-		e.Tile = layer.ToTile(e.Hover, e.Camera)
+		e.Tile = layer.ToTile(e.Hovered, e.Camera)
+		return xlui.Accept
+	}
+	return xlui.Ignore
+}
+
+func (e *Editor) Click(at xgal.Point, button int) xlui.Reply {
+	if xgal.MouseButton(button) == xgal.MouseButtonRight {
+		// e.Zone.PutIndex(e.Tile, 0)
 	}
 
-	_, wheel := xgal.Wheel()
-	if wheel > 0 {
+	if xgal.MouseButton(button) == xgal.MouseButtonMiddle {
+		// e.Zone.PutPresence(e.Tile, e.Presence)
+	}
+
+	return xlui.Accept
+}
+
+func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
+	if delta > 0 {
 		e.Cell++
-	} else if wheel < 0 {
+	} else if delta < 0 {
 		e.Cell = max(0, e.Cell-1)
 	}
+	return xlui.Accept
+}
 
-	e.UpdateWatcher()
-
-	res := e.Layer.Poll()
-	if res == xui.Accept {
-		return res
-	}
-
-	switch {
-	case xgal.Tap(xgal.KeyPause):
-		e.Layer.Done = true
+func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
+	switch xgal.KeyCode(key) {
+	case xgal.KeyPause:
+		e.Done = true
 		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
-	case xgal.Tap(xgal.KeyY):
-		e.Cell = layer.Get(e.Tile)
+	case xgal.KeyY:
+		e.Cell = e.ActiveLayer().Get(e.Tile)
 		e.ShowMessage("Yanked %d", e.Cell)
 	/*
-		case xgal.Tap(xgal.KeyL):
+		case xgal.Key(xgal.KeyL):
 			if e.Zone != nil {
 				e.Zone.Flags = !e.Zone.Flags
 			}
-		case xgal.Tap(xgal.KeyH):
+		case xgal.Key(xgal.KeyH):
 			e.Cell.Flag ^= FlagHorizontalFlip
-		case xgal.Tap(xgal.KeyV):
+		case xgal.Key(xgal.KeyV):
 			e.Cell.Flag ^= FlagVerticalFlip
-		case xgal.Tap(xgal.KeyN):
+		case xgal.Key(xgal.KeyN):
 			e.Cell.Flag ^= FlagOnTop
-		case xgal.Tap(xgal.KeyB):
+		case xgal.Key(xgal.KeyB):
 			e.Cell.Flag ^= FlagSolid
-		case xgal.Tap(xgal.KeyG):
+		case xgal.Key(xgal.KeyG):
 			e.Layer.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
 	*/
-	case xgal.Tap(xgal.KeyF1):
+	case xgal.KeyF1:
 		// e.Layer.Ask(50, 0, 300, 250, HELP, "", Accept)
-	case xgal.Tap(xgal.KeyF2):
+	case xgal.KeyF2:
 		// e.Layer.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
-	case xgal.Tap(xgal.KeyF4):
+	case xgal.KeyF4:
 		// e.Layer.Ask(50, 50, 250, 100, "Load From", e.Name, e.LoadZone)
-	case xgal.Tap(xgal.KeyU):
-		if xgal.Key(xgal.KeyShiftLeft) {
+	case xgal.KeyU:
+		if mods.Shift {
 			// e.Backup.Commit(e.SaveZoneToFile)
 		} else {
 			// e.Layer.YesNo(50, 50, 250, 100, "Restore backup", "Y", e.Restore)
 		}
-	case xgal.Tap(xgal.KeyF):
-		if xgal.Key(xgal.KeyShiftLeft) {
+	case xgal.KeyF:
+		if mods.Shift {
 			// e.Layer.Ask(50, 50, 250, 100, "Sprites", e.Zone.Sprites.From, e.LoadSpriteSurface)
 		} else {
 			// e.Layer.Ask(50, 50, 250, 100, "From", e.Zone.From, e.LoadSurface)
 		}
 
-	case xgal.Tap(xgal.KeyP):
+	case xgal.KeyP:
 		// e.Layer.AskString(50, 50, 250, 100, "Prefix", &e.Zone.Prefix)
-	case xgal.Tap(xgal.KeyO):
+	case xgal.KeyO:
 		// e.Layer.AskInt(50, 50, 250, 100, "Offset", &e.Zone.Offset)
-	case xgal.Tap(xgal.KeyS):
+	case xgal.KeyS:
 		// e.Layer.AskInt(50, 50, 250, 100, "UI Scale", &e.Scale)
-	case xgal.Tap(xgal.KeyF3):
+	case xgal.KeyF3:
 		if xgal.Key(xgal.KeyShiftLeft) {
 			// choose := e.Layer.Chooser(200, 100, e.Zone.Sprites.Surface, e.SpriteSelected)
 			// choose.SetCaption("Sprite")
@@ -334,39 +376,23 @@ func (e *Editor) Poll() xui.Reply {
 			// choose := e.Layer.Chooser(200, 100, e.Zone.Surface, e.TileSelected)
 			// choose.SetCaption("Tile")
 		}
-	case xgal.Tap(xgal.KeyF5):
+	case xgal.KeyF5:
 
-	case xgal.Tap(xgal.KeyF6):
+	case xgal.KeyF6:
 		// e.Layer.AskCommand(10, 10, 300, 250, "Command", e.Commander)
-	case xgal.Grip(xgal.MouseButtonLeft):
-		if xgal.Key(xgal.KeyShiftLeft) {
-			// e.Zone.PutIndex(e.Tile, e.Cell.Index)
-		} else if xgal.Key(xgal.KeyControlLeft) {
-			// e.Zone.PutFlag(e.Tile, e.Cell.Flag)
-		} else if xgal.Key(xgal.KeyAltLeft) {
-			// e.Zone.FloodFill(e.Tile, e.Cell)
-		} else {
-			// e.Zone.Put(e.Tile, e.Cell)
-		}
-	case xgal.Grip(xgal.MouseButtonRight):
-		if xgal.Key(xgal.KeyShiftLeft) {
-			// e.Zone.PutIndex(e.Tile, 0)
-		} else if xgal.Key(xgal.KeyControlLeft) {
-			// e.Zone.PutFlag(e.Tile, 0)
-		} else {
-			// zero := Cell{}
-			// e.Zone.Put(e.Tile, zero)
-		}
-	case xgal.Grip(xgal.MouseButtonMiddle):
-		// e.Zone.PutPresence(e.Tile, e.Presence)
 	default:
-		return xui.Ignore
+		return xlui.Ignore
 	}
 
-	if e.Layer.Done {
-		return xui.Finish
+	return xlui.Accept
+}
+
+func (e *Editor) Tick(tick int64) xlui.Reply {
+	e.UpdateWatcher()
+	if e.Done {
+		return xlui.Finish
 	}
-	return xui.Accept
+	return xlui.Accept
 }
 
 /*
@@ -398,32 +424,3 @@ func (e *Editor) CommandHelp(t *Tila, args ...any) any {
 	return "available commands: get, set, wrap, roll, help"
 }
 */
-
-func NewEditor(zone *xdat.Zone, name string, w, h, scale int) *Editor {
-
-	e := &Editor{Zone: zone, Name: name, Camera: image.Rect(0, 0, w, h),
-		Scale: scale,
-		Layer: xui.MakeLayer(image.Rect(0, 0, w, h)),
-	}
-	e.Layer.Lock = true
-	/*
-		if tm.From != "" {
-			e.TileWatcher = Watch(tm.From)
-		}
-		if tm.Sprites.From != "" {
-			e.SpriteWatcher = Watch(tm.Sprites.From)
-		}
-	*/
-	/*
-		e.Backup.Pattern = "xmas*.xml"
-		e.Commander = NewTila()
-		e.Commander.Commands["get"] = (*Tila).Get
-		e.Commander.Operators["$"] = (*Tila).Get
-		e.Commander.Commands["set"] = (*Tila).Set
-		e.Commander.Commands["wrap"] = e.Wrap
-		e.Commander.Commands["roll"] = e.Roll
-		e.Commander.Commands["help"] = e.CommandHelp
-	*/
-
-	return e
-}

@@ -15,7 +15,7 @@ import (
 	"github.com/xmasengine/xmas/xgal"
 	"github.com/xmasengine/xmas/xlog"
 	// "github.com/xmasengine/xmas/xres"
-	"github.com/xmasengine/xmas/xui"
+	"github.com/xmasengine/xmas/xlui"
 	"github.com/xmasengine/xmas/xzed"
 )
 
@@ -27,25 +27,25 @@ const ViewHeight = 192 // 240 // 2
 // const ViewHeight = 240 * 2
 
 type Engine struct {
-	Log        xlog.Log
-	Msg        string
-	Pressed    []xgal.KeyCode
-	Script     strings.Reader
-	DebugRow   int
-	ScreenSize image.Point
-	Root       *xui.PaneLayer
-	Zone       *Zone
-	FS         fs.FS
-	Debug      bool
-	Camera     xgal.Rectangle
-	Editor     *xzed.Editor
+	Log         xlog.Log
+	Msg         string
+	Pressed     []xgal.KeyCode
+	Script      strings.Reader
+	DebugRow    int
+	ScreenSize  image.Point
+	Root        *xlui.UI
+	Zone        *Zone
+	FS          fs.FS
+	Debug       bool
+	Camera      xgal.Rectangle
+	EditorLayer *xlui.Layer
+	Editor      *xzed.Editor
 }
 
 func New(sw, sh int) *Engine {
 	engine := &Engine{ScreenSize: image.Point{X: sw, Y: sh}, Msg: "!"}
 	engine.Camera = image.Rect(0, 0, ViewWidth, ViewHeight)
 	engine.Pressed = make([]xgal.KeyCode, 16)
-	engine.Root = xui.Pane(engine.Camera.Inset(20), "UI")
 	engine.Log.Hide = true
 	wd, _ := os.Getwd()
 	engine.FS = os.DirFS(wd)
@@ -166,20 +166,10 @@ func (engine *Engine) testUI() {
 func (g *Engine) Update() error {
 	g.Log.Update()
 
-	if g.Editor != nil {
-		res := g.Editor.Poll()
-		if res != xui.Ignore {
-			if res == xui.Finish {
-				g.Editor = nil
-			}
-			return nil
-		}
-	}
-
 	if g.Root != nil {
 		res := g.Root.Poll()
-		if res != xui.Ignore {
-			if res == xui.Finish {
+		if res != xlui.Ignore {
+			if res == xlui.Finish {
 				g.Root = nil
 			}
 			return nil
@@ -222,8 +212,13 @@ func (g *Engine) Update() error {
 		case xgal.KeyEnd:
 			mdelta.X = 1
 		case xgal.KeyF10:
+			if g.Root == nil {
+				g.Root = &xlui.UI{}
+			}
 			if g.Zone != nil {
-				g.Editor = xzed.NewEditor(g.Zone.Zone, "map_0001.xml", ViewWidth, ViewHeight, 1)
+				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", ViewWidth, ViewHeight, 1)
+				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
+				g.Root.Add(g.EditorLayer)
 			}
 		default:
 		}
@@ -244,7 +239,7 @@ func (g *Engine) Update() error {
 		g.Debug = !g.Debug
 	case xgal.Tap(xgal.KeyU):
 		if g.Root == nil {
-			g.Root = xui.Pane(g.Camera.Inset(20), "UI 2")
+			g.Root = &xlui.UI{}
 		}
 	default:
 	}
