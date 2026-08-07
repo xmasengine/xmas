@@ -311,7 +311,7 @@ func (l *Layer) FloodFill(at xgal.Point, cell Tile) {
 }
 
 func (l *Layer) ToTile(at xgal.Point, camera xgal.Rectangle) xgal.Point {
-	off := at.Sub(camera.Min)
+	off := at.Add(camera.Min) // Camera will be negative when scrolling up.
 	return xgal.Pt(off.X/l.TileWidth, off.Y/l.TileHeight)
 }
 

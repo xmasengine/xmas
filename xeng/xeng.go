@@ -33,7 +33,6 @@ type Engine struct {
 	Script      strings.Reader
 	DebugRow    int
 	ScreenSize  image.Point
-	Root        xlui.UI
 	Zone        *Zone
 	FS          fs.FS
 	Debug       bool
@@ -166,7 +165,7 @@ func (engine *Engine) testUI() {
 func (g *Engine) Update() error {
 	g.Log.Update()
 
-	res := g.Root.Poll()
+	res := xlui.Poll()
 	if res == xlui.Finish {
 		return nil
 	}
@@ -210,7 +209,7 @@ func (g *Engine) Update() error {
 			if g.Zone != nil {
 				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", &g.Camera, 1)
 				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
-				g.Root.Add(g.EditorLayer)
+				xlui.Add(g.EditorLayer)
 			}
 		default:
 		}
@@ -230,7 +229,7 @@ func (g *Engine) Update() error {
 	case xgal.Tap(xgal.KeyF):
 		g.Debug = !g.Debug
 	case xgal.Tap(xgal.KeyU):
-		l := g.Root.Layer(xgal.Bound(0, 0, ViewWidth, 20))
+		l := xlui.AddLayer(xgal.Bound(0, 0, ViewWidth, 20))
 		b := l.Button("X")
 		b.Class.Click = func(at xgal.Point, button int) xlui.Reply {
 			return xlui.Finish
@@ -254,7 +253,7 @@ func (g *Engine) Draw(screen *xgal.Surface) {
 		}
 	}
 
-	g.Root.Render(screen)
+	xlui.Render(screen)
 
 	if g.Debug {
 		xgal.Debug(screen, fmt.Sprintf("\n%f\n", xgal.FPS()), 0, 0)

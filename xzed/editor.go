@@ -96,15 +96,15 @@ func (e *Editor) Render(screen *xgal.Surface) {
 	m := e.ActiveLayer()
 	if m != nil {
 		cr := xgal.Bound(e.Over.X*m.TileWidth, e.Over.Y*m.TileHeight,
-			m.TileWidth, m.TileHeight).Add(e.Camera.Min)
+			m.TileWidth, m.TileHeight).Sub(e.Camera.Min)
 
 		if e.Over.In(image.Rect(0, 0, m.Width-1, m.Height-1)) {
 			style.DrawRect(screen, cr)
 		}
 		pr := cr.Min.Add(xgal.Pt(m.TileWidth, 0))
 
-		style.Print(screen, pr, fmt.Sprintf("%s: (%d,%d): %d",
-			e.Name, e.Over.X, e.Over.Y, e.Cell))
+		style.Print(screen, pr, fmt.Sprintf("%s: (%d,%d): %d @ (%d,%d)",
+			e.Name, e.Over.X, e.Over.Y, e.Cell, e.Camera.Min.X, e.Camera.Min.Y))
 	}
 
 	pr := xgal.Pt(0, 0)
