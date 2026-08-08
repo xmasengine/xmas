@@ -235,6 +235,8 @@ func (g *Engine) Update() error {
 		}
 	case xgal.Tap(xgal.KeyF):
 		g.Debug = !g.Debug
+		xlui.Ask(50, 50, 250, 100, "Debug", "debug", func(string) bool { return true })
+
 	case xgal.Tap(xgal.KeyPrintScreen):
 		g.Windowed = !g.Windowed
 		xgal.Expand(!g.Windowed)

@@ -6,7 +6,7 @@ import (
 
 // Reply is the result of several event handlers.
 // Event handlers must strictly observe the meaning of Reply.
-// Otherwise the widgets, in particylar widget focus may malfunction.
+// Otherwise the widgets, in particular widget focus may malfunction.
 type Reply int
 
 const (

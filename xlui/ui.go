@@ -15,6 +15,7 @@ type UI struct {
 
 func (u *UI) Add(l *Layer) *Layer {
 	u.Layers = slices.Insert(u.Layers, 0, l)
+	u.SetFocus(l) // set focus to new layer
 	return l
 }
 
@@ -55,9 +56,6 @@ func (u *UI) Poll() Reply {
 	u.Tick(xgal.Tick())
 
 	kr := u.pollKeys()
-	if kr != Ignore {
-		return kr
-	}
 
 	for mb := xgal.MouseButton(0); mb < xgal.MouseButtonMax; mb++ {
 		cursor := xgal.Cursor()
@@ -87,7 +85,7 @@ func (u *UI) Poll() Reply {
 		}
 	}
 
-	return Ignore
+	return kr
 }
 
 func (u *UI) pollKeys() Reply {
@@ -280,7 +278,7 @@ func (u *UI) onReply(i int, res Reply) Reply {
 	if res == Finish {
 		u.closeLayerByIndex(i)
 	} else if res == Accept {
-		u.setFocusByIndex(i)
+		// u.setFocusByIndex(i)
 	} else if res == Raise {
 		u.raiseLayerByIndex(i)
 	} else if res == Lower {

@@ -26,3 +26,6 @@ and E W I D to set the log level.
     pack/image/gfx/objects.png
     pack/image/gfx/overworld.png
 
+## Fonts
+	https://github.com/IT-Studio-Rech/bdf-fonts (MIT)
+
