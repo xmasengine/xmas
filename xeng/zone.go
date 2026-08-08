@@ -74,11 +74,11 @@ func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.L
 		endx := min(1+camera.Max.X/int(m.TileWidth), len(row)-1)
 		for tx := startx; tx < endx; tx++ {
 			cell := row[tx]
-			if cell == 0 && index > 0 {
+			if cell.X == 0 && cell.Y == 0 && index > 0 {
 				continue // 0 is empty when not level 0
 			}
-			idx := cell.X()
-			idy := cell.Y()
+			idx := cell.X
+			idy := cell.Y
 			fx := int(idx) * int(m.TileWidth)
 			fy := int(idy) * int(m.TileHeight)
 

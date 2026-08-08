@@ -3,23 +3,20 @@ package spleen8
 
 import _ "embed"
 
-import "github.com/zachomedia/go-bdf"
-import "golang.org/x/image/font"
-import "github.com/hajimehoshi/ebiten/v2/text/v2"
+import "github.com/xmasengine/xmas/xgal"
 
 //go:embed spleen8.bdf
 var fontBuffer []byte
 
-func Load() (font.Face, error) {
-	font, err := bdf.Parse(fontBuffer)
+func Load() (xgal.Face, error) {
+	font, err := xgal.EmbeddedFont(fontBuffer, 8, xgal.BDF)
 	if err != nil {
 		return nil, err
 	}
-	return font.NewFace(), nil
+	return font, nil
 }
 
-var Face font.Face
-var XFace text.Face
+var Face xgal.Face
 
 func init() {
 	var err error
@@ -27,5 +24,4 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	XFace = text.NewGoXFace(Face)
 }

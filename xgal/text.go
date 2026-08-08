@@ -57,6 +57,41 @@ func Font(fsys fs.FS, name string, size ...float64) (Face, error) {
 	}
 }
 
+type EmbeddedFontType string
+
+const (
+	BDF = EmbeddedFontType("bdf")
+	TTF = EmbeddedFontType("ttf")
+	OTF = EmbeddedFontType("otf")
+)
+
+// EmbeddedFont can be used to load embeded fonts.
+func EmbeddedFont(buf []byte, pt float64, typ EmbeddedFontType) (Face, error) {
+	switch typ {
+	case BDF:
+		parsed, err := bdf.Parse(buf)
+		if err != nil {
+			return nil, err
+		}
+		return text.NewGoXFace(parsed.NewFace()), nil
+	case TTF, OTF:
+		src, err := text.NewGoTextFaceSource(bytes.NewReader(buf))
+		if err != nil {
+			return nil, err
+		}
+		return &text.GoTextFace{Source: src, Size: pt}, nil
+	default:
+		if b, err := bdf.Parse(buf); err == nil {
+			return text.NewGoXFace(b.NewFace()), nil
+		}
+		src, err := text.NewGoTextFaceSource(bytes.NewReader(buf))
+		if err != nil {
+			return nil, err
+		}
+		return &text.GoTextFace{Source: src, Size: pt}, nil
+	}
+}
+
 // Ink draws str onto dst at (x, y) using face and color.
 func Ink(dst *Surface, face Face, color RGBA, x, y int, str string) {
 	if face == nil {

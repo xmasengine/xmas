@@ -80,7 +80,7 @@ func newEditor(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) 
 
 // var _ xui.Widget = &Editor{}
 
-func (e Editor) ActiveLayer() *xdat.Layer {
+func (e *Editor) ActiveLayer() *xdat.Layer {
 	if e.Zone == nil {
 		return nil
 	}
@@ -88,6 +88,14 @@ func (e Editor) ActiveLayer() *xdat.Layer {
 		return nil
 	}
 	return &e.Zone.Layers[e.Depth]
+}
+
+func (e *Editor) ActiveTexture() *xgal.Surface {
+	l := e.ActiveLayer()
+	if l == nil {
+		return nil
+	}
+	return l.Texture
 }
 
 func (e *Editor) Render(screen *xgal.Surface) {
@@ -213,15 +221,14 @@ func (e *Editor) UpdateWatcher() bool {
 	return false
 }
 
-func (e *Editor) TileSelected(x, y int) {
+func (e *Editor) TileSelected(x, y int) bool {
 	m := e.ActiveLayer()
 	if m == nil {
-		return
+		return false
 	}
 
-	idx := x + y*255
-
-	e.Cell = xdat.Tile(max(0, idx))
+	e.Cell = xdat.MakeTile(uint8(x), uint8(y), 0)
+	return true
 }
 
 func (e *Editor) SpriteSelected(x, y int) {
@@ -309,21 +316,43 @@ func (e *Editor) Click(at xgal.Point, button int) xlui.Reply {
 	return xlui.Accept
 }
 
-func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
-	if delta > 0 {
-		e.Cell++
-	} else if delta < 0 {
-		e.Cell = max(0, e.Cell-1)
+func (e *Editor) NextTile(delta int) {
+	mx := uint8(255)
+
+	layer := e.ActiveLayer()
+	texture := e.ActiveTexture()
+	if layer != nil && texture != nil {
+		w, _ := texture.Size()
+		mx = uint8(w / layer.TileWidth)
 	}
+
+	if delta > 0 {
+		e.Cell.X++
+		if e.Cell.X >= mx {
+			e.Cell.X = 0
+			e.Cell.Y++
+		}
+	} else if delta < 0 {
+		if e.Cell.X == 0 {
+			e.Cell.Y--
+			e.Cell.X = mx - 1
+		} else {
+			e.Cell.X--
+		}
+	}
+}
+
+func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
+	e.NextTile(delta)
 	return xlui.Accept
 }
 
 func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 	switch xgal.KeyCode(key) {
 	case xgal.KeyEqual:
-		e.Cell++
+		e.NextTile(1)
 	case xgal.KeyMinus:
-		e.Cell = max(0, e.Cell-1)
+		e.NextTile(-1)
 	case xgal.KeyPause:
 		e.Done = true
 		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
@@ -347,11 +376,11 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 			e.Layer.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
 	*/
 	case xgal.KeyF1:
-		// e.Layer.Ask(50, 0, 300, 250, HELP, "", Accept)
+		xlui.Display(50, 0, 300, 250, HELP)
 	case xgal.KeyF2:
-		// e.Layer.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
+		xlui.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
 	case xgal.KeyF4:
-		// e.Layer.Ask(50, 50, 250, 100, "Load From", e.Name, e.LoadZone)
+		xlui.Ask(50, 50, 250, 100, "Load From", e.Name, e.LoadZone)
 	case xgal.KeyU:
 		if mods.Shift {
 			// e.Backup.Commit(e.SaveZoneToFile)
@@ -376,8 +405,10 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 			// choose := e.Layer.Chooser(200, 100, e.Zone.Sprites.Surface, e.SpriteSelected)
 			// choose.SetCaption("Sprite")
 		} else {
-			// choose := e.Layer.Chooser(200, 100, e.Zone.Surface, e.TileSelected)
-			// choose.SetCaption("Tile")
+			layer := e.ActiveLayer()
+			if layer != nil {
+				xlui.Choose(200, 100, layer.TileWidth, layer.TileHeight, "Tile", layer.Texture, e.TileSelected)
+			}
 		}
 	case xgal.KeyF5:
 

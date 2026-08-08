@@ -19,10 +19,11 @@ import (
 	"github.com/xmasengine/xmas/xzed"
 )
 
-// const ViewWidth = 320 // 2
+// We want a resolution similar to the SMS: 256 × 192
+// However most screens are wide view now so we will do 320 x 192 for now.
 
-const ViewWidth = 340  //256  // 426  // *2
-const ViewHeight = 192 // 240 // 2
+const ViewWidth = 320
+const ViewHeight = 192
 
 // const ViewHeight = 240 * 2
 
@@ -39,6 +40,7 @@ type Engine struct {
 	Camera      xgal.Rectangle
 	EditorLayer *xlui.Layer
 	Editor      *xzed.Editor
+	Windowed    bool
 }
 
 func New(sw, sh int) *Engine {
@@ -66,18 +68,15 @@ func (engine *Engine) testZone() {
 	}
 	for y := 0; y < int(zone.Layers[0].Height); y++ {
 		for x := 0; x < int(zone.Layers[0].Width); x++ {
-			tw := rand.IntN(8)
-			th := rand.IntN(2)
-			t := tw + th*8
-			zone.Layers[0].Tiles.Rows[y][x] = xdat.Tile(t)
+			tw := uint8(rand.IntN(8))
+			th := uint8(rand.IntN(2))
+			zone.Layers[0].Tiles.Rows[y][x] = xdat.MakeTile(tw, th, 0)
 		}
 	}
 
 	zone.Layers[1].Texture = zone.Layers[0].Texture
 	zone.Layers[2].Texture = zone.Layers[0].Texture
 
-	zone.Layers[1].Tiles.Rows[1][2] = 3
-	zone.Layers[2].Tiles.Rows[3][4] = 4
 	// zone.Layers[0] = *layer
 
 	// layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
@@ -205,12 +204,7 @@ func (g *Engine) Update() error {
 			mdelta.X = -1
 		case xgal.KeyEnd:
 			mdelta.X = 1
-		case xgal.KeyF10:
-			if g.Zone != nil {
-				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", &g.Camera, 1)
-				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
-				xlui.Add(g.EditorLayer)
-			}
+
 		default:
 		}
 	}
@@ -226,15 +220,24 @@ func (g *Engine) Update() error {
 	switch {
 	case xgal.Tap(xgal.KeyEscape):
 		return xgal.Quit
+
+	case xgal.Tap(xgal.KeyF10):
+		if g.Zone != nil {
+			if g.Editor == nil && g.EditorLayer == nil {
+				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", &g.Camera, 1)
+				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
+				xlui.Add(g.EditorLayer)
+			} else {
+				xlui.CloseLayer(g.EditorLayer)
+				g.EditorLayer = nil
+				g.Editor = nil
+			}
+		}
 	case xgal.Tap(xgal.KeyF):
 		g.Debug = !g.Debug
-	case xgal.Tap(xgal.KeyU):
-		l := xlui.AddLayer(xgal.Bound(0, 0, ViewWidth, 20))
-		b := l.Button("X")
-		b.Class.Click = func(at xgal.Point, button int) xlui.Reply {
-			return xlui.Finish
-		}
-		l.Label("UI test")
+	case xgal.Tap(xgal.KeyPrintScreen):
+		g.Windowed = !g.Windowed
+		xgal.Expand(!g.Windowed)
 	default:
 	}
 

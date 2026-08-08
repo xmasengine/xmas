@@ -104,3 +104,34 @@ func (l *Layer) Chooser(image *xgal.Surface, tileSize xgal.Point) *Control {
 	ctrl := NewChooser(at, image, tileSize)
 	return l.Append(ctrl)
 }
+
+// Choose adds a new layer with a chooser control.
+// Does nothing and returns nil if texture is nil.
+func (u *UI) Choose(x, y, tw, th int, title string, texture *xgal.Surface, handler func(x, y int) bool) *Layer {
+	if texture == nil {
+		return nil
+	}
+	w, h := texture.Size()
+	text := DefaultStyle().Measure(title)
+	if text.X > w {
+		w = text.X
+	}
+	choose := u.Layer(xgal.Bound(x, y, w, h+text.Y))
+	button := choose.Button("X")
+	button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
+		return Finish
+	}
+	choose.Label(title)
+	choose.Orientation = Vertical
+	chooser := choose.Chooser(texture, xgal.Pt(tw, th))
+	click := func(at xgal.Point, which int) Reply {
+		tile := chooserMouseTile(chooser, texture, xgal.Pt(tw, th), at)
+		if handler(tile.X, tile.Y) {
+			return Accept
+		} else {
+			return Ignore
+		}
+	}
+	chooser.Class.LinkClick(click)
+	return choose
+}

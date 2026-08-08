@@ -33,3 +33,14 @@ func TestSaveTo(t *testing.T) {
 	// We check the contents with TestRoundTrip
 
 }
+
+func TestEncodeUint32(t *testing.T) {
+	observe := MakeTile(5, 7, FlagRotate90)
+	i := observe.ToUint32()
+
+	expect := MakeTileFromUint32(i)
+
+	if diff, ok := messagediff.PrettyDiff(expect, observe); !ok {
+		t.Fatalf("\ndiff: %s\n", diff)
+	}
+}

@@ -26,10 +26,24 @@ type Header struct {
 	Version uint32
 }
 
-type Flag uint32
+type Flag uint16
+
+func (t Flag) Has(f Flag) bool {
+	return t&f == f
+}
+
+func (t *Flag) Set(f Flag) Flag {
+	(*t) = f | *t
+	return *t
+}
+
+func (t *Flag) Toggle(f Flag) Flag {
+	(*t) = f ^ *t
+	return *t
+}
 
 const (
-	FlagSolid Flag = 1 << (16 + iota)
+	FlagSolid Flag = 1 << iota
 	FlagSpecial
 	FlagHarm
 	FlagBless
@@ -40,31 +54,29 @@ const (
 	FlagRotate270
 )
 
-// Tile consists of upper 16 biths with the flags,
-// middle 8 bits with the tile Y coordinate in tiles in the texture
-// and low 8 bith with the x coordinate in tiles in the texture
-type Tile uint32
-
-func (t Tile) X() uint8 {
-	return uint8(t & 0xff)
+// Tile consists an X, Y and flags.
+type Tile struct {
+	// X is the X coordinate in tiles in the texture
+	X uint8
+	// Y is the Y coordinate in tiles in the texture
+	Y uint8
+	// Flags
+	Flag
 }
 
-func (t Tile) Y() uint8 {
-	return uint8((t >> 8) & 0xff)
+func (t Tile) ToUint32() uint32 {
+	return uint32(t.X) + uint32(t.Y)<<8 + uint32(t.Flag)<<16
 }
 
-func (t Tile) Has(f Flag) bool {
-	return (Flag(t) & f) == f
+func MakeTile(x, y uint8, flag Flag) Tile {
+	return Tile{X: x, Y: y, Flag: flag}
 }
 
-func (t *Tile) Set(f Flag) Tile {
-	(*t) = Tile(f) | *t
-	return *t
-}
-
-func (t *Tile) Toggle(f Flag) Tile {
-	(*t) = Tile(f) ^ *t
-	return *t
+func MakeTileFromUint32(i uint32) Tile {
+	x := uint8(i & 255)
+	y := uint8((i >> 8) & 255)
+	flag := Flag((i >> 16) & 65535)
+	return Tile{X: x, Y: y, Flag: flag}
 }
 
 const LayerCount = 4
@@ -144,7 +156,7 @@ func (t Tiles) MarshalText() ([]byte, error) {
 	for _, row := range t.Rows {
 		record := make([]string, len(row))
 		for j, cell := range row {
-			record[j] = strconv.Itoa(int(cell))
+			record[j] = strconv.FormatUint(uint64(cell.ToUint32()), 32)
 		}
 		wr.Write(record)
 	}
@@ -171,11 +183,11 @@ func (t *Tiles) UnmarshalText(in []byte) error {
 
 		row := make([]Tile, len(record))
 		for j, field := range record {
-			v, err := strconv.Atoi(field)
+			v, err := strconv.ParseUint(field, 0, 32)
 			if err != nil {
 				return errors.Join(errors.New("In "+string(in)), err)
 			}
-			row[j] = Tile(v)
+			row[j] = MakeTileFromUint32(uint32(v))
 		}
 		t.Rows = append(t.Rows, row)
 	}
@@ -206,7 +218,7 @@ func (t *Tiles) Set(at xgal.Point, cell Tile) bool {
 
 func (t Tiles) Get(at xgal.Point) Tile {
 	if !t.Contains(at.X, at.Y) {
-		return 0
+		return Tile{}
 	}
 	return t.Rows[at.Y][at.X]
 }
@@ -331,7 +343,6 @@ type Thing struct {
 	TileHeight uint16        `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
 	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
 	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this Thing if loaded.
-
 }
 
 type Zone struct {

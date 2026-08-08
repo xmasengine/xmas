@@ -2,8 +2,14 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 import "github.com/xmasengine/xmas/xvec"
+import "github.com/xmasengine/xmas/xres/spleen8"
+
 import "os"
 import "log/slog"
+
+var TinyFace = spleen8.Face
+var NormalFace = xgal.BuiltinFace
+var DefaultFace = TinyFace
 
 func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
@@ -69,7 +75,7 @@ func DefaultStyle() Style {
 	s.Gloom = 10
 	s.Margin = xgal.Pt(2, 2)
 	s.Shade = xgal.Pt(1, 1)
-	s.Face = xgal.BuiltinFace
+	s.Face = DefaultFace
 	s.Frame = nil
 	return s
 }

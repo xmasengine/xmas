@@ -20,6 +20,7 @@
 // accept input must accept it.
 package xlui
 
+import "strconv"
 import "github.com/xmasengine/xmas/xgal"
 
 // xlui is the the global UI
@@ -45,6 +46,68 @@ func Add(l *Layer) *Layer {
 
 func Asker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {
 	return xlui.Asker(bounds, label, entry, buttons...)
+}
+
+func Ask(x, y, w, h int, label, entry string, handler func(name string) bool) *Layer {
+	ask := xlui.Asker(xgal.Bound(x, y, w, h), label, entry, " X ", " V ")
+	ask.Class.Entry = func(v string) Reply {
+		if handler(v) {
+			return Finish
+		} else {
+			return Accept
+		}
+	}
+	return ask
+}
+
+func Complain(x, y, w, h int, err error) *Layer {
+	complain := xlui.Complain(xgal.Bound(x, y, w, h), err)
+	return complain
+}
+
+func Display(x, y, w, h int, text string) *Layer {
+	display := xlui.Display(xgal.Bound(x, y, w, h), text)
+	return display
+}
+
+func AskString(x, y, w, h int, prompt string, str *string) *Layer {
+	on := func(sres string) bool {
+		*str = sres
+		return true
+	}
+	return Ask(x, y, w, h, prompt, *str, on)
+}
+
+func AskInt(x, y, w, h int, prompt string, i *int) *Layer {
+	on := func(sres string) bool {
+		res, err := strconv.Atoi(sres)
+		if err == nil {
+			*i = res
+			return true
+		} else {
+			Complain(x+20, y+20, w, h, err)
+			return false
+		}
+	}
+	return Ask(x, y, w, h, prompt, strconv.Itoa(*i), on)
+}
+
+func AskByte(x, y, w, h int, prompt string, i *byte) *Layer {
+	on := func(sres string) bool {
+		res, err := strconv.Atoi(sres)
+		if err == nil {
+			*i = byte(res)
+			return true
+		} else {
+			Complain(x+20, y+20, w, h, err)
+			return false
+		}
+	}
+	return Ask(x, y, w, h, prompt, strconv.Itoa(int(*i)), on)
+}
+
+func Choose(x, y, tw, th int, title string, texture *xgal.Surface, handler func(x, y int) bool) *Layer {
+	return xlui.Choose(x, y, tw, th, title, texture, handler)
 }
 
 func Chars(chars ...rune) Reply {
