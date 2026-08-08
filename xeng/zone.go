@@ -64,7 +64,7 @@ func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.L
 	if starty < 0 {
 		starty = 0
 	}
-	endy := min(camera.Max.Y/int(m.TileHeight), len(m.Tiles.Rows)-1)
+	endy := min(1+camera.Max.Y/int(m.TileHeight), len(m.Tiles.Rows)-1)
 
 	// This draws the whole layer. Only draw visible part using a camera.
 	for ty := starty; ty < endy; ty++ {
