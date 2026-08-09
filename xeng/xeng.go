@@ -5,8 +5,8 @@ import (
 	"image"
 	"io/fs"
 	"log/slog"
-	"math/rand/v2"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -34,7 +34,7 @@ type Engine struct {
 	Script      strings.Reader
 	DebugRow    int
 	ScreenSize  image.Point
-	Zone        *Zone
+	Zone        *xdat.Zone
 	FS          fs.FS
 	Debug       bool
 	Camera      xgal.Rectangle
@@ -50,8 +50,7 @@ func New(sw, sh int) *Engine {
 	engine.Log.Hide = true
 	wd, _ := os.Getwd()
 	engine.FS = os.DirFS(wd)
-	engine.testZone()
-	engine.testUI()
+	engine.loadFirstZone()
 	return engine
 }
 
@@ -59,106 +58,11 @@ func dprintln(msg string, vars ...any) {
 	slog.Info(msg, "vars", vars)
 }
 
-func (engine *Engine) testZone() {
-	zone := xdat.NewZone("forest")
-	layer := &zone.Layers[0]
-	err := layer.SetSource(engine.FS, "pack/tile/tile_0002.png")
+func (engine *Engine) loadFirstZone() {
+	_, err := engine.LoadZone("map_0001.xml")
 	if err != nil {
-		slog.Error("LoadSource", "file", "pack/tile/tile_0002.png")
+		slog.Error("loading zone", "err", err)
 	}
-	for y := 0; y < int(zone.Layers[0].Height); y++ {
-		for x := 0; x < int(zone.Layers[0].Width); x++ {
-			tw := uint8(rand.IntN(8))
-			th := uint8(rand.IntN(2))
-			zone.Layers[0].Tiles.Rows[y][x] = xdat.MakeTile(tw, th, 0)
-		}
-	}
-
-	zone.Layers[1].Texture = zone.Layers[0].Texture
-	zone.Layers[2].Texture = zone.Layers[0].Texture
-
-	// zone.Layers[0] = *layer
-
-	// layer.FillIndex(image.Rect(0, 0, 63, 63), 0)
-	/*
-		player := &zone.Player
-		err = player.LoadSource("pack/image/gfx/character.png")
-		if err != nil {
-			slog.Error("LoadSource", "file", "pack/image/gfx/character.png")
-		}
-		player.Tw = 16
-		player.Th = 32
-		player.At = image.Pt(160, 160)
-
-		player.AddNewPoses(xdat.Stand, 0, 0, 16, 32, 1)
-		player.AddNewPoses(xdat.Walk, 16, 0, 16, 32, 3)
-		zone.Player = *player
-	*/
-	ezone := &Zone{Zone: zone}
-	engine.Zone = ezone
-}
-
-func (engine *Engine) testUI() {
-	/*
-	   img, ierr := xres.LoadImageFromFile("pack/tile/tile_0001.png")
-
-	   	if ierr != nil {
-	   		slog.Error("LoadImageFromFile", "file", "pack/tile/tile_0001.png")
-	   	}
-
-	   box1 := engine.Root.AddBox(image.Rect(20, 30, 200, 150))
-	   lab1 := box1.AddLabel(image.Rect(25, 100, 125, 120), "Label")
-	   lab1.AddTitleBar(10, "Drag Me")
-
-	   bar1 := box1.AddBar(image.Rect(25, 35, 125, 50), func(b *xui.Bar) { lab1.SetText("Bar!"); dprintln("bar clicked") })
-	   _ = bar1
-	   hello := bar1.FitItemWithMenu("hello", func(b *xui.Item) { lab1.SetText("hello"); dprintln("bar item hello clicked") })
-	   menu := hello.Menu
-	   menu.FitItem("sub1", func(b *xui.Item) { lab1.SetText("sub1"); dprintln("bar item hello > sub1 clicked") })
-	   sub2 := menu.FitItemWithMenu("sub2", func(b *xui.Item) { lab1.SetText("sub2"); dprintln("bar item hello > sub2 clicked") })
-
-	   subMenu := sub2.Menu
-	   subMenu.FitItem("subsub1", func(b *xui.Item) { lab1.SetText("subsub1"); dprintln("bar item hello > subsub1 clicked") })
-	   subMenu.FitItem("subsub2", func(b *xui.Item) { lab1.SetText("subsub2"); dprintln("bar item hello > subsub2 clicked") })
-
-	   bar1.FitItem("world", func(b *xui.Item) { lab1.SetText("world"); dprintln("bar item world clicked") })
-	   box1.AddButton(image.Rect(25, 130, 125, 147), "Button", func(b *xui.Button) { lab1.SetText("Click!\nButton"); dprintln("button clicked") })
-	   // box1.AddSlider(image.Rect(130, 40, 140, 140), nil, func(s *xui.Slider) { lab1.SetText("Slide!"); dprintln("slider clicked", s.Pos) })
-	   box1.AddVerticalScroller(func(s *xui.Slider) { lab1.SetText("vScroll!"); dprintln("vscroll clicked", s.Pos) })
-
-	   box2 := engine.Root.AddBox(image.Rect(210, 40, 430, 170))
-	   box2.AddCheckbox(image.Rect(220, 50, 380, 70), "Check", func(b *xui.Checkbox) { lab1.SetText("Check!"); dprintln("checkbox clicked") })
-
-	   	chooser := box2.AddChooser(image.Rect(220, 70, 380, 120), img, image.Pt(16, 16), func(c *xui.Chooser) {
-	   		lab1.SetText("Chooser!")
-	   		atx := c.Selected.Bounds.Min.X
-	   		aty := c.Selected.Bounds.Min.Y
-	   		dprintln("chooser clicked", atx, aty)
-	   	})
-
-	   	vs := chooser.AddVerticalScroller(func(s *xui.Slider) {
-	   		lab1.SetText("cvScroll!")
-
-	   		// XXX this makes the image in the frame scroll
-	   		// but it should be handled in xui.
-	   		widget := &chooser.Frame
-	   		scrollRange := widget.Extent.Dy() - xui.WidgetScrollSlack
-	   		var noff xui.Point
-	   		noff.Y = ((s.Pos - s.Low) * scrollRange) / (s.High - s.Low)
-	   		widget.Offset = noff
-	   		dprintln("chooser vscroll clicked", s.Pos, noff.Y)
-	   	})
-
-	   vs.Layer = chooser.Layer + 100
-	   box2.AddEntry(image.Rect(220, 130, 380, 150), "Entry", func(b *xui.Entry) { lab1.SetText(b.Text()); dprintln("entry changed") })
-	   // box2.AddSlider(image.Rect(220, 155, 380, 165), nil, func(s *xui.Slider) { lab1.SetText("hSlide!"); dprintln("hslider clicked", s.Pos) })
-	   box2.AddHorizontalScroller(func(s *xui.Slider) { lab1.SetText("hScroll!"); dprintln("hscroll clicked", s.Pos) })
-	   // Add a title bar for dragging
-	   box2.AddTitleBar(10, "Box 2")
-
-	   // Add xdat Helper test.
-	   // xzed.AddHelper(&engine.Root.Widget, image.Rect(220, 10, 300, 150), "Help", "Hello\nWorld\nHelp Text", nil)
-	*/
 }
 
 func (g *Engine) Update() error {
@@ -218,13 +122,16 @@ func (g *Engine) Update() error {
 	}
 
 	switch {
+	case g.Editor != nil && g.Editor.Done:
+		return xgal.Quit
+
 	case xgal.Tap(xgal.KeyEscape):
 		return xgal.Quit
 
 	case xgal.Tap(xgal.KeyF10):
 		if g.Zone != nil {
 			if g.Editor == nil && g.EditorLayer == nil {
-				g.EditorLayer = xzed.NewEditorLayer(g.Zone.Zone, "map_0001.xml", &g.Camera, 1)
+				g.EditorLayer = xzed.NewEditorLayer(g, g.Zone, "map_0001.xml", &g.Camera, 1)
 				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
 				xlui.Add(g.EditorLayer)
 			} else {
@@ -250,7 +157,7 @@ const tileDebug = false
 
 func (g *Engine) Draw(screen *xgal.Surface) {
 	if g.Zone != nil {
-		g.Zone.Render(screen, g.Camera)
+		g.RenderZone(screen, g.Camera)
 		if g.Debug {
 			// pose := g.Zone.Player.Pose
 			// xgal.Debug(screen, fmt.Sprintf("pose: %d %d %d %d %d",
@@ -269,4 +176,30 @@ func (g *Engine) Draw(screen *xgal.Surface) {
 func (g *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHeight int) {
 	g.Log.Layout(ViewWidth, ViewHeight)
 	return ViewWidth, ViewHeight
+}
+
+const ZoneDir = "pack/map"
+
+func (g *Engine) LoadZone(name string) (*xdat.Zone, error) {
+	z, err := xdat.LoadZone(g.FS, path.Join(ZoneDir, name))
+	if err != nil {
+		return nil, err
+	}
+
+	g.Zone = z
+	return z, nil
+}
+
+func (g *Engine) SetLayerSource(layer *xdat.Layer, name string) error {
+	return layer.SetSource(g.FS, name)
+}
+
+func (g *Engine) GetLayer(depth int) *xdat.Layer {
+	if g.Zone == nil {
+		return nil
+	}
+	if depth < 0 || depth >= len(g.Zone.Layers) {
+		return nil
+	}
+	return g.Zone.Layers[depth]
 }

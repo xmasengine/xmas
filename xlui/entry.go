@@ -10,6 +10,7 @@ const EntryBlink = 60
 // NewEntry returns a new text entry Control.
 func NewEntry(at xgal.Point, text string) *Control {
 	entry := NewControl(at)
+	entry.Text = text
 	entry.State.Clicked = false
 	size := entry.Style.Measure(EntrySizer)
 	entry.Bounds = xgal.Bound(entry.Bounds.Min.X, entry.Bounds.Min.Y, size.X, size.Y)
@@ -19,6 +20,11 @@ func NewEntry(at xgal.Point, text string) *Control {
 		cursor int
 		input  []rune
 	)
+
+	if len(entry.Text) > 0 {
+		input = []rune(entry.Text)
+		cursor = len(input)
+	}
 
 	render := func(screen *xgal.Surface) {
 		delta := xgal.Pt(2, 0)

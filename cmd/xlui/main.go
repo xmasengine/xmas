@@ -70,7 +70,7 @@ func main() {
 
 	layer2 := app.Layer(xgal.Bound(15, 15, WindowW-10*2, 40))
 	layer2.Label("hello 2")
-	entry := layer2.Entry("")
+	entry := layer2.Entry("fum")
 	entry.Class.Entry = func(string) xlui.Reply {
 		println("Accept: ", entry.Text)
 		return xlui.Accept

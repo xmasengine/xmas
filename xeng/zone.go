@@ -5,11 +5,6 @@ import (
 	"github.com/xmasengine/xmas/xgal"
 )
 
-type Zone struct {
-	// data of the zone
-	*xdat.Zone
-}
-
 /*
 func (m *Zone) RenderPresences(screen *xgal.Surface, camera xgal.Rectangle) {
 
@@ -54,8 +49,8 @@ func (m *Zone) RenderPresences(screen *xgal.Surface, camera xgal.Rectangle) {
 }
 */
 
-func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.Layer, index int) {
-	if m.Texture == nil {
+func (e *Engine) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m *xdat.Layer, index int) {
+	if m == nil || m.Texture == nil {
 		// Can't draw if there is no texture loaded.
 		return
 	}
@@ -111,9 +106,12 @@ func (z *Zone) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m xdat.L
 	// m.RenderPresences(screen, camera, layer)
 }
 
-func (z *Zone) Render(screen *xgal.Surface, camera xgal.Rectangle) {
-	for i, layer := range z.Layers {
-		z.RenderLayer(screen, camera, layer, i)
+func (e *Engine) RenderZone(screen *xgal.Surface, camera xgal.Rectangle) {
+	if e.Zone == nil {
+		return
+	}
+	for i, layer := range e.Zone.Layers {
+		e.RenderLayer(screen, camera, layer, i)
 	}
 }
 

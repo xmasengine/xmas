@@ -270,7 +270,7 @@ func (u *UI) raiseLayerByIndex(i int) {
 func (u *UI) lowerLayerByIndex(i int) {
 	if i > 0 {
 		u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
-		u.SetFocus(u.Layers[i])
+		// u.SetFocus(u.Layers[i])
 	}
 }
 
@@ -403,6 +403,12 @@ func (u *UI) Menu(bounds xgal.Rectangle, options ...string) *Layer {
 
 func (u *UI) MenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string) *Layer {
 	layer := NewMenuWithValueOffset(bounds, offset, options...)
+	u.Layers = append(u.Layers, layer)
+	return layer
+}
+
+func (u *UI) Dialog(bounds xgal.Rectangle, label string, buttons ...string) *Layer {
+	layer := NewDialog(bounds, label, buttons...)
 	u.Layers = append(u.Layers, layer)
 	return layer
 }

@@ -548,3 +548,27 @@ func (u *UI) Display(bounds xgal.Rectangle, text string) *Layer {
 	u.Layers = append(u.Layers, layer)
 	return layer
 }
+
+// NewDialog creates a new simple dialog pop up layer.
+func NewDialog(bounds xgal.Rectangle, label string, buttons ...string) *Layer {
+	dialog := NewLayer(bounds)
+	l := dialog.Label(label)
+	dialog.Orientation = Vertical
+	// full width
+	l.Bounds.Max.X = dialog.Bounds.Max.X - dialog.Style.Margin.X
+
+	for i, buttonText := range buttons {
+		if i > 0 {
+			dialog.Orientation = Horizontal
+		}
+		button := dialog.Button(buttonText)
+		button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
+			if dialog.Class.Value != nil {
+				return dialog.Class.Value(i)
+			}
+			return Finish
+		}
+	}
+
+	return dialog
+}

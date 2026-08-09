@@ -3,8 +3,8 @@ package xzed
 import (
 	"fmt"
 	"image"
-	"io/fs"
 	"log/slog"
+	"path"
 	//	"os"
 )
 
@@ -14,7 +14,15 @@ import (
 	"github.com/xmasengine/xmas/xlui"
 )
 
+// interface to engine to avoid import cycles
+type Engine interface {
+	LoadZone(name string) (*xdat.Zone, error)
+	SetLayerSource(layer *xdat.Layer, name string) error
+	GetLayer(depth int) *xdat.Layer
+}
+
 type Editor struct {
+	Engine        Engine      // engine we are editing for.
 	Layer         *xlui.Layer // Layer is back pointer to the layer this data is kept in.
 	Name          string
 	Zone          *xdat.Zone
@@ -28,17 +36,18 @@ type Editor struct {
 	TileWatcher   *Watcher
 	SpriteWatcher *Watcher
 	MessageTicks  int
-	Fsys          fs.FS
 	Choosers      xlui.Stack
 	Done          bool
+	Mods          xlui.Mods // Mods are the latest latest key modifier
 	// Presence      Presence
 	// Backup
 	// Commander *Tila
 }
 
-func NewEditorLayer(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *xlui.Layer {
-	e := newEditor(zone, name, camera, scale)
+func NewEditorLayer(engine Engine, zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *xlui.Layer {
+	e := newEditor(engine, zone, name, camera, scale)
 	l := xlui.NewLayer(*camera)
+	e.Depth = 0
 	e.Layer = l
 	e.Layer.Lock = true
 	l.Data = e
@@ -51,8 +60,8 @@ func NewEditorLayer(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale 
 	return l
 }
 
-func newEditor(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *Editor {
-	e := &Editor{Zone: zone, Name: name, Camera: camera,
+func newEditor(engine Engine, zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) *Editor {
+	e := &Editor{Engine: engine, Zone: zone, Name: name, Camera: camera,
 		Scale: scale,
 	}
 
@@ -81,13 +90,7 @@ func newEditor(zone *xdat.Zone, name string, camera *xgal.Rectangle, scale int) 
 // var _ xui.Widget = &Editor{}
 
 func (e *Editor) ActiveLayer() *xdat.Layer {
-	if e.Zone == nil {
-		return nil
-	}
-	if e.Depth < 0 || e.Depth >= len(e.Zone.Layers) {
-		return nil
-	}
-	return &e.Zone.Layers[e.Depth]
+	return e.Engine.GetLayer(e.Depth)
 }
 
 func (e *Editor) ActiveTexture() *xgal.Surface {
@@ -110,9 +113,13 @@ func (e *Editor) Render(screen *xgal.Surface) {
 			style.DrawRect(screen, cr)
 		}
 		pr := cr.Min.Add(xgal.Pt(m.TileWidth, 0))
+		tok := ""
+		if m.Texture == nil {
+			tok = "!"
+		}
 
-		style.Print(screen, pr, fmt.Sprintf("%s: (%d,%d): %d @ (%d,%d)",
-			e.Name, e.Over.X, e.Over.Y, e.Cell, e.Camera.Min.X, e.Camera.Min.Y))
+		style.Print(screen, pr, fmt.Sprintf("%s%s: (%d,%d,%d): %d @ (%d,%d)",
+			e.Name, tok, e.Over.X, e.Over.Y, e.Depth, e.Cell, e.Camera.Min.X, e.Camera.Min.Y))
 	}
 
 	pr := xgal.Pt(0, 0)
@@ -151,12 +158,12 @@ func (e *Editor) LoadSurface(name string) bool {
 		e.TileWatcher = nil
 	}
 	e.TileWatcher = Watch(name)
-	err := m.SetSource(e.Fsys, name)
+	err := e.Engine.SetLayerSource(m, name)
 	if err != nil {
 		e.UpdateChoosers()
 	}
 	e.Error = err
-	// e.Layer.Error(70, 70, 270, 120, err)
+	xlui.Complain(70, 70, 270, 120, err)
 	return e.Error == nil
 }
 
@@ -191,7 +198,7 @@ func (e *Editor) UpdateWatcher() bool {
 	m := e.ActiveLayer()
 	select {
 	case name := <-e.TileWatcher.C:
-		err := m.SetSource(e.Fsys, name)
+		err := e.Engine.SetLayerSource(m, name)
 		e.Error = err
 		if e.Error == nil {
 			e.ShowMessage("Auto update tiles: %s", name)
@@ -239,8 +246,11 @@ func (e *Editor) SpriteSelected(x, y int) {
 	*/
 }
 
+const ZonePath = "pack/map"
+
 func (e *Editor) SaveZone(name string) bool {
-	err := e.Zone.SaveFile(name)
+	fullName := path.Join(ZonePath, name)
+	err := e.Zone.SaveFile(fullName)
 	e.Error = err
 	if e.Error == nil {
 		e.Name = name
@@ -251,7 +261,7 @@ func (e *Editor) SaveZone(name string) bool {
 }
 
 func (e *Editor) LoadZone(name string) bool {
-	m, err := xdat.LoadZone(e.Fsys, name)
+	m, err := e.Engine.LoadZone(name)
 	e.Error = err
 	if e.Error == nil {
 		e.Zone = m
@@ -263,8 +273,9 @@ func (e *Editor) LoadZone(name string) bool {
 	return false
 }
 
-func (e *Editor) SetDone(done bool) {
+func (e *Editor) SetDone(done bool) bool {
 	e.Done = done
+	return true
 }
 
 func (e Editor) FloodFill(at xgal.Point, cell xdat.Tile) {
@@ -348,14 +359,16 @@ func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
 }
 
 func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
+	e.Mods = mods
+
 	switch xgal.KeyCode(key) {
 	case xgal.KeyEqual:
 		e.NextTile(1)
 	case xgal.KeyMinus:
 		e.NextTile(-1)
 	case xgal.KeyPause:
-		e.Done = true
-		// e.Layer.Ask(50, 50, 250, 100, "Quit", "Y", e.SetDone)
+		// e.Done = true
+		xlui.DialogBool(50, 50, 250, 100, "Quit", e.SetDone, "Yes", "No")
 	case xgal.KeyY:
 		e.Cell = e.ActiveLayer().Get(e.Over)
 		e.ShowMessage("Yanked %d", e.Cell)
@@ -376,7 +389,7 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 			e.Layer.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
 	*/
 	case xgal.KeyF1:
-		xlui.Display(50, 0, 300, 250, HELP)
+		xlui.Display(10, 0, 300, 190, HELP)
 	case xgal.KeyF2:
 		xlui.Ask(50, 50, 250, 100, "Save As", e.Name, e.SaveZone)
 	case xgal.KeyF4:

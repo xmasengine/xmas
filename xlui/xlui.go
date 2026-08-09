@@ -106,6 +106,27 @@ func AskByte(x, y, w, h int, prompt string, i *byte) *Layer {
 	return Ask(x, y, w, h, prompt, strconv.Itoa(int(*i)), on)
 }
 
+func Dialog(x, y, w, h int, prompt string, handler func(v int) bool, buttons ...string) *Layer {
+	value := func(v int) Reply {
+		if handler(v) {
+			return Finish
+		} else {
+			return Accept
+		}
+	}
+
+	dialog := xlui.Dialog(xgal.Bound(x, y, w, h), prompt, buttons...)
+	dialog.Class.Value = value
+	return dialog
+}
+
+func DialogBool(x, y, w, h int, prompt string, handler func(b bool) bool, tr, fa string) *Layer {
+	value := func(v int) bool {
+		return handler(v == 0)
+	}
+	return Dialog(x, y, w, h, prompt, value, tr, fa)
+}
+
 func Choose(x, y, tw, th int, title string, texture *xgal.Surface, handler func(x, y int) bool) *Layer {
 	return xlui.Choose(x, y, tw, th, title, texture, handler)
 }

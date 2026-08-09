@@ -234,14 +234,14 @@ type Layer struct {
 	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this layer if loaded.
 }
 
-// MakeLayer makes a layer with the default size and tile size.
-func MakeLayer() Layer {
-	return MakeLayerWith(LayerWidth, LayerHeight, 8, 8)
+// NewLayer allocates a layer with the default size and tile size.
+func NewLayer() *Layer {
+	return NewLayerWith(LayerWidth, LayerHeight, 8, 8)
 }
 
-// MakeLayerWith makes a layer with the given parameters.
-func MakeLayerWith(w, h, tw, th int) Layer {
-	l := Layer{}
+// NewLayerWith allocates a layer with the given parameters.
+func NewLayerWith(w, h, tw, th int) *Layer {
+	l := &Layer{}
 	l.Width = w
 	l.Height = h
 	l.TileWidth = tw
@@ -258,6 +258,9 @@ func (l *Layer) SetSource(fsys fs.FS, src string) error {
 	texture, err := xgal.Texture(fsys, src)
 	if err != nil {
 		return err
+	}
+	if l.Texture != nil {
+		l.Texture.Deallocate()
 	}
 	l.Texture = texture
 	l.Source = src
@@ -341,14 +344,14 @@ type Thing struct {
 	Height     uint16        `xml:"h,attr"`   // Height is the height expressed in tiles.
 	TileWidth  uint16        `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
 	TileHeight uint16        `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
-	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
+	Source     string        `xml:"src,attr"` // Source file name to load the Layer's Texture from.
 	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this Thing if loaded.
 }
 
 type Zone struct {
 	XMLName xml.Name `xml:"zone"`
 	Name    string   `xml:"name,attr"`
-	Layers  []Layer  `xml:"layer"`
+	Layers  []*Layer `xml:"layer"`
 	Talks   []Talk   `xml:"talk"`
 }
 
@@ -357,7 +360,7 @@ func NewZone(name string) *Zone {
 	z.XMLName.Local = "zone"
 	z.Name = name
 	for l := 0; l < LayerCount; l++ {
-		layer := MakeLayer()
+		layer := NewLayer()
 		z.Layers = append(z.Layers, layer)
 	}
 	return z
@@ -409,13 +412,18 @@ func LoadZone(fsys fs.FS, name string) (*Zone, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if zone.Layers[0].Texture == nil {
+		println("texture missing")
+	}
+
 	return zone, err
 }
 
 // Talk is a dialog
 type Talk struct {
 	Name  string    `xml:"name,attr"` // identifying name
-	Speak []Speaker `xml:"speak`
+	Speak []Speaker `xml:"speak"`
 }
 
 type Speaker interface {
@@ -426,7 +434,7 @@ type Speaker interface {
 type Say struct {
 	When string `xml:"expr,attr,omitempty"` // expression with condition
 	Who  string `xml:"who,attr"`            // who is speaking
-	Say  string `xml:"say`
+	Say  string `xml:"say"`
 }
 
 func (s Say) Speak() string {
@@ -437,7 +445,7 @@ func (s Say) Speak() string {
 type Ask struct {
 	When    string `xml:"expr,attr,omitempty"` // expression with condition
 	Who     string `xml:"name,attr"`           // who is speaking
-	Ask     string `xml:"ask`
+	Ask     string `xml:"ask"`
 	Replies []Reply
 }
 
@@ -446,9 +454,9 @@ func (a Ask) Speak() string {
 }
 
 type Reply struct {
-	When  string `xml:"expr,attr,omitempty"` // expression with condition of reply
+	When  string `xml:"when,attr,omitempty"` // expression with condition of reply
 	Expr  string `xml:"expr,attr,omitempty"` // expression with value of reply
-	Reply string `xml:"reply`
+	Reply string `xml:"reply"`
 }
 
 func (r Reply) Speak() string {
@@ -458,7 +466,7 @@ func (r Reply) Speak() string {
 // If can be used for simple scripting with expressions.
 type If struct {
 	Expr string `xml:"expr,attr"`
-	Then any    `xml:"expr,attr"`
+	Then any    `xml:"then,attr"`
 }
 
 // On can be used for simple event scripting with expressions.
