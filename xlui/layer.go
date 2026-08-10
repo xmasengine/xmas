@@ -363,6 +363,7 @@ func NewAsker(bounds xgal.Rectangle, label, entry string, buttons ...string) *La
 			return Finish
 		}
 	}
+	asker.SetFocus(e)
 
 	return asker
 }

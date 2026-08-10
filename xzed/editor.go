@@ -376,16 +376,11 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 		e.Cell.Flag.Toggle(xdat.FlagHorizontal)
 	case xgal.KeyV:
 		e.Cell.Flag.Toggle(xdat.FlagVertical)
+	case xgal.KeyB:
+		e.Cell.Flag.Toggle(xdat.FlagSolid)
+	case xgal.KeyR:
+		e.Cell.Flag.Rotate()
 	/*
-		case xgal.Key(xgal.KeyL):
-			if e.Zone != nil {
-				e.Zone.Flags = !e.Zone.Flags
-			}
-
-		case xgal.Key(xgal.KeyN):
-			e.Cell.Flag ^= FlagOnTop
-		case xgal.Key(xgal.KeyB):
-			e.Cell.Flag ^= FlagSolid
 		case xgal.Key(xgal.KeyG):
 			e.Layer.AskText(50, 50, 250, 100, "Flag", &e.Cell.Flag)
 	*/

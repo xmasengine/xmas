@@ -42,6 +42,21 @@ func (t *Flag) Toggle(f Flag) Flag {
 	return *t
 }
 
+func (t *Flag) Rotate() Flag {
+	switch {
+	case t.Has(FlagRotate90):
+		t.Toggle(FlagRotate90)
+		return t.Set(FlagRotate180)
+	case t.Has(FlagRotate180):
+		t.Toggle(FlagRotate180)
+		return t.Set(FlagRotate270)
+	case t.Has(FlagRotate270):
+		return t.Toggle(FlagRotate270)
+	default:
+		return t.Set(FlagRotate90)
+	}
+}
+
 const (
 	FlagSolid Flag = 1 << iota
 	FlagSpecial

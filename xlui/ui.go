@@ -14,7 +14,6 @@ type UI struct {
 }
 
 func (u *UI) Append(l *Layer) *Layer {
-	println("Append", l)
 	u.Layers = append(u.Layers, l)
 	u.SetFocus(l) // set focus to new layer
 	return l
@@ -188,7 +187,6 @@ func (u *UI) Tick(tick int64) Reply {
 }
 
 func (u *UI) SetFocus(l *Layer) {
-	println("SetFocus", l)
 	if u.Focused != nil {
 		u.Focused.State.Focused = false
 	}
