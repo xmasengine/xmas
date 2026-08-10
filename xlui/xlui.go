@@ -40,8 +40,8 @@ func (e Error) Error() string {
 	return string(e)
 }
 
-func Add(l *Layer) *Layer {
-	return xlui.Add(l)
+func Append(l *Layer) *Layer {
+	return xlui.Append(l)
 }
 
 func Asker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {

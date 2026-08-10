@@ -133,7 +133,7 @@ func (g *Engine) Update() error {
 			if g.Editor == nil && g.EditorLayer == nil {
 				g.EditorLayer = xzed.NewEditorLayer(g, g.Zone, "map_0001.xml", &g.Camera, 1)
 				g.Editor = g.EditorLayer.Data.(*xzed.Editor)
-				xlui.Add(g.EditorLayer)
+				xlui.Append(g.EditorLayer)
 			} else {
 				xlui.CloseLayer(g.EditorLayer)
 				g.EditorLayer = nil

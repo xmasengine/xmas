@@ -13,44 +13,15 @@ type UI struct {
 	Mods       Mods
 }
 
-func (u *UI) Add(l *Layer) *Layer {
-	u.Layers = slices.Insert(u.Layers, 0, l)
+func (u *UI) Append(l *Layer) *Layer {
+	println("Append", l)
+	u.Layers = append(u.Layers, l)
 	u.SetFocus(l) // set focus to new layer
 	return l
 }
 
 type handler[T any] func(u *UI, l *Layer, t T) Reply
 type getHandler[T any] func(l *Layer) handler[T]
-
-func handleFor[T any](u *UI, gh getHandler[T], t T) Reply {
-	for i := len(u.Layers) - 1; 1 >= 0; i-- {
-		layer := u.Layers[i]
-		if layer == nil {
-			continue
-		}
-		handler := gh(layer)
-		if handler == nil {
-			continue
-		}
-		res := handler(u, layer, t)
-		if res == Finish {
-			u.Layers = slices.Delete(u.Layers, i, i+1)
-		} else if res == Accept {
-			break
-		} else if res == Raise {
-			if i < len(u.Layers)-1 {
-				u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
-			}
-			return res
-		} else if res == Lower {
-			if i > 0 {
-				u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
-			}
-			return res
-		}
-	}
-	return Ignore
-}
 
 func (u *UI) Poll() Reply {
 	u.Tick(xgal.Tick())
@@ -217,6 +188,7 @@ func (u *UI) Tick(tick int64) Reply {
 }
 
 func (u *UI) SetFocus(l *Layer) {
+	println("SetFocus", l)
 	if u.Focused != nil {
 		u.Focused.State.Focused = false
 	}
@@ -260,8 +232,10 @@ func (u *UI) setFocusByIndex(i int) {
 
 func (u *UI) raiseLayerByIndex(i int) {
 	if i < len(u.Layers)-1 {
-		u.Layers[i], u.Layers[i+1] = u.Layers[i+1], u.Layers[i]
-		u.SetFocus(u.Layers[i+1])
+		layer := u.Layers[i]
+		u.Layers = slices.Delete(u.Layers, i, i+1)
+		u.Append(layer)
+		u.SetFocus(layer)
 	} else {
 		u.SetFocus(u.Layers[i])
 	}
@@ -269,8 +243,9 @@ func (u *UI) raiseLayerByIndex(i int) {
 
 func (u *UI) lowerLayerByIndex(i int) {
 	if i > 0 {
-		u.Layers[i], u.Layers[i-1] = u.Layers[i-1], u.Layers[i]
-		// u.SetFocus(u.Layers[i])
+		layer := u.Layers[i]
+		u.Layers = slices.Delete(u.Layers, i, i+1)
+		u.Layers = slices.Insert(u.Layers, 0, layer)
 	}
 }
 
@@ -385,30 +360,30 @@ func (u *UI) Hover(at xgal.Point) Reply {
 
 func (u *UI) Layer(bounds xgal.Rectangle) *Layer {
 	layer := NewLayer(bounds)
-	u.Layers = append(u.Layers, layer)
+	u.Append(layer)
 	return layer
 }
 
 func (u *UI) Asker(bounds xgal.Rectangle, label, entry string, buttons ...string) *Layer {
 	layer := NewAsker(bounds, label, entry, buttons...)
-	u.Layers = append(u.Layers, layer)
+	u.Append(layer)
 	return layer
 }
 
 func (u *UI) Menu(bounds xgal.Rectangle, options ...string) *Layer {
 	layer := NewMenu(bounds, options...)
-	u.Layers = append(u.Layers, layer)
+	u.Append(layer)
 	return layer
 }
 
 func (u *UI) MenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string) *Layer {
 	layer := NewMenuWithValueOffset(bounds, offset, options...)
-	u.Layers = append(u.Layers, layer)
+	u.Append(layer)
 	return layer
 }
 
 func (u *UI) Dialog(bounds xgal.Rectangle, label string, buttons ...string) *Layer {
 	layer := NewDialog(bounds, label, buttons...)
-	u.Layers = append(u.Layers, layer)
+	u.Append(layer)
 	return layer
 }

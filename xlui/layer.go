@@ -12,8 +12,8 @@ type Reply int
 const (
 	Ignore Reply = iota // Ignore: the widget ignored the input, other widgets *should* process it.
 	Accept              // Accept: the widget accepted the input, other widgets *must not* process it.
-	Raise               // Raise: the widget accepted and needs to be raised higher in the layer stack.
-	Lower               // Lower: the widget accepted and needs to be lowered in the layer stack.
+	Raise               // Raise: the widget accepted and needs to be raised to the top of the layer stack.
+	Lower               // Lower: the widget accepted and needs to be lowered to the bottom of the layer stack.
 	Finish              // Finish: the widget is done processing and should be considered closed.
 )
 
