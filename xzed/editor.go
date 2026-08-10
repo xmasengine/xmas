@@ -372,15 +372,16 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 	case xgal.KeyY:
 		e.Cell = e.ActiveLayer().Get(e.Over)
 		e.ShowMessage("Yanked %d", e.Cell)
+	case xgal.KeyH:
+		e.Cell.Flag.Toggle(xdat.FlagHorizontal)
+	case xgal.KeyV:
+		e.Cell.Flag.Toggle(xdat.FlagVertical)
 	/*
 		case xgal.Key(xgal.KeyL):
 			if e.Zone != nil {
 				e.Zone.Flags = !e.Zone.Flags
 			}
-		case xgal.Key(xgal.KeyH):
-			e.Cell.Flag ^= FlagHorizontalFlip
-		case xgal.Key(xgal.KeyV):
-			e.Cell.Flag ^= FlagVerticalFlip
+
 		case xgal.Key(xgal.KeyN):
 			e.Cell.Flag ^= FlagOnTop
 		case xgal.Key(xgal.KeyB):

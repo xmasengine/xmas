@@ -156,7 +156,7 @@ func (t Tiles) MarshalText() ([]byte, error) {
 	for _, row := range t.Rows {
 		record := make([]string, len(row))
 		for j, cell := range row {
-			record[j] = strconv.FormatUint(uint64(cell.ToUint32()), 32)
+			record[j] = strconv.FormatUint(uint64(cell.ToUint32()), 10)
 		}
 		wr.Write(record)
 	}
