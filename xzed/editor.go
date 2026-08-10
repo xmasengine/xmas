@@ -324,7 +324,7 @@ func (e *Editor) Click(at xgal.Point, button int) xlui.Reply {
 		// e.Zone.PutPresence(e.Tile, e.Presence)
 	}
 
-	return xlui.Accept
+	return xlui.Ready
 }
 
 func (e *Editor) NextTile(delta int) {
@@ -355,7 +355,7 @@ func (e *Editor) NextTile(delta int) {
 
 func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
 	e.NextTile(delta)
-	return xlui.Accept
+	return xlui.Ready
 }
 
 func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {

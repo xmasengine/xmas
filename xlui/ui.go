@@ -256,6 +256,8 @@ func (u *UI) onReply(i int, res Reply) Reply {
 		u.raiseLayerByIndex(i)
 	} else if res == Lower {
 		u.lowerLayerByIndex(i)
+	} else if res == Ready {
+		u.SetFocus(u.Layers[i])
 	}
 	return Ignore
 }

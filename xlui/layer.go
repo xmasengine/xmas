@@ -15,6 +15,7 @@ const (
 	Raise               // Raise: the widget accepted and needs to be raised to the top of the layer stack.
 	Lower               // Lower: the widget accepted and needs to be lowered to the bottom of the layer stack.
 	Finish              // Finish: the widget is done processing and should be considered closed.
+	Ready               // Ready: the widget accepted the input, and requests the focus.
 )
 
 // Orientation is the layout orientation for layers in a group.
