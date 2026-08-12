@@ -49,6 +49,26 @@ func (m *Zone) RenderPresences(screen *xgal.Surface, camera xgal.Rectangle) {
 }
 */
 
+func RenderFlag(screen *xgal.Surface, bounds xgal.Rectangle, f xdat.Flag) {
+	if f.Has(xdat.FlagSpecial) {
+		color := xgal.RGBA{R: 0, G: 127, B: 127, A: 128}
+		xgal.Outline(screen, bounds, 2, color)
+	}
+	if f.Has(xdat.FlagSolid) {
+		color := xgal.RGBA{R: 127, G: 127, B: 127, A: 240}
+		xgal.Outline(screen, bounds.Inset(2), 2, color)
+	}
+	if f.Has(xdat.FlagBless) {
+		color := xgal.RGBA{R: 255, G: 255, B: 0, A: 128}
+		xgal.Outline(screen, bounds.Inset(4), 2, color)
+	}
+
+	if f.Has(xdat.FlagHarm) {
+		color := xgal.RGBA{R: 255, G: 0, B: 0, A: 128}
+		xgal.Outline(screen, bounds.Inset(6), 2, color)
+	}
+}
+
 func (e *Engine) RenderLayer(screen *xgal.Surface, camera xgal.Rectangle, m *xdat.Layer, index int) {
 	if m == nil || m.Texture == nil {
 		// Can't draw if there is no texture loaded.
@@ -114,35 +134,3 @@ func (e *Engine) RenderZone(screen *xgal.Surface, camera xgal.Rectangle) {
 		e.RenderLayer(screen, camera, layer, i)
 	}
 }
-
-/*
-func (m *Zone) FloodFill(atTile Point, cell Cell) {
-	now := m.Get(atTile)
-	if now.Index == cell.Index && now.Flag == cell.Flag {
-		return // already ok
-	}
-	if !m.Inside(atTile) {
-		return
-	}
-
-	m.Put(atTile, cell)
-	// the floodfill is recursive but the maps are small so
-	// it should not cause problems.
-	for dx := -1; dx <= 1; dx++ {
-		at2 := atTile
-		at2.X += dx
-		now2 := m.Get(at2)
-		if now2.Index == now.Index {
-			m.FloodFill(at2, cell)
-		}
-	}
-	for dy := -1; dy <= 1; dy++ {
-		at2 := atTile
-		at2.Y += dy
-		now2 := m.Get(at2)
-		if now2.Index == now.Index {
-			m.FloodFill(at2, cell)
-		}
-	}
-}
-*/

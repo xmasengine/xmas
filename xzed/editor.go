@@ -119,8 +119,8 @@ func (e *Editor) Render(screen *xgal.Surface) {
 			tok = "!"
 		}
 
-		style.Print(screen, pr, fmt.Sprintf("%s%s: (%d,%d,%d): %d",
-			e.Name, tok, e.Over.X, e.Over.Y, e.Depth, e.Cell))
+		style.Print(screen, pr, fmt.Sprintf("%s%s: (%d,%d,%d): %d,%d:%s",
+			e.Name, tok, e.Over.X, e.Over.Y, e.Depth, e.Cell.X, e.Cell.Y, e.Cell.Flag))
 	}
 
 	pr := xgal.Pt(0, 0)
@@ -322,7 +322,11 @@ func (e *Editor) Click(at xgal.Point, button int) xlui.Reply {
 		return xlui.Ignore
 	}
 	if xgal.MouseButton(button) == xgal.MouseButtonLeft {
-		layer.Set(e.Over, e.Cell)
+		if e.Mods.Alt && e.Mods.Control {
+			e.FloodFill(e.Over, e.Cell)
+		} else {
+			layer.Set(e.Over, e.Cell)
+		}
 	}
 
 	if xgal.MouseButton(button) == xgal.MouseButtonMiddle {

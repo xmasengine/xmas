@@ -69,6 +69,84 @@ const (
 	FlagRotate270
 )
 
+func (f Flag) Buffer() *bytes.Buffer {
+	b := bytes.Buffer{}
+	if f.Has(FlagSpecial) {
+		b.WriteRune('E')
+	}
+	if f.Has(FlagHorizontal) {
+		b.WriteRune('H')
+	}
+	if f.Has(FlagVertical) {
+		b.WriteRune('V')
+	}
+	if f.Has(FlagRotate90) {
+		b.WriteRune('R')
+	}
+	if f.Has(FlagRotate180) {
+		b.WriteRune('O')
+	}
+	if f.Has(FlagRotate270) {
+		b.WriteRune('L')
+	}
+	if f.Has(FlagSolid) {
+		b.WriteRune('S')
+	}
+	if f.Has(FlagBless) {
+		b.WriteRune('B')
+	}
+	if f.Has(FlagHarm) {
+		b.WriteRune('h')
+	}
+	return &b
+}
+
+func (f Flag) String() string {
+	return f.Buffer().String()
+}
+
+func (f Flag) MarshalText() (text []byte, err error) {
+	return f.Buffer().Bytes(), nil
+}
+
+func (f *Flag) UnmarshalText(text []byte) error {
+	if bytes.ContainsAny(text, "0123456789") {
+		i, err := strconv.Atoi(string(text))
+		if err != nil {
+			return err
+		}
+		*f = Flag(i)
+		return nil
+	}
+	v := Flag(0)
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case 'E':
+			v |= FlagSpecial
+		case 'H':
+			v |= FlagHorizontal
+		case 'V':
+			v |= FlagVertical
+		case 'R':
+			v |= FlagRotate90
+		case 'O':
+			v |= FlagRotate180
+		case 'L':
+			v |= FlagRotate270
+		case 'S':
+			v |= FlagSolid
+		case 'B':
+			v |= FlagBless
+		case 'h':
+			v |= FlagHarm
+		default:
+			return errors.New("Unknown character in Flag " + string(text))
+		}
+	}
+	*f = v
+	return nil
+}
+
 // Tile consists an X, Y and flags.
 type Tile struct {
 	// X is the X coordinate in tiles in the texture
