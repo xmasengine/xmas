@@ -512,10 +512,12 @@ const closeComplainerText = "   OK   "
 // NewComplainer creates a new simple error display pop up layer.
 func NewComplainer(bounds xgal.Rectangle, err error) *Layer {
 	complainer := NewLayer(bounds)
-	label := complainer.Label(err.Error())
+	if err != nil {
+		label := complainer.Label(err.Error())
+		label.Bounds.Max.X = complainer.Bounds.Max.X - complainer.Style.Margin.X
+	}
 	complainer.Orientation = Vertical
 	// full width label
-	label.Bounds.Max.X = complainer.Bounds.Max.X - complainer.Style.Margin.X
 	button := complainer.Button(closeComplainerText)
 	button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
 		return Finish

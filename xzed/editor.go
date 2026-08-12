@@ -149,7 +149,8 @@ func (e *Editor) UpdateChoosers() {
 	}
 }
 
-func (e *Editor) LoadSurface(name string) bool {
+func (e *Editor) LoadSource(name string) bool {
+	fullName := path.Join(TilePath, name)
 	m := e.ActiveLayer()
 	if m == nil {
 		return false
@@ -158,13 +159,15 @@ func (e *Editor) LoadSurface(name string) bool {
 		e.TileWatcher.Done <- struct{}{}
 		e.TileWatcher = nil
 	}
-	e.TileWatcher = Watch(name)
-	err := e.Engine.SetLayerSource(m, name)
-	if err != nil {
+	e.TileWatcher = Watch(fullName)
+	err := e.Engine.SetLayerSource(m, fullName)
+	if err == nil {
 		e.UpdateChoosers()
 	}
 	e.Error = err
-	xlui.Complain(70, 70, 270, 120, err)
+	if err != nil {
+		xlui.Complain(70, 70, 270, 120, err)
+	}
 	return e.Error == nil
 }
 
@@ -248,6 +251,7 @@ func (e *Editor) SpriteSelected(x, y int) {
 }
 
 const ZonePath = "pack/map"
+const TilePath = "pack/tile"
 
 func (e *Editor) SaveZone(name string) bool {
 	fullName := path.Join(ZonePath, name)
@@ -296,7 +300,7 @@ Left Control+Alt: Flood fill.
 Pause: Exit without save.
 F1: This help.          | F2: Save map.
 F3: Show tile selector. | F4: Load map.
-F5: Export as basic.    | P: Edit Prefix.
+						| P: Edit Prefix.
 F:  Load tile image.    | M: Toggle flag mode.
 H: Horizontal flip      | V: Vertical flip
 Y: Yank hovered tile.   | G: Edit flags.
@@ -421,7 +425,12 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 		if mods.Shift {
 			// e.Layer.Ask(50, 50, 250, 100, "Sprites", e.Zone.Sprites.From, e.LoadSpriteSurface)
 		} else {
-			// e.Layer.Ask(50, 50, 250, 100, "From", e.Zone.From, e.LoadSurface)
+			src := ""
+			al := e.ActiveLayer()
+			if al != nil {
+				src = path.Base(al.Source)
+			}
+			xlui.Ask(50, 50, 250, 100, "From", src, e.LoadSource)
 		}
 
 	case xgal.KeyP:

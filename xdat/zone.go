@@ -244,7 +244,7 @@ type Layer struct {
 	Height     int           `xml:"h,attr"`   // Height is the height expressed in tiles.
 	TileWidth  int           `xml:"tw,attr"`  // TileWidth is the width of the tiles in this layer.
 	TileHeight int           `xml:"th,attr"`  // TileHeight is the height of the thiles in this layer.
-	Source     string        `xml:"src,attr"` // Source file name to load the Leyare's Texture from.
+	Source     string        `xml:"src,attr"` // Source file name to load the Layer Texture from.
 	Tiles      Tiles         `xml:"tiles"`    // Tiles
 	Texture    *xgal.Surface `xml:"-"`        // The tile texture for this layer if loaded.
 }

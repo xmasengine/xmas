@@ -69,7 +69,7 @@ func (g *Engine) Update() error {
 	g.Log.Update()
 
 	res := xlui.Poll()
-	if res == xlui.Finish {
+	if res == xlui.Finish || res == xlui.Accept {
 		return nil
 	}
 
@@ -140,7 +140,7 @@ func (g *Engine) Update() error {
 				g.Editor = nil
 			}
 		}
-	case xgal.Tap(xgal.KeyF):
+	case xgal.Tap(xgal.KeyF9):
 		g.Debug = !g.Debug
 		xlui.Ask(50, 50, 250, 100, "Debug", "debug", func(string) bool { return true })
 
