@@ -55,6 +55,7 @@ func NewEditorLayer(engine Engine, zone *xdat.Zone, name string, camera *xgal.Re
 	l.Class.Click = e.Click
 	l.Class.Hover = e.Hover
 	l.Class.Tap = e.Tap
+	l.Class.Lift = e.Lift
 	l.Class.Tick = e.Tick
 	l.Class.Wheel = e.Wheel
 	return l
@@ -118,8 +119,8 @@ func (e *Editor) Render(screen *xgal.Surface) {
 			tok = "!"
 		}
 
-		style.Print(screen, pr, fmt.Sprintf("%s%s: (%d,%d,%d): %d @ (%d,%d)",
-			e.Name, tok, e.Over.X, e.Over.Y, e.Depth, e.Cell, e.Camera.Min.X, e.Camera.Min.Y))
+		style.Print(screen, pr, fmt.Sprintf("%s%s: (%d,%d,%d): %d",
+			e.Name, tok, e.Over.X, e.Over.Y, e.Depth, e.Cell))
 	}
 
 	pr := xgal.Pt(0, 0)
@@ -353,8 +354,20 @@ func (e *Editor) NextTile(delta int) {
 	}
 }
 
+func (e *Editor) ChangeDepth(delta int) {
+	if delta > 0 && e.Depth < (len(e.Zone.Layers)-1) {
+		e.Depth++
+	} else if delta < 0 && e.Depth > 0 {
+		e.Depth--
+	}
+}
+
 func (e *Editor) Wheel(at xgal.Point, delta int) xlui.Reply {
-	e.NextTile(delta)
+	if e.Mods.Shift {
+		e.ChangeDepth(delta)
+	} else {
+		e.NextTile(delta)
+	}
 	return xlui.Ready
 }
 
@@ -362,10 +375,18 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 	e.Mods = mods
 
 	switch xgal.KeyCode(key) {
-	case xgal.KeyEqual:
-		e.NextTile(1)
-	case xgal.KeyMinus:
-		e.NextTile(-1)
+	case xgal.KeyEqual, xgal.KeyNumpadAdd:
+		if mods.Shift {
+			e.ChangeDepth(1)
+		} else {
+			e.NextTile(1)
+		}
+	case xgal.KeyMinus, xgal.KeyNumpadSubtract:
+		if mods.Shift {
+			e.ChangeDepth(-1)
+		} else {
+			e.NextTile(-1)
+		}
 	case xgal.KeyPause:
 		// e.Done = true
 		xlui.DialogBool(50, 50, 250, 100, "Quit", e.SetDone, "Yes", "No")
@@ -428,6 +449,11 @@ func (e *Editor) Tap(key int, mods xlui.Mods) xlui.Reply {
 	}
 
 	return xlui.Accept
+}
+
+func (e *Editor) Lift(key int, mods xlui.Mods) xlui.Reply {
+	e.Mods = mods
+	return xlui.Ignore
 }
 
 func (e *Editor) Tick(tick int64) xlui.Reply {

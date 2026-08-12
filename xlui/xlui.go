@@ -3,9 +3,9 @@
 // in the layers.
 //
 // To simplify event handling, the UI controls the layers, and the layers
-// manage the controls. The state of the elemets is managed by the container.
+// manage the controls. The state of the elements is managed by the container.
 // Class is used to customize the layers and controls, but
-// the custonization is limited to the strict neccesary.
+// the customization is limited to the strict necessary.
 //
 // There are specific handlers in Class but these only get called if needed.
 //

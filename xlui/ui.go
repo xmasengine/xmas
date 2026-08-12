@@ -63,13 +63,13 @@ func (u *UI) pollKeys() Reply {
 	keys := xgal.Taps(nil)
 	for _, key := range keys {
 		switch xgal.KeyCode(key) {
-		case xgal.KeyAlt:
+		case xgal.KeyAlt, xgal.KeyAltLeft, xgal.KeyAltRight:
 			u.Mods.Alt = true
-		case xgal.KeyShift:
+		case xgal.KeyShift, xgal.KeyShiftLeft, xgal.KeyShiftRight:
 			u.Mods.Shift = true
-		case xgal.KeyControl:
+		case xgal.KeyControl, xgal.KeyControlLeft, xgal.KeyControlRight:
 			u.Mods.Control = true
-		case xgal.KeyMeta:
+		case xgal.KeyMeta, xgal.KeyMetaLeft, xgal.KeyMetaRight:
 			u.Mods.Meta = true
 		}
 		res := u.Tap(key, u.Mods)
@@ -92,13 +92,13 @@ func (u *UI) pollKeys() Reply {
 	keys = xgal.Lifts(nil)
 	for _, key := range keys {
 		switch xgal.KeyCode(key) {
-		case xgal.KeyAlt:
+		case xgal.KeyAlt, xgal.KeyAltLeft, xgal.KeyAltRight:
 			u.Mods.Alt = false
-		case xgal.KeyShift:
+		case xgal.KeyShift, xgal.KeyShiftLeft, xgal.KeyShiftRight:
 			u.Mods.Shift = false
-		case xgal.KeyControl:
+		case xgal.KeyControl, xgal.KeyControlLeft, xgal.KeyControlRight:
 			u.Mods.Control = false
-		case xgal.KeyMeta:
+		case xgal.KeyMeta, xgal.KeyMetaLeft, xgal.KeyMetaRight:
 			u.Mods.Meta = false
 		}
 		res := u.Lift(key, u.Mods)
