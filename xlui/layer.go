@@ -328,7 +328,7 @@ func (l *Layer) OnKey(key int, dur int) Reply {
 }
 
 func (l *Layer) OnChars(chars ...rune) Reply {
-	if l.Class.Key != nil {
+	if l.Class.Chars != nil {
 		return l.Class.Chars(chars...)
 	}
 
