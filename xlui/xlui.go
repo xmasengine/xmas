@@ -176,7 +176,7 @@ func MenuBar(bounds xgal.Rectangle, subs ...SubMenuOption) *Layer {
 }
 
 func MenuWithValueOffset(bounds xgal.Rectangle, offset int, options ...string) *Layer {
-	return xlui.MenuWithValueOffset(bounds, offset)
+	return xlui.MenuWithValueOffset(bounds, offset, options...)
 }
 
 func Poll() Reply {
