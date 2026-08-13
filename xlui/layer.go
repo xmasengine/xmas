@@ -248,34 +248,36 @@ func (l *Layer) FocusIndex() int {
 }
 
 func (l *Layer) FocusPrevious() Reply {
+	if len(l.Controls) == 0 {
+		return Ignore
+	}
 	idx := l.FocusIndex()
-	if idx < 0 && len(l.Controls) > 0 {
-		l.Focused = l.Controls[len(l.Controls)-1]
+	if idx < 0 {
+		l.SetFocus(l.Controls[len(l.Controls)-1])
 		return Accept
 	}
 	idx--
 	if idx < 0 {
 		idx = len(l.Controls) - 1
 	}
-	if idx >= 0 {
-		l.SetFocus(l.Controls[idx])
-	}
+	l.SetFocus(l.Controls[idx])
 	return Accept
 }
 
 func (l *Layer) FocusNext() Reply {
+	if len(l.Controls) == 0 {
+		return Ignore
+	}
 	idx := l.FocusIndex()
-	if idx < 0 && len(l.Controls) > 0 {
-		l.Focused = l.Controls[0]
+	if idx < 0 {
+		l.SetFocus(l.Controls[0])
 		return Accept
 	}
 	idx++
 	if idx >= len(l.Controls) {
 		idx = 0
 	}
-	if idx >= 0 {
-		l.SetFocus(l.Controls[idx])
-	}
+	l.SetFocus(l.Controls[idx])
 	return Accept
 }
 
