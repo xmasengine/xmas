@@ -24,12 +24,16 @@ func (s *Control) slideTo(mouse xgal.Point) {
 }
 
 func (s Control) knobPos() int {
+	span := s.High - s.Low
+	if span <= 0 {
+		return s.Style.Margin.X
+	}
 	track := s.sliderTrackSize()
 	if track <= 0 {
 		slog.Error("slider track size zero or negative")
 		return s.Style.Margin.X
 	}
-	p := ((s.Value - s.Low) * track) / (s.High - s.Low)
+	p := ((s.Value - s.Low) * track) / span
 	return p
 }
 
@@ -44,14 +48,21 @@ func (s Control) sliderTrackSize() int {
 func NewSlider(at xgal.Point, orientation Orientation, low, high, value int) *Control {
 	slider := NewControl(at)
 	slider.State.Clicked = false
+	if high < low {
+		high = low
+	}
 	slider.Low = low
 	slider.High = high
-	slider.Value = value
+	slider.Value = min(max(value, low), high)
 	slider.Orientation = orientation
 
-	size := xgal.Pt(knobSize+(high-low)*2, knobSize)
+	span := high - low
+	if span < 1 {
+		span = 1
+	}
+	size := xgal.Pt(knobSize+span*2, knobSize)
 	if orientation == Vertical {
-		size = xgal.Pt(knobSize, knobSize+(high-low)*2)
+		size = xgal.Pt(knobSize, knobSize+span*2)
 	}
 	slider.Bounds = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y, size.X, size.Y)
 

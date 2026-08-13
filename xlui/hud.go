@@ -34,6 +34,9 @@ func NewBar(at xgal.Point, orientation Orientation, value, high int) *Control {
 	bar := NewControl(at)
 	bar.Style = HUDBarStyle()
 	bar.State.Clicked = false
+	if high < 1 {
+		high = 1
+	}
 	bar.High = high
 	bar.Value = value
 	bar.Orientation = orientation
@@ -45,7 +48,11 @@ func NewBar(at xgal.Point, orientation Orientation, value, high int) *Control {
 	bar.Bounds = xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, size.X, size.Y)
 
 	render := func(screen *xgal.Surface) {
-		bl := size.Mul(bar.Value).Div(bar.High)
+		var bl xgal.Point
+		if bar.High > 0 {
+			v := min(max(bar.Value, 0), bar.High)
+			bl = size.Mul(v).Div(bar.High)
+		}
 		filling := xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, bl.X, knobSize)
 		if orientation == Vertical {
 			filling = xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, knobSize, bl.Y)
