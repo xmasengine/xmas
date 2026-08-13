@@ -235,9 +235,61 @@ func (l *Layer) OnRelease(at xgal.Point, button int) Reply {
 	return Ignore
 }
 
+func (l *Layer) FocusIndex() int {
+	if l.Focused == nil {
+		return -1
+	}
+	for i, c := range l.Controls {
+		if c == l.Focused {
+			return i
+		}
+	}
+	return -1
+}
+
+func (l *Layer) FocusPrevious() Reply {
+	idx := l.FocusIndex()
+	if idx < 0 && len(l.Controls) > 0 {
+		l.Focused = l.Controls[len(l.Controls)-1]
+		return Accept
+	}
+	idx--
+	if idx < 0 {
+		idx = len(l.Controls) - 1
+	}
+	if idx >= 0 {
+		l.SetFocus(l.Controls[idx])
+	}
+	return Accept
+}
+
+func (l *Layer) FocusNext() Reply {
+	idx := l.FocusIndex()
+	if idx < 0 && len(l.Controls) > 0 {
+		l.Focused = l.Controls[0]
+		return Accept
+	}
+	idx++
+	if idx >= len(l.Controls) {
+		idx = 0
+	}
+	if idx >= 0 {
+		l.SetFocus(l.Controls[idx])
+	}
+	return Accept
+}
+
 func (l *Layer) OnTap(key int, mods Mods) Reply {
 	if l.Class.Tap != nil {
 		return l.Class.Tap(key, mods)
+	}
+
+	if xgal.KeyCode(key) == xgal.KeyTab {
+		if mods.Shift {
+			return l.FocusPrevious()
+		} else {
+			return l.FocusNext()
+		}
 	}
 
 	if l.Focused != nil {
@@ -251,6 +303,7 @@ func (l *Layer) OnTap(key int, mods Mods) Reply {
 	}) {
 		return ctrl.Class.Tap(key, mods)
 	}
+
 	return Ignore
 }
 
@@ -270,6 +323,7 @@ func (l *Layer) OnKey(key int, dur int) Reply {
 	}) {
 		return ctrl.Class.Key(key, dur)
 	}
+
 	return Ignore
 }
 
@@ -361,6 +415,25 @@ func NewAsker(bounds xgal.Rectangle, label, entry string, buttons ...string) *La
 			if i > 0 && e.Text != "" && e.Class.Entry != nil {
 				e.Class.Entry(e.Text)
 			}
+			return Finish
+		}
+		button.Class.Tap = func(key int, mods Mods) Reply {
+			if xgal.KeyCode(key) == xgal.KeyEscape {
+				return Finish
+			}
+
+			if xgal.KeyCode(key) != xgal.KeyEnter {
+				return Ignore
+			}
+
+			if asker.Class.Value != nil {
+				asker.Class.Value(i)
+			}
+			// Call the entry if needed.
+			if i > 0 && e.Text != "" && e.Class.Entry != nil {
+				e.Class.Entry(e.Text)
+			}
+
 			return Finish
 		}
 	}
@@ -522,6 +595,13 @@ func NewComplainer(bounds xgal.Rectangle, err error) *Layer {
 	button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
 		return Finish
 	}
+	button.Class.Tap = func(key int, mods Mods) Reply {
+		if xgal.KeyCode(key) == xgal.KeyEnter {
+			return Finish
+		}
+		return Ignore
+	}
+	complainer.SetFocus(button)
 	return complainer
 }
 
@@ -544,12 +624,20 @@ func NewDisplayer(bounds xgal.Rectangle, text string) *Layer {
 	button.Class.Click = func(at xgal.Point, mouseButton int) Reply {
 		return Finish
 	}
+	button.Class.Tap = func(key int, mods Mods) Reply {
+		if xgal.KeyCode(key) == xgal.KeyEnter {
+			return Finish
+		}
+		return Ignore
+	}
+	complainer.SetFocus(button)
 	return complainer
 }
 
 func (u *UI) Display(bounds xgal.Rectangle, text string) *Layer {
 	layer := NewDisplayer(bounds, text)
 	u.Layers = append(u.Layers, layer)
+	u.SetFocus(layer)
 	return layer
 }
 

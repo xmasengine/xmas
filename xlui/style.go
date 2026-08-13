@@ -2,18 +2,8 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 import "github.com/xmasengine/xmas/xvec"
-import "github.com/xmasengine/xmas/xres/fontres"
-
 import "os"
 import "log/slog"
-
-var (
-	TinyFace   = fontres.TinyFace
-	SmallFace  = fontres.SmallFace
-	NormalFace = xgal.BuiltinFace
-)
-
-var DefaultFace = SmallFace
 
 func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
@@ -79,7 +69,7 @@ func DefaultStyle() Style {
 	s.Gloom = 10
 	s.Margin = xgal.Pt(2, 2)
 	s.Shade = xgal.Pt(1, 1)
-	s.Face = DefaultFace
+	s.Face = xgal.BuiltinFace
 	s.Frame = nil
 	return s
 }
@@ -273,4 +263,17 @@ func HUDBarStyle() Style {
 	s := DefaultStyle()
 	s.Fill = xgal.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
 	return s
+}
+
+func (s Style) ForState(state State) Style {
+	switch {
+	case state.Focused:
+		return s.Focused()
+	case state.Hovered:
+		return s.Hovered()
+	case state.Clicked:
+		return s.Clicked()
+	default:
+		return s
+	}
 }

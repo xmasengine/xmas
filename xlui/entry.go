@@ -28,13 +28,7 @@ func NewEntry(at xgal.Point, text string) *Control {
 
 	render := func(screen *xgal.Surface) {
 		delta := xgal.Pt(2, 0)
-		style := entry.Style
-		if entry.State.Hovered {
-			style = style.Hovered()
-		}
-		if entry.State.Focused {
-			style = style.Focused()
-		}
+		style := entry.Style.ForState(entry.State)
 
 		style.DrawBox(screen, entry.Bounds.Add(delta))
 		style.Print(screen, entry.Bounds.Min.Add(delta), entry.Text)

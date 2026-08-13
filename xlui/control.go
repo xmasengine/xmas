@@ -83,7 +83,8 @@ func NewControlWithText(at xgal.Point, style Style, text string) *Control {
 func NewLabel(at xgal.Point, text string) *Control {
 	label := NewControlWithText(at, ButtonStyle(), text)
 	render := func(screen *xgal.Surface) {
-		label.Style.Print(screen, label.Bounds.Min, label.Text)
+		style := label.Style.ForState(label.State)
+		style.Print(screen, label.Bounds.Min, label.Text)
 	}
 	label.Class = Class{
 		Render: render,
@@ -96,13 +97,7 @@ func NewButton(at xgal.Point, text string) *Control {
 	button.State.Clicked = false
 
 	render := func(screen *xgal.Surface) {
-		style := button.Style
-		if button.State.Hovered {
-			style = style.Hovered()
-		}
-		if button.State.Clicked {
-			style = style.Clicked()
-		}
+		style := button.Style.ForState(button.State)
 		style.DrawBox(screen, button.Bounds)
 		style.Print(screen, button.Bounds.Min, button.Text)
 	}
