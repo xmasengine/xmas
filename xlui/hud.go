@@ -41,9 +41,10 @@ func NewBar(at xgal.Point, orientation Orientation, value, high int) *Control {
 	bar.Value = value
 	bar.Orientation = orientation
 
-	size := xgal.Pt(bar.High, knobSize)
+	k := bar.Style.Diameter
+	size := xgal.Pt(bar.High, k)
 	if orientation == Vertical {
-		size = xgal.Pt(knobSize, bar.High)
+		size = xgal.Pt(k, bar.High)
 	}
 	bar.Bounds = xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, size.X, size.Y)
 
@@ -53,9 +54,10 @@ func NewBar(at xgal.Point, orientation Orientation, value, high int) *Control {
 			v := min(max(bar.Value, 0), bar.High)
 			bl = size.Mul(v).Div(bar.High)
 		}
-		filling := xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, bl.X, knobSize)
+		k := bar.Style.Diameter
+		filling := xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, bl.X, k)
 		if orientation == Vertical {
-			filling = xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, knobSize, bl.Y)
+			filling = xgal.Bound(bar.Bounds.Min.X, bar.Bounds.Min.Y, k, bl.Y)
 		}
 
 		style := bar.Style

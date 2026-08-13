@@ -5,7 +5,7 @@ import "github.com/xmasengine/xmas/xvec"
 import "github.com/xmasengine/xmas/xres/fontres"
 
 import "os"
-import "log/slog"
+import "io/fs"
 
 var (
 	TinyFace   = fontres.TinyFace
@@ -37,16 +37,17 @@ func (s Style) DrawTextLine(dst *xgal.Surface, at xgal.Point, txt string) {
 
 // Style is a style for a widget
 type Style struct {
-	Fore   xgal.RGBA
-	Border xgal.RGBA
-	Shadow xgal.RGBA
-	Fill   xgal.RGBA
-	Stroke int
-	Margin xgal.Point
-	Face   xgal.Face
-	Shade  xgal.Point // Shade is the direction of the shadow
-	Gloom  int        // Gloom is the width of the shadow
-	Offset xgal.Point // Offset for buttons, etc.
+	Fore     xgal.RGBA
+	Border   xgal.RGBA
+	Shadow   xgal.RGBA
+	Fill     xgal.RGBA
+	Stroke   int
+	Margin   xgal.Point
+	Face     xgal.Face
+	Shade    xgal.Point // Shade is the direction of the shadow
+	Gloom    int        // Gloom is the width of the shadow
+	Offset   xgal.Point // Offset for buttons, etc.
+	Diameter int        // Diameter is the diameter of a slider knob or bar thickness
 
 	Vec   *xvec.XVEC
 	Frame *xgal.Surface
@@ -59,15 +60,23 @@ const DefaultFrameName = "frame.xvec"
 var DefaultVec *xvec.XVEC
 var DefaultFrame *xgal.Surface
 
-func init() {
-	var err error
-	DefaultVec, err = xvec.ParseFS(DefaultFS, DefaultFrameName)
+// LoadFrame (re)loads the default frame from DefaultFS into DefaultVec and
+// DefaultFrame.
+func LoadFrame() error {
+	vec, err := xvec.ParseFS(DefaultFS, DefaultFrameName)
 	if err != nil {
-		slog.Error("Could not load frame.", "err", err)
-	} else {
-		DefaultFrame = xgal.Prepare(int(DefaultVec.Size.W), int(DefaultVec.Size.H))
-		DefaultVec.Draw(DefaultFrame)
+		return err
 	}
+	DefaultVec = vec
+	DefaultFrame = xgal.Prepare(int(vec.Size.W), int(vec.Size.H))
+	vec.Draw(DefaultFrame)
+	return nil
+}
+
+// SetFrameFS configures the FS used to load the default frame and reloads it.
+func SetFrameFS(fsys fs.FS) error {
+	DefaultFS = fsys
+	return LoadFrame()
 }
 
 func DefaultStyle() Style {
@@ -81,6 +90,7 @@ func DefaultStyle() Style {
 	s.Margin = xgal.Pt(2, 2)
 	s.Shade = xgal.Pt(1, 1)
 	s.Face = DefaultFace
+	s.Diameter = defaultDiameter
 	s.Frame = nil
 	return s
 }

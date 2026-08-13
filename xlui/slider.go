@@ -3,7 +3,7 @@ package xlui
 import "github.com/xmasengine/xmas/xgal"
 import "log/slog"
 
-const knobSize = 8
+const defaultDiameter = 8
 
 func (s *Control) slideTo(mouse xgal.Point) {
 	track := s.sliderTrackSize()
@@ -38,10 +38,11 @@ func (s Control) knobPos() int {
 }
 
 func (s Control) sliderTrackSize() int {
+	k := s.Style.Diameter
 	if s.Orientation == Vertical {
-		return s.Bounds.Dy() - knobSize
+		return s.Bounds.Dy() - k
 	}
-	return s.Bounds.Dx() - knobSize
+	return s.Bounds.Dx() - k
 }
 
 // NewSlider adds a new slider Control
@@ -60,17 +61,19 @@ func NewSlider(at xgal.Point, orientation Orientation, low, high, value int) *Co
 	if span < 1 {
 		span = 1
 	}
-	size := xgal.Pt(knobSize+span*2, knobSize)
+	k := slider.Style.Diameter
+	size := xgal.Pt(k+span*2, k)
 	if orientation == Vertical {
-		size = xgal.Pt(knobSize, knobSize+span*2)
+		size = xgal.Pt(k, k+span*2)
 	}
 	slider.Bounds = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y, size.X, size.Y)
 
 	render := func(screen *xgal.Surface) {
 		kb := slider.knobPos()
-		knob := xgal.Bound(slider.Bounds.Min.X+kb, slider.Bounds.Min.Y, knobSize, knobSize)
+		k := slider.Style.Diameter
+		knob := xgal.Bound(slider.Bounds.Min.X+kb, slider.Bounds.Min.Y, k, k)
 		if orientation == Vertical {
-			knob = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y+kb, knobSize, knobSize)
+			knob = xgal.Bound(slider.Bounds.Min.X, slider.Bounds.Min.Y+kb, k, k)
 		}
 
 		style := slider.Style
