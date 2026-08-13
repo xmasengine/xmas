@@ -71,7 +71,7 @@ func (l Layer) Render(s *xgal.Surface) {
 		l.Class.Render(s)
 	}
 
-	for i := len(l.Controls) - 1; i >= 0; i-- {
+	for i := 0; i < len(l.Controls); i++ {
 		ctrl := l.Controls[i]
 		ctrl.Render(s)
 	}
