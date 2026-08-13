@@ -5,6 +5,39 @@ import "github.com/xmasengine/xmas/xgal"
 const TalkSizer = "WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW"
 const TalkTick = 10
 
+// revealedText returns the first n characters of the rune lines as a string,
+// with newlines inserted between the lines.
+func revealedText(output [][]rune, n int) string {
+	var sb []rune
+	remaining := n
+	for i, line := range output {
+		if remaining <= 0 {
+			break
+		}
+		if i > 0 {
+			sb = append(sb, '\n')
+		}
+		used := min(remaining, len(line))
+		sb = append(sb, line[:used]...)
+		remaining -= used
+	}
+	return string(sb)
+}
+
+// revealCursor returns the cursor position after the first n characters of the
+// rune lines have been revealed.
+func revealCursor(output [][]rune, n int) xgal.Point {
+	remaining := n
+	for y, line := range output {
+		if remaining <= len(line) {
+			return xgal.Pt(remaining, y)
+		}
+		remaining -= len(line)
+	}
+	last := len(output) - 1
+	return xgal.Pt(len(output[last]), last)
+}
+
 // NewTalk returns a new animated multi line text display Control.
 func NewTalk(at xgal.Point, text string, lines int) *Control {
 	// talk variables
@@ -67,7 +100,7 @@ func NewTalk(at xgal.Point, text string, lines int) *Control {
 
 		// don't shift the box, but do shift the text and cursor
 		delta = delta.Add(talk.From)
-		style.Print(screen, talk.Bounds.Min.Add(delta), talk.Text[:reveal])
+		style.Print(screen, talk.Bounds.Min.Add(delta), revealedText(output, reveal))
 		// Draw cursor
 		sz := talk.Style.Measure(string(output[cursor.Y][:cursor.X]))
 		box := talk.Bounds
@@ -133,12 +166,8 @@ func NewTalk(at xgal.Point, text string, lines int) *Control {
 
 	tick := func(t int64) Reply {
 		if (t%TalkTick) == 0 && (reveal < len(talk.Text)) {
-			if cursor.X == len(output[cursor.Y]) && cursor.Y < (len(output)-1) {
-				cursor.Y++
-				cursor.X = 0
-			} else {
-				cursor.X = min(cursor.X+1, len(output[cursor.Y]))
-			}
+			reveal++
+			cursor = revealCursor(output, reveal)
 			if cursor.Y >= lines {
 				// shift up
 				talk.From.Y = (lines - cursor.Y - 1) * size.Y
@@ -148,7 +177,6 @@ func NewTalk(at xgal.Point, text string, lines int) *Control {
 				// shift left
 				talk.From.X = (lineLen - cursor.X - 1) * (size.X / len(AreaSizer))
 			}
-			reveal++
 		}
 		return Ignore
 	}
