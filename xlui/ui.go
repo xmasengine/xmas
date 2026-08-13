@@ -218,6 +218,9 @@ func (u *UI) closeLayerByIndex(i int) {
 		return
 	}
 	del := u.Layers[i]
+	if u.Dragged == del {
+		u.Dragged = nil
+	}
 	if u.Focused == del {
 		u.SetFocus(nil)
 	}
