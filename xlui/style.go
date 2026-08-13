@@ -2,8 +2,19 @@ package xlui
 
 import "github.com/xmasengine/xmas/xgal"
 import "github.com/xmasengine/xmas/xvec"
+import "github.com/xmasengine/xmas/xres/fontres"
+
 import "os"
 import "log/slog"
+
+var (
+	TinyFace   = fontres.TinyFace
+	SmallFace  = fontres.SmallFace
+	MediumFace = fontres.MediumFace
+	NormalFace = xgal.BuiltinFace
+)
+
+var DefaultFace = SmallFace
 
 func (s Style) Measure(txt string) xgal.Point {
 	w, h := xgal.Measure(txt, s.Face, float64(xgal.Stride(s.Face)))
@@ -63,13 +74,13 @@ func DefaultStyle() Style {
 	s := Style{}
 	s.Fore = xgal.RGBA{R: 0xff, G: 0xff, B: 0xff, A: 0xff}
 	s.Border = xgal.RGBA{R: 0x55, G: 0x55, B: 0x55, A: 0xff}
-	s.Shadow = xgal.RGBA{R: 0xff, G: 0x00, B: 0x00, A: 0xff}
+	s.Shadow = xgal.RGBA{R: 0x00, G: 0x00, B: 0x00, A: 0x88}
 	s.Fill = xgal.RGBA{R: 0x00, G: 0x00, B: 0x55, A: 0xaa}
 	s.Stroke = 1
-	s.Gloom = 10
+	s.Gloom = 1
 	s.Margin = xgal.Pt(2, 2)
 	s.Shade = xgal.Pt(1, 1)
-	s.Face = xgal.BuiltinFace
+	s.Face = DefaultFace
 	s.Frame = nil
 	return s
 }
@@ -97,8 +108,8 @@ func (s Style) DrawBox(dst *xgal.Surface, r xgal.Rectangle) {
 	if s.Gloom > 0 {
 		lo := r.Min.Add(s.Offset).Add(s.Shade)
 		hi := r.Max.Add(s.Offset).Add(s.Shade)
-		xgal.Line(dst, hi.X, lo.Y, hi.X, lo.Y, s.Gloom, s.Shadow)
-		xgal.Line(dst, lo.X, hi.Y, lo.X, hi.Y, s.Gloom, s.Shadow)
+		xgal.Line(dst, hi.X, lo.Y, hi.X, hi.Y, s.Gloom, s.Shadow)
+		xgal.Line(dst, lo.X, hi.Y, hi.X, hi.Y, s.Gloom, s.Shadow)
 	}
 
 	if s.Stroke > 0 {
