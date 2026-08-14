@@ -2,8 +2,11 @@ package xvec
 
 import (
 	"bytes"
+	"math"
 	"strings"
 	"testing"
+
+	"github.com/hajimehoshi/ebiten/v2"
 )
 
 func mkcol(r, g, b, a uint8) Color { return Color{R: r, G: g, B: b, A: a} }
@@ -609,5 +612,274 @@ func TestMoveEdgeCases(t *testing.T) {
 	x.MoveToBack(5)
 	if len(x.Instructions) != 1 {
 		t.Fatal("out-of-range indices should be no-ops")
+	}
+}
+
+func TestDrawTransformed(t *testing.T) {
+	x := &XVEC{Size: Size{10, 10}, Antialias: false}
+	x.Slab(0, 0, 10, 10, mkcol(255, 0, 0, 255))
+
+	dst := ebiten.NewImage(40, 40)
+	var g ebiten.GeoM
+	g.Scale(2, 2)
+	g.Translate(5, 5)
+	x.DrawTransformed(dst, g)
+	if x.cached == nil {
+		t.Fatal("DrawTransformed did not cache the rasterization")
+	}
+	if w, h := x.cached.Bounds().Dx(), x.cached.Bounds().Dy(); w != 10 || h != 10 {
+		t.Fatalf("cached rasterization is %dx%d, want 10x10", w, h)
+	}
+	first := x.cached
+	x.DrawScaled(dst, V(1, 1), Size{20, 20})
+	if x.cached != first {
+		t.Fatal("DrawScaled re-rasterized instead of reusing the cache")
+	}
+
+	var r ebiten.GeoM
+	r.Translate(-5, -5)
+	r.Rotate(math.Pi / 2)
+	r.Translate(5, 5)
+	x.DrawTransformed(dst, r) // rotation must not panic
+}
+
+func TestDefUse(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}}
+	d := x.Def("sprite")
+	d.Slab(0, 0, 16, 16, mkcol(255, 0, 0, 255))
+	u := x.Use("sprite", V(10, 10), Size{2, 2}, math.Pi/2)
+	if u.Vec != d {
+		t.Fatal("Use did not resolve to the def")
+	}
+
+	x2 := roundtrip(t, x)
+	if len(x2.Defs) != 1 {
+		t.Fatalf("got %d defs, want 1", len(x2.Defs))
+	}
+	if x2.Defs[0].Name != "sprite" {
+		t.Fatalf("def name: got %q, want sprite", x2.Defs[0].Name)
+	}
+	if len(x2.Defs[0].Vec.Instructions) != 1 {
+		t.Fatalf("def instructions: got %d, want 1", len(x2.Defs[0].Vec.Instructions))
+	}
+	if len(x2.Instructions) != 1 {
+		t.Fatalf("got %d instructions, want 1", len(x2.Instructions))
+	}
+	u2, ok := x2.Instructions[0].(*UseInstruction)
+	if !ok {
+		t.Fatalf("got %T, want *UseInstruction", x2.Instructions[0])
+	}
+	if u2.Name != "sprite" {
+		t.Fatalf("use name: got %q", u2.Name)
+	}
+	if u2.At.X != 10 || u2.At.Y != 10 {
+		t.Fatalf("use at: got %v", u2.At)
+	}
+	if u2.Scale.W != 2 || u2.Scale.H != 2 {
+		t.Fatalf("use scale: got %v", u2.Scale)
+	}
+	if math.Abs(float64(u2.Rotate)-math.Pi/2) > 1e-6 {
+		t.Fatalf("use rotate: got %v, want %v", u2.Rotate, math.Pi/2)
+	}
+	if u2.Vec == nil {
+		t.Fatal("use did not resolve its def after roundtrip")
+	}
+}
+
+func TestUseNoClauses(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}}
+	x.Def("sprite").Disk(32, 32, 10, mkcol(0, 255, 0, 255))
+	x.Use("sprite", Vertex{}, Size{}, 0)
+
+	x2 := roundtrip(t, x)
+	u, ok := x2.Instructions[0].(*UseInstruction)
+	if !ok {
+		t.Fatalf("got %T, want *UseInstruction", x2.Instructions[0])
+	}
+	if u.At != (Vertex{}) || u.Scale != (Size{}) || u.Rotate != 0 {
+		t.Fatalf("expected zero clauses, got at=%v scale=%v rotate=%v", u.At, u.Scale, u.Rotate)
+	}
+}
+
+func TestDefUseRaw(t *testing.T) {
+	src := `xvec 1
+size 100 100
+antialias true
+def sprite
+  slab 0 0 16 16 #ff0000ff
+  disk 8 8 4 #00ff00ff
+end
+use sprite at 20 30
+use sprite at 0 0 scale 2 2 rotate 45
+`
+	var x XVEC
+	if err := x.Decode(strings.NewReader(src)); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	if len(x.Defs) != 1 {
+		t.Fatalf("got %d defs, want 1", len(x.Defs))
+	}
+	if len(x.Defs[0].Vec.Instructions) != 2 {
+		t.Fatalf("def instructions: got %d, want 2", len(x.Defs[0].Vec.Instructions))
+	}
+	if len(x.Instructions) != 2 {
+		t.Fatalf("got %d instructions, want 2", len(x.Instructions))
+	}
+	u0, ok := x.Instructions[0].(*UseInstruction)
+	if !ok {
+		t.Fatalf("got %T, want *UseInstruction", x.Instructions[0])
+	}
+	if u0.At.X != 20 || u0.At.Y != 30 || u0.Scale != (Size{}) || u0.Rotate != 0 {
+		t.Fatalf("use 0: at=%v scale=%v rotate=%v", u0.At, u0.Scale, u0.Rotate)
+	}
+	u1 := x.Instructions[1].(*UseInstruction)
+	if u1.Scale.W != 2 || u1.Scale.H != 2 {
+		t.Fatalf("use 1 scale: got %v", u1.Scale)
+	}
+	if math.Abs(float64(u1.Rotate)-math.Pi/4) > 1e-6 {
+		t.Fatalf("use 1 rotate: got %v, want %v", u1.Rotate, math.Pi/4)
+	}
+}
+
+func TestDefErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		src  string
+	}{
+		{"undefined use", "xvec 1\nsize 10 10\nuse ghost\n"},
+		{"nested def", "xvec 1\nsize 10 10\ndef a\ndef b\nend\nend\n"},
+		{"empty def", "xvec 1\nsize 10 10\ndef a\nend\n"},
+		{"bare end", "xvec 1\nsize 10 10\nend\n"},
+		{"at without use", "xvec 1\nsize 10 10\nat 1 2\n"},
+		{"scale without use", "xvec 1\nsize 10 10\nscale 2 2\n"},
+		{"rotate without use", "xvec 1\nsize 10 10\nrotate 45\n"},
+		{"zero scale x", "xvec 1\nsize 10 10\ndef a\nslab 0 0 1 1 #ff0000ff\nend\nuse a scale 0 2\n"},
+		{"zero scale y", "xvec 1\nsize 10 10\ndef a\nslab 0 0 1 1 #ff0000ff\nend\nuse a scale 2 0\n"},
+		{"size after instruction", "xvec 1\ncircle 5 5 2 1 #ff0000ff\nsize 10 10\n"},
+		{"antialias after instruction", "xvec 1\nsize 10 10\ndisk 5 5 2 #ff0000ff\nantialias false\n"},
+		{"size after def", "xvec 1\ndef a\nslab 0 0 1 1 #ff0000ff\nend\nsize 10 10\n"},
+		{"size after use", "xvec 1\nsize 10 10\ndef a\nslab 0 0 1 1 #ff0000ff\nend\nuse a\nsize 20 20\n"},
+		{"size in def after instruction", "xvec 1\nsize 10 10\ndef a\nslab 0 0 1 1 #ff0000ff\nsize 5 5\nend\n"},
+		{"antialias in def after instruction", "xvec 1\nsize 10 10\ndef a\nslab 0 0 1 1 #ff0000ff\nantialias false\nend\n"},
+		{"size inside path", "xvec 1\nfill #ff0000ff\n  size 5 5\nend\n"},
+	}
+	for _, c := range cases {
+		var x XVEC
+		if err := x.Decode(strings.NewReader(c.src)); err == nil {
+			t.Fatalf("%s: expected error", c.name)
+		}
+	}
+}
+
+func TestUseDraw(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}}
+	x.Def("sprite").Slab(0, 0, 16, 16, mkcol(255, 0, 0, 255))
+	x.Use("sprite", V(10, 10), Size{}, 0)
+
+	dst := ebiten.NewImage(100, 100)
+	x.Draw(dst) // must not panic
+}
+
+func TestUseDrawTransform(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}}
+	x.Def("sprite").Disk(32, 32, 8, mkcol(255, 0, 0, 255))
+	x.Use("sprite", V(0, 0), Size{2, 2}, math.Pi/2)
+	x.Use("sprite", V(5, 5), Size{}, 0)
+
+	dst := ebiten.NewImage(200, 200)
+	x.Draw(dst) // must not panic
+}
+
+func TestDefRecursion(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}}
+	d := x.Def("loop")
+	d.Use("loop", V(0, 0), Size{}, 0)
+	dst := ebiten.NewImage(64, 64)
+	x.Draw(dst) // must terminate without panic
+}
+
+func TestDefOwnSettings(t *testing.T) {
+	x := &XVEC{Size: Size{64, 64}, Antialias: true}
+	d := x.Def("sprite")
+	d.Size = Size{16, 16}
+	d.Antialias = false
+	d.Slab(0, 0, 16, 16, mkcol(255, 0, 0, 255))
+	x.Use("sprite", V(0, 0), Size{}, 0)
+
+	x2 := roundtrip(t, x)
+	if len(x2.Defs) != 1 {
+		t.Fatalf("got %d defs, want 1", len(x2.Defs))
+	}
+	if x2.Defs[0].Vec.Size.W != 16 || x2.Defs[0].Vec.Size.H != 16 {
+		t.Fatalf("def size: got %v, want 16x16", x2.Defs[0].Vec.Size)
+	}
+	if x2.Defs[0].Vec.Antialias != false {
+		t.Fatalf("def antialias: got %v, want false", x2.Defs[0].Vec.Antialias)
+	}
+	if x2.Size.W != 64 || x2.Size.H != 64 || x2.Antialias != true {
+		t.Fatalf("root settings changed: size=%v antialias=%v", x2.Size, x2.Antialias)
+	}
+}
+
+func TestDefInheritSettings(t *testing.T) {
+	src := `xvec 1
+size 100 100
+antialias false
+def spr
+  disk 50 50 10 #ff0000ff
+end
+`
+	var x XVEC
+	if err := x.Decode(strings.NewReader(src)); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	d := x.Defs[0].Vec
+	if d.Size.W != 100 || d.Size.H != 100 {
+		t.Fatalf("def inherited size: got %v, want 100x100", d.Size)
+	}
+	if d.Antialias != false {
+		t.Fatalf("def inherited antialias: got %v, want false", d.Antialias)
+	}
+	if disk, ok := d.Instructions[0].(*DiskInstruction); !ok || disk.Antialias != false {
+		t.Fatalf("def instruction should inherit antialias=false")
+	}
+}
+
+func TestDefOwnSettingsRaw(t *testing.T) {
+	src := `xvec 1
+size 100 100
+antialias true
+def spr
+  size 20 20
+  antialias false
+  slab 0 0 20 20 #ff0000ff
+end
+use spr at 0 0
+`
+	var x XVEC
+	if err := x.Decode(strings.NewReader(src)); err != nil {
+		t.Fatalf("Decode: %v", err)
+	}
+	d := x.Defs[0].Vec
+	if d.Size.W != 20 || d.Size.H != 20 {
+		t.Fatalf("def size: got %v, want 20x20", d.Size)
+	}
+	if d.Antialias != false {
+		t.Fatalf("def antialias: got %v, want false", d.Antialias)
+	}
+	if x.Size.W != 100 || x.Size.H != 100 || x.Antialias != true {
+		t.Fatalf("root settings changed: size=%v antialias=%v", x.Size, x.Antialias)
+	}
+	if slab, ok := d.Instructions[0].(*SlabInstruction); !ok || slab.Antialias != false {
+		t.Fatalf("def instruction should use the def's antialias=false")
+	}
+
+	// roundtrip preserves the per-def settings
+	x2 := roundtrip(t, &x)
+	if x2.Defs[0].Vec.Size.W != 20 || x2.Defs[0].Vec.Size.H != 20 {
+		t.Fatalf("roundtrip def size: got %v, want 20x20", x2.Defs[0].Vec.Size)
+	}
+	if x2.Defs[0].Vec.Antialias != false {
+		t.Fatalf("roundtrip def antialias: got %v, want false", x2.Defs[0].Vec.Antialias)
 	}
 }

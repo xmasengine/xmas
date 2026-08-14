@@ -18,6 +18,7 @@ import (
 	"image/color"
 	"io"
 	"io/fs"
+	"math"
 	"strconv"
 	"strings"
 	"text/scanner"
@@ -57,10 +58,6 @@ func (v Vertex) Add(u Vertex) Vertex {
 // Length is a distance (float32).
 type Length float32
 
-func (l Length) Scale(scale Size) Length {
-	return l * Length(scale.W) * Length(scale.H)
-}
-
 // Size defines the drawing dimensions.
 type Size struct {
 	W float32
@@ -74,6 +71,7 @@ var (
 	_ encoding.TextMarshaler = (*RectInstruction)(nil)
 	_ encoding.TextMarshaler = (*SlabInstruction)(nil)
 	_ encoding.TextMarshaler = (*LineInstruction)(nil)
+	_ encoding.TextMarshaler = (*UseInstruction)(nil)
 	_ encoding.TextMarshaler = (*FillInstruction)(nil)
 	_ encoding.TextMarshaler = (*StrokeInstruction)(nil)
 	_ encoding.TextMarshaler = (*MoveStep)(nil)
@@ -86,11 +84,49 @@ var (
 )
 
 // XVEC is a complete vector graphic: a canvas size, antialias flag,
-// and a list of drawing instructions.
+// a list of drawing instructions, and named sub-graphics.
 type XVEC struct {
 	Size         Size
 	Antialias    bool
 	Instructions []Instruction
+	Defs         []Def // named sub-graphics, in definition order
+	cached       *Surface
+	drawDepth    int // recursion guard for cyclic defs
+}
+
+// Def is a named sub-graphic that can be drawn with the use instruction.
+type Def struct {
+	Name string
+	Vec  *XVEC
+}
+
+// findDef returns the named sub-graphic, or nil if it does not exist.
+func (x *XVEC) findDef(name string) *XVEC {
+	for _, d := range x.Defs {
+		if d.Name == name {
+			return d.Vec
+		}
+	}
+	return nil
+}
+
+// Def returns the named sub-graphic, creating and registering it if needed.
+func (x *XVEC) Def(name string) *XVEC {
+	if vec := x.findDef(name); vec != nil {
+		return vec
+	}
+	vec := &XVEC{Size: x.Size, Antialias: x.Antialias}
+	x.Defs = append(x.Defs, Def{Name: name, Vec: vec})
+	return vec
+}
+
+// Use adds a use instruction that draws the named sub-graphic, optionally
+// scaled by scale, rotated by rotate radians, and translated to at.
+// The sub-graphic must have been defined before the use.
+func (x *XVEC) Use(name string, at Vertex, scale Size, rotate float32) *UseInstruction {
+	u := &UseInstruction{Name: name, At: at, Scale: scale, Rotate: rotate, Vec: x.findDef(name)}
+	x.Instructions = append(x.Instructions, u)
+	return u
 }
 
 // Instruction is a single drawing operation.
@@ -113,17 +149,6 @@ type Adjuster interface {
 // Painter is an instruction that has a color that can be painted to change it.
 type Painter interface {
 	Paint(color Color)
-}
-
-// Offsetter is an instruction that can be offset at the given position.
-type Offsetter interface {
-	Offset(at Vertex) Instruction
-}
-
-// Renderer is an instruction that can be rendered at a given position
-// with a given size.
-type Renderer interface {
-	Render(surface *Surface, at Vertex, size Size)
 }
 
 // CircleInstruction strokes a circle outline.
@@ -156,12 +181,6 @@ func (c CircleInstruction) Draw(s *Surface) {
 	vector.StrokeCircle(s, c.C.X, c.C.Y, float32(c.R), float32(c.Stroke), c.Color, c.Antialias)
 }
 
-func (c CircleInstruction) Render(s *Surface, at Vertex, scale Size) {
-	p := c.C.Add(at)
-	r := c.R.Scale(scale)
-	vector.StrokeCircle(s, p.X, p.Y, float32(r), float32(c.Stroke), c.Color, c.Antialias)
-}
-
 func (c *CircleInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("circle %s %s %s %s %s",
 		ftos(c.C.X), ftos(c.C.Y), ftos(float32(c.R)), ftos(float32(c.Stroke)), coltos(c.Color))), nil
@@ -173,10 +192,6 @@ type DiskInstruction struct {
 	R         Length
 	Color     Color
 	Antialias bool
-}
-
-func (c *DiskInstruction) Offset(at Vertex) {
-	c.C = c.C.Add(at)
 }
 
 func (c *DiskInstruction) Paint(color Color) {
@@ -196,12 +211,6 @@ func (d *DiskInstruction) Draw(s *Surface) {
 	vector.FillCircle(s, d.C.X, d.C.Y, float32(d.R), d.Color, d.Antialias)
 }
 
-func (d DiskInstruction) Render(s *Surface, at Vertex, scale Size) {
-	p := d.C.Add(at)
-	r := d.R.Scale(scale)
-	vector.FillCircle(s, p.X, p.Y, float32(r), d.Color, d.Antialias)
-}
-
 func (d *DiskInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("disk %s %s %s %s",
 		ftos(d.C.X), ftos(d.C.Y), ftos(float32(d.R)), coltos(d.Color))), nil
@@ -213,9 +222,6 @@ type RectInstruction struct {
 	Color      Color
 	Stroke     Length
 	Antialias  bool
-}
-
-func (r *RectInstruction) Offset(at Vertex) {
 }
 
 func (r *RectInstruction) Paint(color Color) {
@@ -239,14 +245,6 @@ func (r *RectInstruction) Draw(s *Surface) {
 	vector.StrokeRect(s, r.X, r.Y, r.W, r.H, float32(r.Stroke), r.Color, r.Antialias)
 }
 
-func (r RectInstruction) Render(s *Surface, at Vertex, scale Size) {
-	x := r.X + at.X
-	y := r.Y + at.Y
-	w := r.W * scale.W
-	h := r.H * scale.H
-	vector.StrokeRect(s, x, y, w, h, float32(r.Stroke), r.Color, r.Antialias)
-}
-
 func (r *RectInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("rect %s %s %s %s %s %s",
 		ftos(r.X), ftos(r.Y), ftos(r.W), ftos(r.H), ftos(float32(r.Stroke)), coltos(r.Color))), nil
@@ -257,11 +255,6 @@ type SlabInstruction struct {
 	X, Y, W, H float32
 	Color      Color
 	Antialias  bool
-}
-
-func (r *SlabInstruction) Offset(at Vertex) {
-	r.X += at.X
-	r.Y += at.Y
 }
 
 func (s *SlabInstruction) Paint(color Color) {
@@ -302,13 +295,6 @@ type LineInstruction struct {
 	Antialias      bool
 }
 
-func (l *LineInstruction) Offset(at Vertex) {
-	l.X1 += at.X
-	l.Y1 += at.Y
-	l.X2 += at.X
-	l.Y2 += at.Y
-}
-
 func (l *LineInstruction) Adjust(stroke Length) {
 	l.Stroke = stroke
 }
@@ -330,22 +316,49 @@ func (l *LineInstruction) Draw(s *Surface) {
 	vector.StrokeLine(s, l.X1, l.Y1, l.X2, l.Y2, float32(l.Stroke), l.Color, l.Antialias)
 }
 
-func (l LineInstruction) Render(s *Surface, at Vertex, scale Size) {
-	x1 := l.X1 + at.X
-	y1 := l.Y1 + at.Y
-	x2 := l.X2 + at.X
-	y2 := l.Y2 + at.Y
-
-	// XXX likely incorrect.
-	x2 = x2 * (x2 - x1) * scale.W
-	y2 = y2 * (y2 - y1) * scale.H
-
-	vector.StrokeLine(s, x1, y1, x2, y2, float32(l.Stroke), l.Color, l.Antialias)
-}
-
 func (l *LineInstruction) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("line %s %s %s %s %s %s",
 		ftos(l.X1), ftos(l.Y1), ftos(l.X2), ftos(l.Y2), ftos(float32(l.Stroke)), coltos(l.Color))), nil
+}
+
+// UseInstruction draws a previously defined sub-graphic, optionally scaled,
+// rotated, and offset.
+type UseInstruction struct {
+	Name   string
+	At     Vertex
+	Scale  Size
+	Rotate float32 // radians
+	Vec    *XVEC   // resolved sub-graphic
+}
+
+func (u *UseInstruction) Draw(s *Surface) {
+	if u.Vec == nil {
+		return
+	}
+	var geom ebiten.GeoM
+	geom.Translate(float64(u.At.X), float64(u.At.Y))
+	if u.Rotate != 0 {
+		geom.Rotate(float64(u.Rotate))
+	}
+	if u.Scale != (Size{}) {
+		geom.Scale(float64(u.Scale.W), float64(u.Scale.H))
+	}
+	u.Vec.DrawTransformed(s, geom)
+}
+
+func (u *UseInstruction) MarshalText() ([]byte, error) {
+	var b strings.Builder
+	fmt.Fprintf(&b, "use %s", u.Name)
+	if u.At != (Vertex{}) {
+		fmt.Fprintf(&b, " at %s %s", ftos(u.At.X), ftos(u.At.Y))
+	}
+	if u.Scale != (Size{}) {
+		fmt.Fprintf(&b, " scale %s %s", ftos(u.Scale.W), ftos(u.Scale.H))
+	}
+	if u.Rotate != 0 {
+		fmt.Fprintf(&b, " rotate %s", ftos(u.Rotate*180/math.Pi))
+	}
+	return []byte(b.String()), nil
 }
 
 // FillInstruction fills a path built from steps.
@@ -397,14 +410,6 @@ func (f *FillInstruction) MarshalText() ([]byte, error) {
 	return []byte(b.String()), nil
 }
 
-func (f *FillInstruction) Offset(at Vertex) {
-	for _, step := range f.Steps {
-		if offsetter, ok := step.(Offsetter); ok {
-			offsetter.Offset(at)
-		}
-	}
-}
-
 // StrokeInstruction strokes a path built from steps.
 type StrokeInstruction struct {
 	Color      Color
@@ -433,14 +438,6 @@ func (x *XVEC) Stroke(stroke float32, col Color, steps ...Stepper) *StrokeInstru
 	s.StrokeOpts.Width = float32(s.Stroke)
 	x.Instructions = append(x.Instructions, s)
 	return s
-}
-
-func (s *StrokeInstruction) Offset(at Vertex) {
-	for _, step := range s.Steps {
-		if offsetter, ok := step.(Offsetter); ok {
-			offsetter.Offset(at)
-		}
-	}
 }
 
 func (s *StrokeInstruction) Draw(dst *Surface) {
@@ -478,11 +475,6 @@ type MoveStep struct {
 	X, Y float32
 }
 
-func (m *MoveStep) Offset(at Vertex) {
-	m.X += at.X
-	m.Y += at.Y
-}
-
 // MoveTo returns a MoveStep that starts a new sub-path at (x, y).
 func MoveTo(x, y float32) *MoveStep { return &MoveStep{X: x, Y: y} }
 
@@ -492,18 +484,9 @@ func (m *MoveStep) MarshalText() ([]byte, error) {
 	return []byte(fmt.Sprintf("move %s %s", ftos(m.X), ftos(m.Y))), nil
 }
 
-func (m MoveStep) RenderStep(p *Path, at Vertex, scale Size) {
-	p.MoveTo(m.X+at.X, m.Y+at.Y)
-}
-
 // LineStep draws a straight line to (x, y).
 type LineStep struct {
 	X, Y float32
-}
-
-func (l *LineStep) Offset(at Vertex) {
-	l.X += at.X
-	l.Y += at.Y
 }
 
 // LineTo returns a LineStep that draws a line to (x, y).
@@ -518,13 +501,6 @@ func (l *LineStep) MarshalText() ([]byte, error) {
 // QuadStep draws a quadratic Bézier curve to (x2, y2) with control point (x1, y1).
 type QuadStep struct {
 	X1, Y1, X2, Y2 float32
-}
-
-func (q *QuadStep) Offset(at Vertex) {
-	q.X1 += at.X
-	q.Y1 += at.Y
-	q.X2 += at.X
-	q.Y2 += at.Y
 }
 
 // QuadTo returns a QuadStep for a quadratic Bézier curve.
@@ -546,15 +522,6 @@ func CubicTo(x1, y1, x2, y2, x3, y3 float32) *CubicStep {
 	return &CubicStep{X1: x1, Y1: y1, X2: x2, Y2: y2, X3: x3, Y3: y3}
 }
 
-func (c *CubicStep) Offset(at Vertex) {
-	c.X1 += at.X
-	c.Y1 += at.Y
-	c.X2 += at.X
-	c.Y2 += at.Y
-	c.X3 += at.X
-	c.Y3 += at.Y
-}
-
 func (c *CubicStep) Step(p *Path) { p.CubicTo(c.X1, c.Y1, c.X2, c.Y2, c.X3, c.Y3) }
 
 func (c *CubicStep) MarshalText() ([]byte, error) {
@@ -568,11 +535,6 @@ type ArcStep struct {
 	Start     float32
 	End       float32
 	Dir       Direction
-}
-
-func (a *ArcStep) Offset(at Vertex) {
-	a.CX += at.X
-	a.CY += at.Y
 }
 
 // Direction is the sweep direction of an arc.
@@ -620,10 +582,6 @@ func (a *ArcToStep) MarshalText() ([]byte, error) {
 // CloseStep closes the current sub-path by drawing a line back to its start point.
 type CloseStep struct{}
 
-// Just to implement the Offset interface
-func (c *CloseStep) Offset(at Vertex) {
-}
-
 // Close returns a CloseStep that closes the current sub-path.
 func Close() *CloseStep { return &CloseStep{} }
 
@@ -648,7 +606,32 @@ func (x *XVEC) Encode(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "antialias %s\n", aa); err != nil {
 		return err
 	}
-	for _, inst := range x.Instructions {
+	for _, d := range x.Defs {
+		if _, err := fmt.Fprintf(w, "def %s\n", d.Name); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(w, "size %s %s\n", ftos(d.Vec.Size.W), ftos(d.Vec.Size.H)); err != nil {
+			return err
+		}
+		aa := "false"
+		if d.Vec.Antialias {
+			aa = "true"
+		}
+		if _, err := fmt.Fprintf(w, "antialias %s\n", aa); err != nil {
+			return err
+		}
+		if err := encodeInstructions(w, d.Vec.Instructions); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprint(w, "end\n"); err != nil {
+			return err
+		}
+	}
+	return encodeInstructions(w, x.Instructions)
+}
+
+func encodeInstructions(w io.Writer, instructions []Instruction) error {
+	for _, inst := range instructions {
 		txt, err := inst.MarshalText()
 		if err != nil {
 			return err
@@ -665,6 +648,7 @@ func (x *XVEC) Decode(r io.Reader) error {
 	x.Size = Size{320, 240}
 	x.Antialias = true
 	x.Instructions = nil
+	x.Defs = nil
 
 	p := &scannerParser{}
 	p.s.Init(r)
@@ -672,6 +656,31 @@ func (x *XVEC) Decode(r io.Reader) error {
 
 	var curFill *FillInstruction
 	var curStroke *StrokeInstruction
+	var curDef *XVEC
+	var curUse *UseInstruction
+
+	addInst := func(inst Instruction) {
+		if curDef != nil {
+			curDef.Instructions = append(curDef.Instructions, inst)
+		} else {
+			x.Instructions = append(x.Instructions, inst)
+		}
+	}
+	currentAA := func() bool {
+		if curDef != nil {
+			return curDef.Antialias
+		}
+		return x.Antialias
+	}
+	seenInstruction := func() bool {
+		if curFill != nil || curStroke != nil {
+			return true
+		}
+		if curDef != nil {
+			return len(curDef.Instructions) > 0
+		}
+		return len(x.Instructions) > 0 || len(x.Defs) > 0
+	}
 
 	tok := p.s.Scan()
 	for tok != scanner.EOF {
@@ -680,6 +689,9 @@ func (x *XVEC) Decode(r io.Reader) error {
 		}
 		kw := p.s.TokenText()
 		inPath := curFill != nil || curStroke != nil
+		if kw != "at" && kw != "scale" && kw != "rotate" {
+			curUse = nil
+		}
 		switch kw {
 		case "xvec":
 			v := p.raw()
@@ -688,11 +700,65 @@ func (x *XVEC) Decode(r io.Reader) error {
 			}
 
 		case "size":
-			x.Size.W = p.float()
-			x.Size.H = p.float()
+			if seenInstruction() {
+				return fmt.Errorf("size must come before all drawing instructions")
+			}
+			target := x
+			if curDef != nil {
+				target = curDef
+			}
+			target.Size.W = p.float()
+			target.Size.H = p.float()
 
 		case "antialias":
-			x.Antialias = p.ident() == "true"
+			if seenInstruction() {
+				return fmt.Errorf("antialias must come before all drawing instructions")
+			}
+			target := x
+			if curDef != nil {
+				target = curDef
+			}
+			target.Antialias = p.ident() == "true"
+
+		case "def":
+			if curDef != nil {
+				return fmt.Errorf("def cannot be nested")
+			}
+			if inPath {
+				return fmt.Errorf("def not allowed inside a path")
+			}
+			name := p.ident()
+			def := &XVEC{Size: x.Size, Antialias: x.Antialias}
+			x.Defs = append(x.Defs, Def{Name: name, Vec: def})
+			curDef = def
+
+		case "use":
+			if inPath {
+				return fmt.Errorf("use not allowed inside a path")
+			}
+			name := p.ident()
+			u := &UseInstruction{Name: name, Vec: x.findDef(name)}
+			if u.Vec == nil {
+				return fmt.Errorf("use %q: undefined def", name)
+			}
+			addInst(u)
+			curUse = u
+
+		case "at", "scale", "rotate":
+			if curUse == nil {
+				return fmt.Errorf("%s only allowed after use", kw)
+			}
+			switch kw {
+			case "at":
+				curUse.At = V(p.float(), p.float())
+			case "scale":
+				curUse.Scale = Size{p.float(), p.float()}
+				if curUse.Scale.W == 0 || curUse.Scale.H == 0 {
+					return fmt.Errorf("scale components must be non-zero")
+				}
+			case "rotate":
+				curUse.Rotate = float32(p.float()) * math.Pi / 180
+			}
 
 		case "rule":
 			if curFill == nil {
@@ -738,39 +804,39 @@ func (x *XVEC) Decode(r io.Reader) error {
 			}
 
 		case "circle":
-			c := &CircleInstruction{C: V(p.float(), p.float()), R: Length(p.float()), Stroke: Length(p.float()), Color: p.color(), Antialias: x.Antialias}
-			x.Instructions = append(x.Instructions, c)
+			c := &CircleInstruction{C: V(p.float(), p.float()), R: Length(p.float()), Stroke: Length(p.float()), Color: p.color(), Antialias: currentAA()}
+			addInst(c)
 
 		case "disk":
-			d := &DiskInstruction{C: V(p.float(), p.float()), R: Length(p.float()), Color: p.color(), Antialias: x.Antialias}
-			x.Instructions = append(x.Instructions, d)
+			d := &DiskInstruction{C: V(p.float(), p.float()), R: Length(p.float()), Color: p.color(), Antialias: currentAA()}
+			addInst(d)
 
 		case "rect":
-			r := &RectInstruction{X: p.float(), Y: p.float(), W: p.float(), H: p.float(), Stroke: Length(p.float()), Color: p.color(), Antialias: x.Antialias}
-			x.Instructions = append(x.Instructions, r)
+			r := &RectInstruction{X: p.float(), Y: p.float(), W: p.float(), H: p.float(), Stroke: Length(p.float()), Color: p.color(), Antialias: currentAA()}
+			addInst(r)
 
 		case "slab":
-			fr := &SlabInstruction{X: p.float(), Y: p.float(), W: p.float(), H: p.float(), Color: p.color(), Antialias: x.Antialias}
-			x.Instructions = append(x.Instructions, fr)
+			fr := &SlabInstruction{X: p.float(), Y: p.float(), W: p.float(), H: p.float(), Color: p.color(), Antialias: currentAA()}
+			addInst(fr)
 
 		case "line":
 			if inPath {
 				addStep(curFill, curStroke, &LineStep{X: p.float(), Y: p.float()})
 			} else {
-				l := &LineInstruction{X1: p.float(), Y1: p.float(), X2: p.float(), Y2: p.float(), Stroke: Length(p.float()), Color: p.color(), Antialias: x.Antialias}
-				x.Instructions = append(x.Instructions, l)
+				l := &LineInstruction{X1: p.float(), Y1: p.float(), X2: p.float(), Y2: p.float(), Stroke: Length(p.float()), Color: p.color(), Antialias: currentAA()}
+				addInst(l)
 			}
 
 		case "fill":
-			curFill = &FillInstruction{Color: p.color(), Steps: nil, Antialias: x.Antialias}
-			if x.Antialias {
+			curFill = &FillInstruction{Color: p.color(), Steps: nil, Antialias: currentAA()}
+			if currentAA() {
 				curFill.DrawOpts.AntiAlias = true
 			}
 
 		case "stroke":
 			w := p.float()
-			curStroke = &StrokeInstruction{Color: p.color(), Stroke: Length(w), Steps: nil, Antialias: x.Antialias}
-			if x.Antialias {
+			curStroke = &StrokeInstruction{Color: p.color(), Stroke: Length(w), Steps: nil, Antialias: currentAA()}
+			if currentAA() {
 				curStroke.DrawOpts.AntiAlias = true
 			}
 
@@ -781,7 +847,7 @@ func (x *XVEC) Decode(r io.Reader) error {
 						return fmt.Errorf("fill path must end with close")
 					}
 				}
-				x.Instructions = append(x.Instructions, curFill)
+				addInst(curFill)
 				curFill = nil
 			} else if curStroke != nil {
 				if len(curStroke.Steps) > 0 {
@@ -789,8 +855,15 @@ func (x *XVEC) Decode(r io.Reader) error {
 						return fmt.Errorf("stroke path must end with close")
 					}
 				}
-				x.Instructions = append(x.Instructions, curStroke)
+				addInst(curStroke)
 				curStroke = nil
+			} else if curDef != nil {
+				if len(curDef.Instructions) == 0 {
+					return fmt.Errorf("def block must not be empty")
+				}
+				curDef = nil
+			} else {
+				return fmt.Errorf("end without an open fill, stroke, or def")
 			}
 
 		case "move":
@@ -829,25 +902,50 @@ func (x *XVEC) Decode(r io.Reader) error {
 	return nil
 }
 
-// Draw renders all instructions onto s.
+// Draw renders all instructions onto s at their natural size and position.
 func (x *XVEC) Draw(s *Surface) {
 	for _, inst := range x.Instructions {
 		inst.Draw(s)
 	}
 }
 
-// Offset returns an offset copy of xvec.
-func Offset(x XVEC, at Vertex) *XVEC {
-	res := &XVEC{}
-	res.Size = x.Size
-	res.Antialias = x.Antialias
-	for _, inst := range x.Instructions {
-		if offsetter, ok := inst.(Offsetter); ok {
-			offsetter.Offset(at)
-		}
-		res.Instructions = append(res.Instructions, inst)
+// maxDefDepth limits def/use nesting during drawing; exceeding it aborts the
+// draw to avoid unbounded recursion on cyclic defs.
+const maxDefDepth = 16
+
+// DrawTransformed renders x onto dst, transformed by geom. The graphic is
+// rasterized once at its natural size and cached; subsequent calls reuse the
+// rasterization. Callers MUST NOT modify x after the first transformed draw.
+func (x *XVEC) DrawTransformed(dst *Surface, geom ebiten.GeoM) {
+	if x.drawDepth > maxDefDepth {
+		return
 	}
-	return res
+	x.drawDepth++
+	defer func() { x.drawDepth-- }()
+	if x.cached == nil {
+		w, h := int(x.Size.W), int(x.Size.H)
+		if w < 1 {
+			w = 1
+		}
+		if h < 1 {
+			h = 1
+		}
+		x.cached = ebiten.NewImage(w, h)
+		x.Draw(x.cached)
+	}
+	opts := &ebiten.DrawImageOptions{GeoM: geom}
+	dst.DrawImage(x.cached, opts)
+}
+
+// DrawScaled renders x onto dst at position at, scaled so that the canvas
+// fits the given size.
+func (x *XVEC) DrawScaled(dst *Surface, at Vertex, size Size) {
+	var geom ebiten.GeoM
+	geom.Translate(float64(at.X), float64(at.Y))
+	if x.Size.W > 0 && x.Size.H > 0 && size.W > 0 && size.H > 0 {
+		geom.Scale(float64(size.W)/float64(x.Size.W), float64(size.H)/float64(x.Size.H))
+	}
+	x.DrawTransformed(dst, geom)
 }
 
 // V is a shorthand for Vertex{X: x, Y: y}.

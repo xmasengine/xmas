@@ -25,7 +25,7 @@ tokens, where each token is one of:
   `rect`, `slab`, `line`, `fill`, `stroke`, `end`, `move`, `quad`, `cubic`,
   `arc`, `arcto`, `close`, `antialias`, `true`, `false`, `C`, `CC`,
   `join`, `miter`, `bevel`, `round`, `cap`, `butt`, `square`, `rule`,
-  `evenodd`, `nonzero`).
+  `evenodd`, `nonzero`, `def`, `use`, `at`, `scale`, `rotate`).
 - A **number** — an integer (`42`) or floating‑point (`3.14`, `.5`, `1e2`)
   literal.
 - A **colour** — a `#` character followed by exactly eight hexadecimal digits
@@ -59,6 +59,7 @@ CAPITALISED  = terminal keyword
 xvec 1
 size <width> <height>
 [antialias <bool>]
+{ <def> }
 { <instruction> }
 ```
 
@@ -113,7 +114,8 @@ size <width> <height>
 
 REQUIRED.  MUST appear exactly once.  `<width>` and `<height>` are `<number>`
 tokens giving the logical canvas dimensions in pixels.  If absent, a parser
-SHOULD default to `320 240`.
+SHOULD default to `320 240`.  MUST appear before any `def` or drawing
+instruction; a parser MUST reject a `size` declaration that follows one.
 
 ### 3.3. Anti‑Aliasing
 
@@ -122,7 +124,8 @@ antialias <bool>
 ```
 
 OPTIONAL.  Controls whether path and primitive rendering uses anti‑aliasing.
-If absent, a parser SHOULD default to `true`.
+If absent, a parser SHOULD default to `true`.  MUST appear before any drawing
+instruction; a parser MUST reject an `antialias` declaration that follows one.
 
 ## 4. Drawing Instructions
 
@@ -198,6 +201,61 @@ end
 Strokes a vector path built from the enclosed `<path‑step>` lines with stroke
 width `<width>`.  If the path block contains at least one step, the final step
 MUST be `close`.  An empty path block is allowed.
+
+### 4.8. Def (Named Sub‑Graphic)
+
+```
+def <name>
+  [size <width> <height>]
+  [antialias <bool>]
+  { <instruction> }
+end
+```
+
+Defines a named sub‑graphic that can be drawn one or more times with the `use`
+instruction (Section 4.9).  `<name>` is an identifier.  A `<def>` MAY appear
+anywhere at the top level, before or after other instructions, but MUST be
+defined before any `use` of it.
+
+The sub‑graphic inherits the canvas `<size>` and `antialias` of the file.
+It MAY override either with an optional `size` or `antialias` declaration
+inside the block; if absent, the file's values are used.  As at the top level,
+`size` and `antialias` MUST appear before any drawing instruction in the
+block; a parser MUST reject one that follows a drawing instruction.  A
+`<def>`'s `<size>` determines the natural drawing size of the sub‑graphic,
+which `use` then scales, rotates, and translates as a whole.
+
+`<def>` blocks MUST NOT nest.  The body of a `<def>` is a sequence of
+`<instruction>` tokens — any instruction valid at the top level, including
+other `use` instructions.  A `def` block MUST NOT be empty.
+
+A `def` MUST NOT reference itself, directly or indirectly; such cycles render
+nothing beyond the implementation's recursion limit.
+
+### 4.9. Use (Instance)
+
+```
+use <name> [ at <x> <y> ] [ scale <sx> <sy> ] [ rotate <degrees> ]
+```
+
+Draws the sub‑graphic named `<name>` (Section 4.8).  `<name>` MUST have been
+defined before the `use`.
+
+Each optional clause is a `<number>` or pair of `<number>` tokens:
+
+- `at <x> <y>` — translate the sub‑graphic so its origin is at (`<x>`, `<y>`).
+  Default `0 0`.
+- `scale <sx> <sy>` — scale the sub‑graphic by (`<sx>`, `<sy>`) about its own
+  origin, before translation and rotation.  Default `1 1`.  Either component
+  MUST NOT be zero.
+- `rotate <degrees>` — rotate the sub‑graphic clockwise by `<degrees>` about
+  its own origin, after scaling and before translation.  Default `0`.
+
+The clauses MAY appear in any order and MAY be combined.  The transform is
+applied to the sub‑graphic's canvas as a whole: scale first, then rotation,
+then translation.  A `use` of an undefined `<name>` is an error.  The `at`,
+`scale`, and `rotate` tokens are only valid within a `use` line and MUST
+immediately follow it.
 
 ## 5. Path Steps And Options
 
@@ -284,17 +342,16 @@ cap [butt|round|square]
 ```
 
 Cap option sets the line caps of the stroke block it is in to
-butt, round, or square. It may not be used in a stroke block.
+butt, round, or square. It may not be used in a fill block.
 
-### 5.6. Join
-
+### 5.10. Join
 
 ```
 join [miter|round|bevel]
 ```
 
 Join option sets the line joints of the stroke block it is in to
-miter, round, or bevel. It may not be used in a stroke block.
+miter, round, or bevel. It may not be used in a fill block.
 
 
 ## 6. Sub‑Paths
@@ -369,6 +426,16 @@ stroke 1 #ffff00ff
   cubic 120 10 120 110 40 90
   close
 end
+
+// Reusable sub-graphic with its own canvas
+def panel
+  size 40 20
+  slab 0 0 40 20 #808080ff
+  rect 0 0 40 20 1 #ffffffff
+end
+
+use panel at 10 10
+use panel at 60 20 scale 2 1 rotate 45
 ```
 
 ## 9. Error Handling
@@ -383,4 +450,12 @@ A parser MUST abort and report an error when it encounters:
   `close`.
 - A path step keyword (`move`, `line`, `quad`, `cubic`, `arc`, `arcto`,
   `close`) appearing outside a `fill`/`stroke` block.
+- A `use` of a `<name>` that was never defined.
+- A `def` nested inside another `def`.
+- An empty `def` block.
+- A `size` or `antialias` declaration that follows a drawing instruction, a
+  path step, or (for the top level) a `def`.
+- An `end` token without an open `fill`, `stroke`, or `def`.
+- A `use` clause (`at`, `scale`, `rotate`) that does not immediately follow a
+  `use` instruction.
 - Unexpected end of input while reading a required value.
