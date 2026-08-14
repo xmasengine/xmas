@@ -43,8 +43,7 @@ func main() {
 	xgal.Screen(-1, -1, "xmas: Xmas Game Engine.")
 	xgal.Expand(true)
 	en := xeng.New(mon.Size())
-	logger := (&en.Log).Logger()
-	fmt.Printf("logger: %#v\n", logger)
+	logger := en.Log.Logger()
 	slog.SetDefault(logger)
 	if err := xgal.Play(en); err != nil {
 		fmt.Printf("error: %s", err)

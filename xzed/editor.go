@@ -166,7 +166,7 @@ func (e *Editor) LoadSource(name string) bool {
 	}
 	e.Error = err
 	if err != nil {
-		xlui.Complain(70, 70, 270, 120, err)
+		xlui.Complain(10, 10, 270, 120, err)
 	}
 	return e.Error == nil
 }
@@ -274,6 +274,8 @@ func (e *Editor) LoadZone(name string) bool {
 		e.ShowMessage("Zone loaded from %s", name)
 		e.Name = name
 		return true
+	} else {
+		xlui.Complain(10, 10, 270, 120, err)
 	}
 	return false
 }
