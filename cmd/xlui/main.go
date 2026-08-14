@@ -136,13 +136,12 @@ func main() {
 	layer7 := app.Layer(xgal.Bound(30, 80, 200, 100))
 	layer7.Talk("Hello world\nThis is me\nLife should be\nBlessed for everyone\nHello world.", 3)
 
-	list := app.List(xgal.Bound(150, 90, 80, 80))
-	list.Items = []string{"alpha", "beta", "gamma", "delta", "epsilon"}
-	list.Limit = 4
-	list.OnSelect = func(index int) {
+	list := app.List(xgal.Bound(150, 90, 80, 80), "alpha", "beta", "gamma", "delta", "epsilon", "omicron", "omega")
+	list.Class.Value = func(index int) xlui.Reply {
 		println("List: ", index)
+		return xlui.Accept
 	}
-	list.SelectItem(1)
+	list.Select(1)
 
 	bar := app.MenuBar(xgal.Bound(0, 0, WindowW, 20),
 		xlui.SubMenu("File", "Save", "New", "Open"),
