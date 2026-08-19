@@ -1,0 +1,9 @@
+<?xml?>
+<world name="Lord Of Christmas" start="map_0001.xml">
+<copyright>Copyright 2025-2026 Xmas Engine</copyright>
+<license>Engine: MIT license. Game Data: AGPL3 license.</license>
+<credits>
+Fonts: https://github.com/IT-Studio-Rech/bdf-fonts (MIT)
+</credits>
+<player name="Krista" src="pack/sprite/spri_0001.png"/>
+</world>

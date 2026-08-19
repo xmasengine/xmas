@@ -60,10 +60,11 @@ func (p *Player) loadTexture(fsys fs.FS) error {
 type World struct {
 	XMLName   xml.Name  `xml:"world"`
 	Name      string    `xml:"name,attr"`           // Name of the world.
+	Start     string    `xml:"start,attr"`          // Start map.
 	Copyright string    `xml:"copyright,omitempty"` // Copyright.
 	License   string    `xml:"license,omitempty"`   // License.
 	Credits   string    `xml:"credits,omitempty"`   // Credits.
-	Players   []*Player `xml:"players"`             // Player character data.
+	Players   []*Player `xml:"player"`              // Player character data.
 }
 
 func NewWorld(name string) *World {

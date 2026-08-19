@@ -34,13 +34,14 @@ type Engine struct {
 	Script      strings.Reader
 	DebugRow    int
 	ScreenSize  image.Point
-	Zone        *xdat.Zone
 	FS          fs.FS
 	Debug       bool
 	Camera      xgal.Rectangle
 	EditorLayer *xlui.Layer
 	Editor      *xzed.Editor
 	Windowed    bool
+	Zone        *xdat.Zone
+	World       *xdat.World
 }
 
 func New(sw, sh int) *Engine {
@@ -50,7 +51,7 @@ func New(sw, sh int) *Engine {
 	engine.Log.Hide = true
 	wd, _ := os.Getwd()
 	engine.FS = os.DirFS(wd)
-	engine.loadFirstZone()
+	engine.loadFirst()
 	return engine
 }
 
@@ -58,8 +59,13 @@ func dprintln(msg string, vars ...any) {
 	slog.Info(msg, "vars", vars)
 }
 
-func (engine *Engine) loadFirstZone() {
-	_, err := engine.LoadZone("map_0001.xml")
+func (engine *Engine) loadFirst() {
+	world, err := engine.LoadWorld()
+	if err != nil {
+		slog.Error("loading world", "err", err)
+	}
+
+	_, err = engine.LoadZone(world.Start)
 	if err != nil {
 		slog.Error("loading zone", "err", err)
 	}
@@ -179,6 +185,7 @@ func (g *Engine) Layout(outsideWidth, outsideHeight int) (screenWidth, screenHei
 }
 
 const ZoneDir = "pack/map"
+const WorldName = "pack/world/world.xml"
 
 func (g *Engine) LoadZone(name string) (*xdat.Zone, error) {
 	z, err := xdat.LoadZone(g.FS, path.Join(ZoneDir, name))
@@ -188,6 +195,16 @@ func (g *Engine) LoadZone(name string) (*xdat.Zone, error) {
 
 	g.Zone = z
 	return z, nil
+}
+
+func (g *Engine) LoadWorld() (*xdat.World, error) {
+	w, err := xdat.LoadWorld(g.FS, WorldName)
+	if err != nil {
+		return nil, err
+	}
+
+	g.World = w
+	return w, nil
 }
 
 func (g *Engine) SetLayerSource(layer *xdat.Layer, name string) error {
