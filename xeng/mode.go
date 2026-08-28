@@ -34,6 +34,7 @@ type Input int
 
 const (
 	InputNone Input = iota
+	InputStop
 	InputUp
 	InputRight
 	InputDown
@@ -41,13 +42,15 @@ const (
 	InputAction
 )
 
-type Output func(screen *xgal.Surface)
-type Runner func(input chan<- Input, output <-chan Output)
+type Output func(screen *xgal.Surface) (done bool, next Mode)
+type Runner func(output chan<- Output, input <-chan Input)
 
 type Thread struct {
-	input  chan<- Input
-	output <-chan Output
+	input  chan Input
+	output chan Output
 	run    Runner
+	done   bool
+	next   Mode
 }
 
 func (t *Thread) UpdateMode() (done bool, next Mode) {
@@ -66,7 +69,7 @@ func (t *Thread) UpdateMode() (done bool, next Mode) {
 			t.input <- InputAction
 		}
 	}
-	return false, nil
+	return t.done, t.next
 }
 
 func (t *Thread) DrawMode(screen *xgal.Surface) {
@@ -74,6 +77,39 @@ func (t *Thread) DrawMode(screen *xgal.Surface) {
 		if o == nil {
 			break
 		}
-		o(screen)
+		d, n := o(screen)
+		if d {
+			t.done = d
+			t.next = n
+		}
+	}
+}
+
+var _ Mode = &Thread{}
+
+func NewThread(run Runner) *Thread {
+	t := &Thread{}
+	t.run = run
+	return t
+}
+
+// Start a thread. No effect if already started.
+func (t *Thread) Start() {
+	if t.input == nil && t.output == nil {
+		t.input = make(chan Input)
+		t.output = make(chan Output)
+		go t.run(t.output, t.input)
+	}
+}
+
+// Stop a thread. No effect if already stopped or not started.
+func (t *Thread) Stop() {
+	if t.input != nil && t.output != nil {
+		t.input <- InputStop
+		close(t.input)
+		close(t.output)
+		t.input = nil
+		t.output = nil
+		t.done = true
 	}
 }

@@ -2,8 +2,11 @@
 
 xmas 2d game engine
 
-Note that the license only covers the engine itself. Games may be closed source
-and come with a commercial or more restrictive open FLOSS license.
+Note that the MIT license only covers the engine itself. Games may be closed
+source and come with a commercial or more restrictive open FLOSS license.
+
+The accompanying Lord Of Christmas game is licensed under the Sleepycat
+license.
 
 # Running
 
