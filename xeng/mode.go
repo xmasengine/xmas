@@ -42,74 +42,22 @@ const (
 	InputAction
 )
 
-type Output func(screen *xgal.Surface) (done bool, next Mode)
-type Runner func(output chan<- Output, input <-chan Input)
-
-type Thread struct {
-	input  chan Input
-	output chan Output
-	run    Runner
-	done   bool
-	next   Mode
-}
-
-func (t *Thread) UpdateMode() (done bool, next Mode) {
+func GetInput() []Input {
+	input := []Input{}
 	pressed := xgal.Keys()
 	for _, k := range pressed {
 		switch k {
 		case xgal.KeyArrowUp:
-			t.input <- InputUp
+			input = append(input, InputUp)
 		case xgal.KeyArrowDown:
-			t.input <- InputDown
+			input = append(input, InputDown)
 		case xgal.KeyArrowLeft:
-			t.input <- InputLeft
+			input = append(input, InputLeft)
 		case xgal.KeyArrowRight:
-			t.input <- InputRight
+			input = append(input, InputRight)
 		case xgal.KeyEnter:
-			t.input <- InputAction
+			input = append(input, InputAction)
 		}
 	}
-	return t.done, t.next
-}
-
-func (t *Thread) DrawMode(screen *xgal.Surface) {
-	for o := range t.output {
-		if o == nil {
-			break
-		}
-		d, n := o(screen)
-		if d {
-			t.done = d
-			t.next = n
-		}
-	}
-}
-
-var _ Mode = &Thread{}
-
-func NewThread(run Runner) *Thread {
-	t := &Thread{}
-	t.run = run
-	return t
-}
-
-// Start a thread. No effect if already started.
-func (t *Thread) Start() {
-	if t.input == nil && t.output == nil {
-		t.input = make(chan Input)
-		t.output = make(chan Output)
-		go t.run(t.output, t.input)
-	}
-}
-
-// Stop a thread. No effect if already stopped or not started.
-func (t *Thread) Stop() {
-	if t.input != nil && t.output != nil {
-		t.input <- InputStop
-		close(t.input)
-		close(t.output)
-		t.input = nil
-		t.output = nil
-		t.done = true
-	}
+	return input
 }

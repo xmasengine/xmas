@@ -42,6 +42,7 @@ type Engine struct {
 	Windowed    bool
 	Zone        *xdat.Zone
 	World       *xdat.World
+	Mode        Mode
 }
 
 func New(sw, sh int) *Engine {
@@ -52,6 +53,7 @@ func New(sw, sh int) *Engine {
 	wd, _ := os.Getwd()
 	engine.FS = os.DirFS(wd)
 	engine.loadFirst()
+	engine.Mode = &Intro{World: engine.World}
 	return engine
 }
 
@@ -64,11 +66,13 @@ func (engine *Engine) loadFirst() {
 	if err != nil {
 		slog.Error("loading world", "err", err)
 	}
+	engine.World = world
 
-	_, err = engine.LoadZone(world.Start)
+	zone, err := engine.LoadZone(world.Start)
 	if err != nil {
 		slog.Error("loading zone", "err", err)
 	}
+	engine.Zone = zone
 }
 
 func (g *Engine) Update() error {
@@ -76,6 +80,14 @@ func (g *Engine) Update() error {
 
 	res := xlui.Poll()
 	if res == xlui.Finish || res == xlui.Accept {
+		return nil
+	}
+
+	if g.Mode != nil {
+		done, next := g.Mode.UpdateMode()
+		if done {
+			g.Mode = next
+		}
 		return nil
 	}
 
@@ -162,6 +174,12 @@ func (g *Engine) Update() error {
 const tileDebug = false
 
 func (g *Engine) Draw(screen *xgal.Surface) {
+	if g.Mode != nil {
+		g.Mode.DrawMode(screen)
+		xlui.Render(screen)
+		return
+	}
+
 	if g.Zone != nil {
 		g.RenderZone(screen, g.Camera)
 		if g.Debug {
