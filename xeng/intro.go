@@ -27,7 +27,7 @@ func (i Intro) DrawMode(screen *xgal.Surface) {
 	white := xgal.Paint(255, 255, 255, 255)
 	black := xgal.Paint(0, 0, 0, 255)
 	xgal.Clear(screen, black)
-	cx := 120 - i.anim
+	cx := 120 - (i.anim * 2)
 	if cx < 40 {
 		cx = 40
 	}
@@ -36,7 +36,7 @@ func (i Intro) DrawMode(screen *xgal.Surface) {
 	xgal.Line(screen, cx, cy, cx, cy+120, 12, white)
 	xgal.Line(screen, cx-40, cy+40, cx+40, cy+40, 12, white)
 
-	if /*i.anim < 120 ||*/ i.World == nil {
+	if i.World == nil {
 		return
 	}
 
